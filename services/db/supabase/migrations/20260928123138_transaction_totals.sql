@@ -1,7 +1,6 @@
--- Keep expensive aggregation behind date-bounded, explicitly authorized RPCs.
--- Pre-aggregate compatible facts before current fee lookup; numeric arithmetic
--- remains exact and groups with missing ownership/rates preserve SQL NULL sums.
-create function public.transaction_totals(
+-- Aggregate the caller's permitted company rows within the requested UTC dates.
+-- Exact numeric sums retain the distinction between missing fees and zero.
+create function private.read_transaction_totals(
     p_date_from date default null,
     p_date_to date default null,
     p_company_ids uuid[] default null,
@@ -18,33 +17,26 @@ create function public.transaction_totals(
     p_search_sources text[] default null,
     p_granularity text default null
 ) returns jsonb
-language plpgsql stable security invoker
+language plpgsql stable security definer
 set search_path = ''
 set plan_cache_mode = 'force_custom_plan'
--- Favor hash grouping within the caller's memory limits. JSON ordering stays in
--- its ordered aggregate, without a disabled-sort cost penalty. Caller memory
--- limits are inherited, and these planner preferences end with this function.
-set enable_sort = 'off'
-set enable_presorted_aggregate = 'off' as $$
+as $$
 declare
     result jsonb;
+    companies uuid[] := private.transaction_company_scope(p_company_ids);
 begin
-    perform private.validate_transaction_filters(
-        p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces,
-        p_sources, p_types, p_require_date => true
+    perform private.validate_live_transaction_filters(
+        p_date_from, p_date_to, p_company_ids, p_skus, p_marketplaces, p_sources,
+        p_types, p_search_skus, p_search_types, p_search_marketplaces, p_search_sources, p_currency, true
     );
-    perform private.validate_transaction_filters(
-        null, null, null, p_search_skus, p_search_marketplaces,
-        p_search_sources, p_search_types
-    );
-    if p_currency is not null and p_currency !~ '^[A-Z]{3}$' then
-        raise exception 'Currency must be a three-letter uppercase code' using errcode = '22023';
-    end if;
     if p_group_by_type is null then
         raise exception 'Grouping preference is required' using errcode = '22023';
     end if;
     if p_granularity is not null and p_granularity not in ('day', 'week') then
         raise exception 'Trend granularity must be day or week' using errcode = '22023';
+    end if;
+    if cardinality(companies)=0 then
+        return jsonb_build_object('rows','[]'::jsonb,'group_count','0');
     end if;
     result:=(
         with totals as (
@@ -53,7 +45,11 @@ begin
                 date_trunc(p_granularity,c.activity_at at time zone 'UTC')::date as period_start,
                 sum(c.source_amount) as reported_amount,sum(c.fee_amount) as service_fee,sum(c.company_amount) as company_amount,
                 count(*) as row_count,count(c.company_amount) as known_company_count
-            from private.filtered_components(p_date_from,p_date_to,p_company_ids,p_skus,p_marketplaces,p_sources,p_types,p_fee_applicable,p_search_skus,p_search_types,p_search_marketplaces,p_search_sources,p_currency) c group by 1,2,3,4
+            from private.filtered_components(
+                p_date_from, p_date_to, companies, p_skus, p_marketplaces, p_sources, p_types,
+                p_fee_applicable, p_search_skus, p_search_types, p_search_marketplaces,
+                p_search_sources, p_currency
+            ) c group by 1,2,3,4
         ),
         bounded_groups as materialized (
             select t.* from totals as t
@@ -85,6 +81,32 @@ begin
     end if;
     return result;
 end;
+$$;
+create function public.transaction_totals(
+    p_date_from date default null,
+    p_date_to date default null,
+    p_company_ids uuid[] default null,
+    p_skus text[] default null,
+    p_marketplaces text[] default null,
+    p_currency text default null,
+    p_group_by_type boolean default false,
+    p_sources text[] default null,
+    p_types text[] default null,
+    p_fee_applicable boolean default null,
+    p_search_skus text[] default null,
+    p_search_types text[] default null,
+    p_search_marketplaces text[] default null,
+    p_search_sources text[] default null,
+    p_granularity text default null
+) returns jsonb
+language sql stable security invoker set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+    select private.read_transaction_totals(
+        p_date_from, p_date_to, p_company_ids, p_skus,
+        p_marketplaces, p_currency, p_group_by_type, p_sources,
+        p_types, p_fee_applicable, p_search_skus, p_search_types,
+        p_search_marketplaces, p_search_sources, p_granularity
+    );
 $$;
 revoke all on function public.transaction_totals(
     date, date, uuid[], text[], text[], text, boolean,
@@ -141,17 +163,27 @@ begin
     perform private.validate_page_bounds(p_limit,p_offset);
     select * into report from public.company_payout_reports r where r.id=p_report_id;
     if not found then raise exception 'Report access required' using errcode='42501'; end if;
+    if not p_group_by_type then
+        return jsonb_build_object(
+            'rows',case when report.record_count = 0 or p_offset > 0 then '[]'::jsonb else
+                jsonb_build_array(jsonb_build_object('currency',report.currency,'component_type',null,
+                    'reported_amount',report.source_amount::text,'service_fee',report.fee_amount::text,
+                    'company_amount',report.company_amount::text,'row_count',report.record_count::text,
+                    'known_company_count',report.record_count::text)) end,
+            'next_offset',null
+        );
+    end if;
     return (
         with totals as (
             select report.currency,
-                case when p_group_by_type then c.component_type::text end as component_type,
-                (case when p_group_by_type then sum(c.source_amount) else report.source_amount end)::text as reported_amount,
-                (case when p_group_by_type then sum(c.fee_amount) else report.fee_amount end)::text as service_fee,
-                (case when p_group_by_type then sum(c.company_amount) else report.company_amount end)::text as company_amount,
+                c.component_type::text as component_type,
+                sum(c.source_amount)::text as reported_amount,
+                sum(c.fee_amount)::text as service_fee,
+                sum(c.company_amount)::text as company_amount,
                 count(*)::text as row_count,
                 count(c.company_amount)::text as known_company_count
             from private.read_payout_report_records(p_report_id) c
-            group by case when p_group_by_type then c.component_type::text end
+            group by c.component_type::text
         ), selected as materialized (
             select * from totals
             order by currency collate "C",component_type collate "C" nulls first

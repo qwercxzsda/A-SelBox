@@ -53,8 +53,8 @@ export async function mockSupabase(page) {
       return respondWithPayoutReadiness(fixture, context);
     if (
       [
-        "/rest/v1/financial_outcomes",
-        "/rest/v1/financial_review_monthly",
+        "/rest/v1/rpc/financial_outcome_page",
+        "/rest/v1/rpc/financial_review_month_page",
         "/rest/v1/assignment_status",
       ].includes(url.pathname)
     )

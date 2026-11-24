@@ -103,6 +103,35 @@ class TransactionPageTests(TransactionPageFixture):
                     p_include_count=include_count,
                 )
 
+    def test_date_probe_retries_past_hidden_rows_in_both_directions(self) -> None:
+        company, _ = self.owner("VISIBLE")
+        self.owner("OTHER")
+        # Fill both ends of the time index with another company's transactions.
+        # Neither edge contains enough matching rows for the requested offset.
+        rows = [
+            self.transaction("1", index + 3, sku="OTHER", activity_date=day)
+            for day in ("2026-06-01", "2026-06-03")
+            for index in range(70)
+        ]
+        rows.extend(
+            self.transaction("5", index + 3, sku="VISIBLE", activity_date="2026-06-02")
+            for index in range(3)
+        )
+        self.finances(rows)
+        for user in (self.member(company), self.administrator()):
+            for direction in ("asc", "desc"):
+                with self.subTest(user=user, direction=direction):
+                    page = self.assert_matches_view(
+                        user,
+                        p_skus=["VISIBLE"],
+                        p_direction=direction,
+                        p_offset=1,
+                        p_limit=2,
+                        p_include_count=False,
+                    )
+                    self.assertEqual(len(cast(list[object], page["rows"])), 2)
+                    self.assertIsNone(page["total_count"])
+
     def test_each_selection_applies_before_a_source_is_limited(self) -> None:
         company_a, company_b = self.financial_fixture()
         selections: tuple[dict[str, object], ...] = (

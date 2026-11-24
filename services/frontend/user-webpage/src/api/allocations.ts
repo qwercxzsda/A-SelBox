@@ -69,21 +69,28 @@ function pageParams(pageIndex: number, select: string, order: string) {
     offset: String(pageIndex * DETAIL_PAGE_SIZE),
   });
 }
-function periodParams(
-  params: URLSearchParams,
+function reviewPageParams(
+  pageIndex: number,
+  select: string,
+  order: string,
   month: string,
   marketplace: string,
-  column: "month" | "posted_date",
 ) {
+  validatePagination(pageIndex, DETAIL_PAGE_SIZE);
+  const params = new URLSearchParams({
+    // PostgREST emits RPC CSV headers alphabetically; request values in the same order.
+    select: select.split(",").sort().join(","),
+    order,
+    p_limit: String(DETAIL_PAGE_SIZE + 1),
+    p_offset: String(pageIndex * DETAIL_PAGE_SIZE),
+  });
   if (month) {
     const start = month + "-01";
     requireCalendarDate(start);
-    params.append(column, "gte." + start);
-    const next = new Date(start + "T00:00:00Z");
-    next.setUTCMonth(next.getUTCMonth() + 1);
-    params.append(column, "lt." + next.toISOString().slice(0, 10));
+    params.set("p_month", start);
   }
-  if (marketplace) params.set("marketplace_name", "eq." + marketplace);
+  if (marketplace) params.set("p_marketplace", marketplace);
+  return params;
 }
 
 export function createAllocationApi(transport: ApiTransport) {
@@ -92,12 +99,13 @@ export function createAllocationApi(transport: ApiTransport) {
     endpoint: string,
     params: URLSearchParams,
     label: string,
+    pageIndex: number,
     signal?: AbortSignal,
   ) {
     // A full count would run the financial calculation again just to enable Next.
     const { rows } = await transport.readCsvPage(token, endpoint, params, label, signal, false);
     const totalCount =
-      rows.length > DETAIL_PAGE_SIZE ? null : Number(params.get("offset")) + rows.length;
+      rows.length > DETAIL_PAGE_SIZE ? null : pageIndex * DETAIL_PAGE_SIZE + rows.length;
     return { rows: rows.slice(0, DETAIL_PAGE_SIZE), totalCount };
   }
   return {
@@ -107,18 +115,20 @@ export function createAllocationApi(transport: ApiTransport) {
       pageIndex: number,
       signal?: AbortSignal,
     ) {
-      const params = pageParams(
+      const params = reviewPageParams(
         pageIndex,
         "source_row_id,seller_namespace,amazon_scope,marketplace_name,currency,posted_date,component_type,outcome,reason,selbox_group,source,source_version_id,reference_id,sku,skus,fnsku,asin,base_amount,tax_amount,company_id",
         "posted_date.desc,source_row_id,outcome,reason,marketplace_name",
+        filters.month,
+        filters.marketplace,
       );
-      params.set("outcome", "eq." + filters.outcome);
-      periodParams(params, filters.month, filters.marketplace, "posted_date");
+      params.set("p_outcome", filters.outcome);
       const page = await readPage(
         token,
-        "financial_outcomes",
+        "rpc/financial_outcome_page",
         params,
         "Financial outcomes",
+        pageIndex,
         signal,
       );
       const rows = page.rows.map((row) => {
@@ -136,13 +146,21 @@ export function createAllocationApi(transport: ApiTransport) {
       pageIndex: number,
       signal?: AbortSignal,
     ) {
-      const params = pageParams(
+      const params = reviewPageParams(
         pageIndex,
         "seller_namespace,amazon_scope,marketplace_name,currency,month,finances_base,finances_tax,company_base,company_tax,selbox_base,selbox_tax,difference_base,difference_tax",
         "month.desc,seller_namespace,amazon_scope,marketplace_name,currency",
+        month,
+        marketplace,
       );
-      periodParams(params, month, marketplace, "month");
-      return readPage(token, "financial_review_monthly", params, "Monthly outcomes", signal);
+      return readPage(
+        token,
+        "rpc/financial_review_month_page",
+        params,
+        "Monthly outcomes",
+        pageIndex,
+        signal,
+      );
     },
     async fetchAssignmentStatus(
       token: string,
@@ -157,7 +175,14 @@ export function createAllocationApi(transport: ApiTransport) {
       );
       if (filters.kind) params.set("kind", "eq." + filters.kind);
       if (filters.warningsOnly) params.set("warning", "not.is.null");
-      const page = await readPage(token, "assignment_status", params, "Source assignments", signal);
+      const page = await readPage(
+        token,
+        "assignment_status",
+        params,
+        "Source assignments",
+        pageIndex,
+        signal,
+      );
       return { ...page, rows: page.rows.map(decodeAssignment) };
     },
     setReferenceAssignment(

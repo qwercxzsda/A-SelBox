@@ -81,6 +81,8 @@ public.transaction_totals(
     text[],
     text
 ),
+public.financial_outcome_page(text, date, text, integer, bigint),
+public.financial_review_month_page(date, text, integer, bigint),
 public.payout_report_policy(), public.payout_readiness(date, uuid[], integer, bigint),
 public.payout_setup_blockers(uuid, date, integer, bigint),
 public.payout_report_records(uuid, integer, bigint, text[]),
@@ -168,6 +170,8 @@ public.transaction_totals(
     text[],
     text
 ),
+public.financial_outcome_page(text, date, text, integer, bigint),
+public.financial_review_month_page(date, text, integer, bigint),
 public.payout_report_policy(), public.payout_readiness(date, uuid[], integer, bigint),
 public.payout_setup_blockers(uuid, date, integer, bigint),
 public.payout_report_records(uuid, integer, bigint, text[]),
@@ -234,22 +238,21 @@ private.read_sku_configuration(), private.publish_administrator_sku_configuratio
 private.validate_page_bounds(integer, bigint),
 private.validate_transaction_filters(date, date, uuid[], text[], text[], text[], text[], boolean),
 private.visible_company_components(date, date, text[], text, uuid[]),
-private.filtered_components(
-    date,
-    date,
-    uuid[],
-    text[],
-    text[],
-    text[],
-    text[],
-    boolean,
-    text[],
-    text[],
-    text[],
-    text[],
-    text
+private.read_transaction_count(
+    date, date, uuid[], text[], text[], text[], text[], boolean,
+    text[], text[], text[], text[], text
+),
+private.read_transaction_page(
+    integer, bigint, text, date, date, uuid[], text[], text[], text[], text[], boolean, boolean,
+    text, text[], text[], text[], text[], text
+),
+private.read_transaction_totals(
+    date, date, uuid[], text[], text[], text, boolean, text[], text[], boolean,
+    text[], text[], text[], text[], text
 ),
 private.read_financial_outcomes(), private.read_monthly_financial_totals(),
+private.read_financial_outcome_page(text, date, text, integer, bigint),
+private.read_financial_review_month_page(date, text, integer, bigint),
 private.assign_reference_as_admin(text, text, text, text, uuid, uuid, text),
 private.read_payout_readiness(date, uuid[], integer, bigint),
 private.read_payout_setup_blockers(uuid, date, integer, bigint),

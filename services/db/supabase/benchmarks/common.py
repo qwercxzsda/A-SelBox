@@ -125,6 +125,16 @@ def psql(database: str, statement: str, *, role: str = "postgres") -> str:
     )
 
 
+def bind_authenticated_actor(connection: Connection, user: str) -> None:
+    """Bind the signed-in REST role and subject to this transaction."""
+    connection.execute("set local role authenticated")
+    connection.execute(
+        "select set_config('request.jwt.claims',%s,true), "
+        "set_config('request.jwt.claim.sub',%s,true)",
+        (json.dumps({"sub": user, "role": "authenticated"}), user),
+    )
+
+
 def digest(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 

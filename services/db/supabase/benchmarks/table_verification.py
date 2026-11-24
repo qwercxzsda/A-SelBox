@@ -8,7 +8,7 @@ from typing import TypedDict, cast
 
 from psycopg import sql
 
-from .common import Connection
+from .common import Connection, bind_authenticated_actor
 from .datasets import DATASETS, Dataset, canonical_rows
 from .search_cases import SEARCH_COLUMNS, SearchCase
 from .search_resolution import resolve_search_values
@@ -73,12 +73,7 @@ def read_reference(connection: Connection, user: str, case: SearchCase) -> Paylo
     predicate, params = view_filter(case)
     relation = reference_relation(case.dataset)
     with connection.transaction():
-        connection.execute("set local role authenticated")
-        connection.execute(
-            "select set_config('request.jwt.claims',%s,true), "
-            "set_config('request.jwt.claim.sub',%s,true)",
-            (json.dumps({"sub": user, "role": "authenticated"}), user),
-        )
+        bind_authenticated_actor(connection, user)
         if case.expect_cap:
             row = connection.execute(
                 sql.SQL(
@@ -164,12 +159,7 @@ def read_rpc_page(
 def discover_cases(connection: Connection, user: str) -> list[SearchCase]:
     cases: list[SearchCase] = []
     with connection.transaction():
-        connection.execute("set local role authenticated")
-        connection.execute(
-            "select set_config('request.jwt.claims',%s,true), "
-            "set_config('request.jwt.claim.sub',%s,true)",
-            (json.dumps({"sub": user, "role": "authenticated"}), user),
-        )
+        bind_authenticated_actor(connection, user)
         administrator = connection.execute("select private.is_administrator()").fetchone() == (
             True,
         )

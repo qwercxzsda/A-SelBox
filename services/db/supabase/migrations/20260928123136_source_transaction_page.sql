@@ -9,8 +9,7 @@ create function public.source_transaction_page(
     p_search_marketplaces text[] default null
 ) returns jsonb language plpgsql stable security invoker
 set search_path = '' set plan_cache_mode = 'force_custom_plan' as $$
-declare fact_relation text; entry_relation text; timestamp_expression text;
-    sort_expression text; sort_direction text; tie_direction text; sort_nulls text;
+declare sort_expression text; sort_direction text; tie_direction text; sort_nulls text;
     candidate_cap text; candidate_materialization text; result jsonb;
 begin
     if not private.financial_account_visible() then
@@ -25,10 +24,7 @@ begin
         raise exception 'Valid ordering and count preference required' using errcode='22023'; end if;
     perform private.validate_transaction_filters(p_date_from,p_date_to,null,p_skus,p_marketplaces,null,p_types);
     perform private.validate_transaction_filters(null,null,null,p_search_skus,p_search_marketplaces,null,p_search_types);
-    fact_relation:='finances_component_details';
-    entry_relation:='finances_preprocess_entries';
-    timestamp_expression:='t.posted_at';
-    sort_expression:=case p_order_by when 'amount' then 't.amount' else timestamp_expression end;
+    sort_expression:=case p_order_by when 'amount' then 'a.amount' else 't.posted_at' end;
     sort_direction:=case p_direction when 'asc' then 'asc' else 'desc' end;
     tie_direction:=case p_order_by when 'date' then sort_direction else 'asc' end;
     sort_nulls:=case when p_order_by='date' and p_direction='desc' then 'first' else 'last' end;
@@ -36,30 +32,31 @@ begin
     candidate_materialization:=case p_order_by when 'amount' then 'materialized' else 'not materialized' end;
     execute format($query$
       with matching as not materialized (
-        select t.id,%2$s as activity_at,%3$s as sort_value from private.%1$I t
-        where ($1::date is null or %2$s >= $1::timestamp at time zone 'UTC')
-          and ($2::date is null or %2$s < ($2 + 1)::timestamp at time zone 'UTC')
-          and (coalesce(cardinality($3::text[]),0)=0 or t.sku=any($3))
+        select a.id,t.posted_at as activity_at,%1$s as sort_value
+        from private.finances_transactions t join private.finances_amounts a using(version_id)
+        where ($1::date is null or t.posted_at >= $1::timestamp at time zone 'UTC')
+          and ($2::date is null or t.posted_at < ($2 + 1)::timestamp at time zone 'UTC')
+          and (coalesce(cardinality($3::text[]),0)=0 or a.sku=any($3))
           and (coalesce(cardinality($4::text[]),0)=0 or t.marketplace_name=any($4))
-          and (coalesce(cardinality($5::text[]),0)=0 or t.component_type=any($5))
+          and (coalesce(cardinality($5::text[]),0)=0 or a.amount_type=any($5))
           and (($9::text[] is null and $10::text[] is null and $11::text[] is null)
-            or t.sku=any($9) or t.component_type=any($10) or t.marketplace_name=any($11))
-      ), candidates as %9$s (select * from matching %8$s),
+            or a.sku=any($9) or a.amount_type=any($10) or t.marketplace_name=any($11))
+      ), candidates as %6$s (select * from matching %5$s),
       page as materialized (
-        select * from candidates order by sort_value %4$s nulls %6$s,id %5$s limit $6 offset $7
+        select * from candidates order by sort_value %2$s nulls %4$s,id %3$s limit $6 offset $7
       ), result_rows as (
         select p.sort_value,p.id,
           (select jsonb_object_agg(key,value) from jsonb_each_text(to_jsonb(e)))
             || jsonb_build_object('activity_at',
               to_char(p.activity_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')) as payload
-        from page p join public.%7$I e on e.id=p.id
+        from page p join public.finances_preprocess_entries e on e.id=p.id
       )
       select case when $12 and (select count(*) from candidates)>10000 then null::jsonb
         else jsonb_build_object(
-          'rows',(select coalesce(jsonb_agg(payload order by sort_value %4$s nulls %6$s,id %5$s),'[]'::jsonb) from result_rows),
+          'rows',(select coalesce(jsonb_agg(payload order by sort_value %2$s nulls %4$s,id %3$s),'[]'::jsonb) from result_rows),
           'total_count',case when $8 then (select count(*)::text from matching) end)
         end
-    $query$,fact_relation,timestamp_expression,sort_expression,sort_direction,tie_direction,sort_nulls,entry_relation,candidate_cap,candidate_materialization)
+    $query$,sort_expression,sort_direction,tie_direction,sort_nulls,candidate_cap,candidate_materialization)
     into result using p_date_from,p_date_to,p_skus,p_marketplaces,p_types,p_limit,p_offset,
         p_include_count,p_search_skus,p_search_types,p_search_marketplaces,p_order_by='amount';
     if result is null then

@@ -198,9 +198,18 @@ create table private.finances_amounts (
 );
 create index finances_amounts_reference_idx on private.finances_amounts (reference_id, route)
 where reference_id is not null;
-create index finances_amounts_sku_idx on private.finances_amounts (sku) where sku is not null;
+-- Seek directly to the next seller SKU and check that amount's transaction for activity.
+create index finances_amounts_sku_idx on private.finances_amounts (sku, version_id)
+where sku is not null;
+-- Only commission-bearing amounts contribute required dates to the fee editor.
+create index finances_amounts_fee_sku_idx on private.finances_amounts (sku, version_id)
+where fee_base is not null;
 create index finances_amounts_covered_month_idx on private.finances_amounts (covered_month, route)
 where covered_month is not null;
+
+-- Only charges routed through another identifier need reference matching.
+create index finances_indirect_version_idx on private.finances_amounts (version_id)
+where route not in ('SKU', 'SELBOX');
 
 create table private.ad_invoices (
     version_id public.local_uuid primary key,

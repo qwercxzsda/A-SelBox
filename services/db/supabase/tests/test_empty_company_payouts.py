@@ -54,7 +54,15 @@ class EmptyCompanyPayoutTests(SourceModelFixture):
             [original | {"sku": "UNASSIGNED"}],
             acquisition_id=acquisition,
         )
-        self.assertEqual(len(generate_payout_reports(self, company)), 1)
+        [(report, _)] = generate_payout_reports(self, company)
+        member = self.member(company)
+        for grouped in (False, True):
+            self.assertEqual(
+                self.as_user(
+                    member, "select public.payout_report_totals(%s,%s)", (report, grouped)
+                ),
+                [({"rows": [], "next_offset": None},)],
+            )
         self.assertEqual(
             self.connection.execute(
                 "select record_count,company_amount from public.company_payout_reports"

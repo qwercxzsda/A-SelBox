@@ -125,7 +125,8 @@ create function private.read_payout_setup_blockers(
     sku text, reason text, marketplace_name text, first_date date, last_date date,
     component_count bigint
 )
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql stable security definer set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
 declare month_end date;
 begin
     if not private.is_administrator() then
@@ -137,10 +138,10 @@ begin
     end if;
     month_end:=private.payout_month_end(p_month);
     return query select c.sku::text,c.resolution_status,c.marketplace_name,
-        min(c.activity_date),max(c.activity_date),count(*)
-    from public.live_company_components c
-    where c.activity_date between p_month and month_end
-        and c.resolution_status='MISSING_FEE' and c.company_id=p_company_id
+        min(c.posted_date),max(c.posted_date),count(*)
+    from private.direct_financial_amounts(null,null) c
+    where c.posted_date between p_month and month_end
+        and c.fee_base is not null and c.resolution_status='MISSING_FEE' and c.company_id=p_company_id
     group by c.sku,c.resolution_status,c.marketplace_name
     order by c.sku,c.resolution_status,c.marketplace_name limit p_limit offset p_offset;
 end;

@@ -35,8 +35,6 @@ class TransactionTotalsTests(TransactionTotalsFixture):
             {
                 'search_path=""',
                 "plan_cache_mode=force_custom_plan",
-                "enable_sort=off",
-                "enable_presorted_aggregate=off",
             },
         )
 

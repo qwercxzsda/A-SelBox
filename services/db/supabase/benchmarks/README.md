@@ -4,6 +4,18 @@ The clone-based harnesses measure the installed database API on disposable local
 Current query/index guidance is in [Database performance](../../../../docs/database_performance.md).
 Clone-based runners require a seed installed from the current baseline.
 
+For the running local project, apply the current migrations and populate it with the
+[sync workflow](../../../sync/README.md). Run the workspace benchmark from the repository root:
+
+```sh
+conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.workspace_benchmark \
+  --local-read-only --output-dir /private/tmp/aselbox-local-workspace-results --repeat 3
+```
+
+This mode uses a read-only connection to the configured loopback PostgreSQL project on port
+54322. Sampling requires application accounts with the roles you want to measure. The clone
+commands below use the separate seed stack.
+
 Run from the repository root with the frontend seed database and REST containers available:
 
 ```sh
@@ -15,6 +27,9 @@ conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchma
 
 conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.search_benchmark \
   --output-dir /private/tmp/aselbox-search-results --repeat 3 --fixtures seed
+
+conda run --no-capture-output -n A-SelBox python -m services.db.supabase.benchmarks.workspace_benchmark \
+  --output-dir /private/tmp/aselbox-workspace-results --repeat 5 --fixtures seed
 ```
 
 The output directory must be new. `--fixtures seed` uses an unexpanded copy of a seed installed
@@ -40,6 +55,18 @@ cleanup status and writes results atomically.
   raw-view substring queries verify these benchmark terms without sorting over-limit scopes.
   Frontend tests separately cover humanized labels and Unicode matching.
 
+- **Workspace reads** exercise fee configuration, company SKU lists, inventory captures/items,
+  workspace revisions, payout lists, readiness and saved report records and totals for both roles.
+  The administrator also reads account access, assignment warnings, payout setup blockers, and
+  the ordered Financial review pages with and without marketplace/month filters. This runner
+  times complete PostgreSQL fetches in read-only transactions using the authenticated database
+  role and the selected user's JWT subject. Browser rendering and HTTP transport are outside
+  those timings. The aggregation benchmark covers the administrator's complete SKU catalog.
+  Each case gets one warm-up. Results record role, case, measured milliseconds and median.
+  The report drawer uses the largest visible nonempty latest report; member selection prefers
+  an account with such a report. Missing accounts, reports or outcome scopes are marked as
+  skipped. Review filter values are discovered from visible rows and stay in memory.
+
 The live reference view includes company and account outcomes. Raw Finances cases retain immutable historical versions for administrators.
 Each actor's permitted data supplies its scope. Summary filter values are selected from positive
 transactions inside the benchmark date range; records include the actual bounds and
@@ -54,7 +81,7 @@ current-source visibility, missing fees, and exact numeric values.
 
 ## Fixture lifecycle
 
-Only the fixed seed stack on loopback port 55422 is used. Docker is pinned to a validated local Unix
+Clone creation uses the fixed seed stack on loopback port 55422. Docker is pinned to a validated local Unix
 socket. An existing benchmark database causes refusal rather than reuse. The harness creates and
 removes only its allowlisted clones and temporary REST containers, using the installed image with
 `--pull=never` and a fresh synthetic signing key.

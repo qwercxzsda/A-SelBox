@@ -312,8 +312,12 @@ returns table (
     company_amount numeric,
     resolution_status text
 )
-language plpgsql stable security definer set search_path = '' as $$
-declare r public.company_payout_reports;
+language plpgsql stable security definer set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+declare
+    r public.company_payout_reports;
+    source_ids uuid[];
+    assignment_ids uuid[];
 begin
     select * into r from public.company_payout_reports where id=p_report_id;
     if not found or not (private.is_administrator() or exists(select 1 from public.app_accounts a
@@ -322,12 +326,19 @@ begin
             (select relowner from pg_class where oid='public.app_accounts'::regclass),'USAGE')) then
         raise insufficient_privilege;
     end if;
+    -- Passing pin arrays as ordinary arguments allows the planner to inline the
+    -- allocation and push the report filters into its source and owner joins.
+    source_ids := array(
+        select p.version_id::uuid from private.payout_report_source_versions p where p.report_id = r.id
+    );
+    assignment_ids := array(
+        select p.version_id::uuid from private.payout_report_assignment_versions p where p.report_id = r.id
+    );
     return query select r.id::uuid,f.source,f.source_row_id,f.source_version_id,f.source_identity_id,f.sku_id,
         f.terms_version_id,f.fee_period_id,f.sku,f.marketplace_name,f.posted_date,f.component_type,f.currency,
         f.base_amount,f.tax_amount,f.base_amount+f.tax_amount,f.quantity,f.fee_base,f.fee_rate_percent,
         f.fee_amount,f.company_amount,f.resolution_status
-    from private.calculate_amounts(array(select p.version_id::uuid from private.payout_report_source_versions p where p.report_id=r.id),
-        array(select p.version_id::uuid from private.payout_report_assignment_versions p where p.report_id=r.id)) f
+    from private.calculate_amounts(source_ids,assignment_ids) f
     where f.outcome='COMPANY' and f.company_id=r.company_id and f.posted_date between r.start_date and r.end_date
         and (f.marketplace_name,f.currency)=(r.marketplace_name,r.currency);
 end;

@@ -2,8 +2,8 @@
 -- Only a currently registered administrator can call this RPC. Members
 -- obtain their SKU choices from company_skus instead. Keep SECURITY INVOKER and
 -- authenticate against database state, not caller-controlled role metadata.
--- Native deterministic SKU-index seeks skip duplicate facts; the final C ordering
--- preserves exact names across both complete fact histories and the registry.
+-- Seek past every occurrence of the previous SKU. Its qualifying activity may
+-- be on any retained version, even if that version is no longer current.
 create function public.sku_filter_options() returns jsonb
 language plpgsql stable security invoker
 set search_path = ''
@@ -13,8 +13,19 @@ begin
         raise exception 'Administrator access required' using errcode = '42501';
     end if;
     return (
-        with sku_values as (
-            select sku from private.finances_component_details where activity_eligible
+        with recursive finance_skus(sku) as (
+            (select a.sku from private.finances_amounts a
+             join private.finances_transactions t using(version_id)
+             where a.sku is not null and t.is_activity order by a.sku, a.version_id limit 1)
+            union all
+            select next_sku.sku from finance_skus previous
+            cross join lateral (
+                select a.sku from private.finances_amounts a
+                join private.finances_transactions t using(version_id)
+                where a.sku > previous.sku and t.is_activity order by a.sku, a.version_id limit 1
+            ) next_sku
+        ), sku_values as (
+            select sku from finance_skus
             union all
             select r.sku from private.inventory_ledger_rows r
             join private.source_units u on u.current_version_id = r.version_id
@@ -45,12 +56,11 @@ from public, anon, authenticated, service_role;
 create function private.sku_configuration_required_dates(p_skus text[])
 returns table (sku text, marketplace_name text, activity_date date)
 language sql stable security invoker set search_path = '' as $$
-    select distinct t.sku, t.marketplace_name, t.posted_date
-    from private.finances_component_details as t
-    where t.sku = any(p_skus) and t.route = 'SKU'
-        and t.fee_base is not null
-        and t.is_current and t.activity_eligible
-;
+    select distinct a.sku, t.marketplace_name::text, t.posted_date
+    from private.finances_amounts as a
+    join private.finances_transactions as t using(version_id)
+    join private.source_units as u on u.current_version_id=a.version_id
+    where a.sku = any(p_skus) and a.fee_base is not null and t.is_activity;
 $$;
 
 -- Both read diagnostics and write validation share the same source/terms query.
@@ -101,34 +111,34 @@ language sql stable security invoker set search_path = '' as $$
         union all
         select sku, 'missing_fee', marketplace_name, min(activity_date), max(activity_date) + 1
         from missing_groups group by sku, marketplace_name, consecutive_group
+    ), period_items as (
+        select sku, jsonb_agg(jsonb_build_object(
+            'marketplace_name', marketplace_name,
+            'valid_from', lower(valid_period), 'valid_to', upper(valid_period),
+            'fee_rate_percent', fee_rate_percent::text
+        ) order by marketplace_name collate "C", lower(valid_period)) as items
+        from periods group by sku
+    ), requirement_items as (
+        select sku, jsonb_agg(jsonb_build_object(
+            'marketplace_name', marketplace_name, 'valid_from', valid_from, 'valid_to', valid_to
+        ) order by marketplace_name collate "C", valid_from) as items
+        from requirements group by sku
+    ), issue_items as (
+        select sku, jsonb_agg(jsonb_build_object(
+            'sku', sku, 'kind', kind, 'marketplace_name', marketplace_name,
+            'valid_from', valid_from, 'valid_to', valid_to
+        ) order by kind, marketplace_name collate "C", valid_from) as items
+        from issues group by sku
     )
     select jsonb_build_object('items', coalesce(jsonb_agg(jsonb_build_object(
         'sku', i.sku, 'sku_id', i.sku_id, 'company_id', i.company_id,
-        'terms_version_id', i.terms_version_id,
-        'periods', coalesce((
-            select jsonb_agg(jsonb_build_object(
-                'marketplace_name', p.marketplace_name,
-                'valid_from', lower(p.valid_period), 'valid_to', upper(p.valid_period),
-                'fee_rate_percent', p.fee_rate_percent::text
-            ) order by p.marketplace_name collate "C", lower(p.valid_period))
-            from periods as p where p.sku = i.sku
-        ), '[]'::jsonb),
-        'requirements', coalesce((
-            select jsonb_agg(jsonb_build_object(
-                'marketplace_name', r.marketplace_name,
-                'valid_from', r.valid_from, 'valid_to', r.valid_to
-            ) order by r.marketplace_name collate "C", r.valid_from)
-            from requirements as r where r.sku = i.sku
-        ), '[]'::jsonb),
-        'issues', coalesce((
-            select jsonb_agg(jsonb_build_object(
-                'sku', e.sku, 'kind', e.kind, 'marketplace_name', e.marketplace_name,
-                'valid_from', e.valid_from, 'valid_to', e.valid_to
-            ) order by e.kind, e.marketplace_name collate "C", e.valid_from)
-            from issues as e where e.sku = i.sku
-        ), '[]'::jsonb)
+        'terms_version_id', i.terms_version_id, 'periods', coalesce(p.items, '[]'::jsonb),
+        'requirements', coalesce(r.items, '[]'::jsonb), 'issues', coalesce(e.items, '[]'::jsonb)
     ) order by i.sku collate "C"), '[]'::jsonb))
-    from identities as i;
+    from identities i
+    left join period_items p using (sku)
+    left join requirement_items r using (sku)
+    left join issue_items e using (sku);
 $$;
 
 create function private.read_sku_configuration() returns jsonb

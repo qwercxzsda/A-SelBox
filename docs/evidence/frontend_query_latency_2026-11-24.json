@@ -1,0 +1,815 @@
+{
+  "baseline_commit": "b9460a5",
+  "dataset": {
+    "finances_transactions": 48493,
+    "finances_amounts": 308886,
+    "current_financial_outcomes": 158838,
+    "saved_report_versions": 63,
+    "largest_report_records": 21395
+  },
+  "environment": "local preview, live GoTrue login and PostgREST",
+  "measurement": "one completed HTTP call per role and case, excludes login; authenticated/authorized cases plus intentional forbidden reads",
+  "comparison": "decoded ordered results; operational readiness retry times and failure count excluded, denied reads compared by status and SQLSTATE",
+  "cases": {
+    "administrator/account-self": {
+      "before_ms": 25.7,
+      "after_ms": 32.3,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/accounts": {
+      "before_ms": 4.5,
+      "after_ms": 4.8,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/assignments": {
+      "before_ms": 28.0,
+      "after_ms": 26.0,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/catalog": {
+      "before_ms": 90.8,
+      "after_ms": 6.3,
+      "status": 200,
+      "rows": 64,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/companies": {
+      "before_ms": 10.8,
+      "after_ms": 1.9,
+      "status": 200,
+      "rows": 2,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/company-skus": {
+      "before_ms": 12.4,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 64,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/fee-history": {
+      "before_ms": 4.1,
+      "after_ms": 3.0,
+      "status": 200,
+      "rows": 2,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/fee-periods": {
+      "before_ms": 2.6,
+      "after_ms": 2.2,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/fees": {
+      "before_ms": 340.2,
+      "after_ms": 55.4,
+      "status": 200,
+      "rows": 64,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/inventory-captures": {
+      "before_ms": 3.1,
+      "after_ms": 2.5,
+      "status": 200,
+      "rows": 10,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/inventory-items": {
+      "before_ms": 5.5,
+      "after_ms": 5.6,
+      "status": 200,
+      "rows": 159,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/market-totals": {
+      "before_ms": 1378.7,
+      "after_ms": 310.7,
+      "status": 200,
+      "rows": 16,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/months-filtered": {
+      "before_ms": 2166.2,
+      "after_ms": 109.3,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/native-id": {
+      "before_ms": 6.1,
+      "after_ms": 4.2,
+      "status": 200,
+      "rows": 5,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-blockers": {
+      "before_ms": 3591.1,
+      "after_ms": 103.8,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-history": {
+      "before_ms": 4.0,
+      "after_ms": 2.7,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-list": {
+      "before_ms": 4.6,
+      "after_ms": 4.3,
+      "status": 206,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-policy": {
+      "before_ms": 2.5,
+      "after_ms": 5.2,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-readiness": {
+      "before_ms": 3.9,
+      "after_ms": 4.2,
+      "status": 200,
+      "rows": 2,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-records": {
+      "before_ms": 231.1,
+      "after_ms": 244.4,
+      "status": 200,
+      "rows": 50,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-totals-False": {
+      "before_ms": 215.3,
+      "after_ms": 3.1,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-totals-True": {
+      "before_ms": 223.5,
+      "after_ms": 234.5,
+      "status": 200,
+      "rows": 23,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/payout-version": {
+      "before_ms": 3.1,
+      "after_ms": 2.6,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/review-COMPANY": {
+      "before_ms": 2040.4,
+      "after_ms": 77.0,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/review-DIFFERENCE": {
+      "before_ms": 1971.6,
+      "after_ms": 152.5,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/review-SELBOX": {
+      "before_ms": 1962.5,
+      "after_ms": 160.9,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/review-filtered": {
+      "before_ms": 1993.6,
+      "after_ms": 72.2,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/review-months": {
+      "before_ms": 2165.3,
+      "after_ms": 544.8,
+      "status": 200,
+      "rows": 51,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/revisions": {
+      "before_ms": 11.8,
+      "after_ms": 2.9,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/source-count": {
+      "before_ms": 111.2,
+      "after_ms": 38.7,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/source-detail": {
+      "before_ms": 6.1,
+      "after_ms": 4.1,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/source-page": {
+      "before_ms": 11.0,
+      "after_ms": 8.2,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/transaction-amount": {
+      "before_ms": 228.0,
+      "after_ms": 69.9,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/transaction-count": {
+      "before_ms": 3553.1,
+      "after_ms": 253.5,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/transaction-offset": {
+      "before_ms": 3593.2,
+      "after_ms": 259.9,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/transaction-page": {
+      "before_ms": 3554.3,
+      "after_ms": 92.6,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/transaction-search": {
+      "before_ms": 3544.0,
+      "after_ms": 65.2,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/trend-day": {
+      "before_ms": 1445.9,
+      "after_ms": 365.5,
+      "status": 200,
+      "rows": 3131,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/trend-week": {
+      "before_ms": 1421.0,
+      "after_ms": 333.2,
+      "status": 200,
+      "rows": 915,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "administrator/type-totals": {
+      "before_ms": 574.4,
+      "after_ms": 240.7,
+      "status": 200,
+      "rows": 28,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/account-self": {
+      "before_ms": 14.7,
+      "after_ms": 13.0,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/companies": {
+      "before_ms": 2.5,
+      "after_ms": 2.4,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/company-skus": {
+      "before_ms": 3.6,
+      "after_ms": 3.1,
+      "status": 200,
+      "rows": 23,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/denied-report": {
+      "before_ms": 3.4,
+      "after_ms": 2.4,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/denied-review": {
+      "before_ms": 1.9,
+      "after_ms": 2.3,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/denied-source": {
+      "before_ms": 2.3,
+      "after_ms": 1.9,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/fee-history": {
+      "before_ms": 4.2,
+      "after_ms": 3.0,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/fee-periods": {
+      "before_ms": 3.9,
+      "after_ms": 2.7,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/fees": {
+      "before_ms": 119.6,
+      "after_ms": 27.1,
+      "status": 200,
+      "rows": 23,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/inventory-captures": {
+      "before_ms": 3.3,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 10,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/inventory-items": {
+      "before_ms": 5.5,
+      "after_ms": 4.5,
+      "status": 200,
+      "rows": 58,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/market-totals": {
+      "before_ms": 1494.5,
+      "after_ms": 229.6,
+      "status": 200,
+      "rows": 15,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-blockers": {
+      "before_ms": 2.6,
+      "after_ms": 2.3,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-history": {
+      "before_ms": 3.8,
+      "after_ms": 2.7,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-list": {
+      "before_ms": 4.6,
+      "after_ms": 3.6,
+      "status": 200,
+      "rows": 15,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-policy": {
+      "before_ms": 2.5,
+      "after_ms": 2.5,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-readiness": {
+      "before_ms": 4.1,
+      "after_ms": 3.5,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-records": {
+      "before_ms": 222.0,
+      "after_ms": 233.5,
+      "status": 200,
+      "rows": 50,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-totals-False": {
+      "before_ms": 204.9,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-totals-True": {
+      "before_ms": 206.6,
+      "after_ms": 252.7,
+      "status": 200,
+      "rows": 23,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/payout-version": {
+      "before_ms": 3.1,
+      "after_ms": 2.5,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/revisions": {
+      "before_ms": 3.0,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/transaction-amount": {
+      "before_ms": 249.9,
+      "after_ms": 66.3,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/transaction-count": {
+      "before_ms": 4031.4,
+      "after_ms": 223.8,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/transaction-offset": {
+      "before_ms": 3881.1,
+      "after_ms": 223.4,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/transaction-page": {
+      "before_ms": 4026.8,
+      "after_ms": 74.7,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/transaction-search": {
+      "before_ms": 3929.6,
+      "after_ms": 67.2,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/trend-day": {
+      "before_ms": 1556.4,
+      "after_ms": 293.4,
+      "status": 200,
+      "rows": 2391,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/trend-week": {
+      "before_ms": 1542.8,
+      "after_ms": 270.6,
+      "status": 200,
+      "rows": 717,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member1/type-totals": {
+      "before_ms": 661.9,
+      "after_ms": 203.5,
+      "status": 200,
+      "rows": 23,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/account-self": {
+      "before_ms": 12.7,
+      "after_ms": 14.0,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/companies": {
+      "before_ms": 2.6,
+      "after_ms": 1.8,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/company-skus": {
+      "before_ms": 2.9,
+      "after_ms": 2.4,
+      "status": 200,
+      "rows": 41,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/denied-report": {
+      "before_ms": 1.9,
+      "after_ms": 1.8,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/denied-review": {
+      "before_ms": 1.6,
+      "after_ms": 1.4,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/denied-source": {
+      "before_ms": 1.8,
+      "after_ms": 1.5,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/fee-history": {
+      "before_ms": 3.2,
+      "after_ms": 2.8,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/fee-periods": {
+      "before_ms": 2.5,
+      "after_ms": 2.6,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/fees": {
+      "before_ms": 136.3,
+      "after_ms": 22.4,
+      "status": 200,
+      "rows": 41,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/inventory-captures": {
+      "before_ms": 2.8,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 10,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/inventory-items": {
+      "before_ms": 5.1,
+      "after_ms": 5.3,
+      "status": 200,
+      "rows": 99,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/market-totals": {
+      "before_ms": 1431.2,
+      "after_ms": 178.0,
+      "status": 200,
+      "rows": 14,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-blockers": {
+      "before_ms": 1.7,
+      "after_ms": 1.5,
+      "status": 403,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-history": {
+      "before_ms": 2.4,
+      "after_ms": 2.3,
+      "status": 200,
+      "rows": 3,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-list": {
+      "before_ms": 3.0,
+      "after_ms": 4.3,
+      "status": 200,
+      "rows": 14,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-policy": {
+      "before_ms": 2.1,
+      "after_ms": 2.1,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-readiness": {
+      "before_ms": 2.4,
+      "after_ms": 3.1,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-records": {
+      "before_ms": 78.8,
+      "after_ms": 83.3,
+      "status": 200,
+      "rows": 50,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-totals-False": {
+      "before_ms": 70.4,
+      "after_ms": 3.0,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-totals-True": {
+      "before_ms": 71.1,
+      "after_ms": 83.9,
+      "status": 200,
+      "rows": 18,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/payout-version": {
+      "before_ms": 2.2,
+      "after_ms": 1.8,
+      "status": 200,
+      "rows": 1,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/revisions": {
+      "before_ms": 3.1,
+      "after_ms": 2.1,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/transaction-amount": {
+      "before_ms": 233.3,
+      "after_ms": 49.1,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/transaction-count": {
+      "before_ms": 3817.3,
+      "after_ms": 170.9,
+      "status": 200,
+      "rows": 0,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/transaction-offset": {
+      "before_ms": 3895.0,
+      "after_ms": 146.1,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/transaction-page": {
+      "before_ms": 3860.1,
+      "after_ms": 89.5,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/transaction-search": {
+      "before_ms": 3875.8,
+      "after_ms": 162.4,
+      "status": 200,
+      "rows": 25,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/trend-day": {
+      "before_ms": 1514.5,
+      "after_ms": 227.0,
+      "status": 200,
+      "rows": 2414,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/trend-week": {
+      "before_ms": 1562.1,
+      "after_ms": 216.2,
+      "status": 200,
+      "rows": 723,
+      "equal_result": true,
+      "equal_range": true
+    },
+    "member2/type-totals": {
+      "before_ms": 496.5,
+      "after_ms": 153.6,
+      "status": 200,
+      "rows": 20,
+      "equal_result": true,
+      "equal_range": true
+    }
+  }
+}

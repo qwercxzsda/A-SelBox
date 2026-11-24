@@ -68,9 +68,9 @@ test("review preserves the posting month and shows exact signed differences for 
 }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
-  await page.route("**/rest/v1/financial_outcomes?*", (route) => {
+  await page.route("**/rest/v1/rpc/financial_outcome_page?*", (route) => {
     const q = new URL(route.request().url()).searchParams;
-    expect(q.get("outcome")).toBe("eq.DIFFERENCE");
+    expect(q.get("p_outcome")).toBe("DIFFERENCE");
     return createReplies(route).csvReply(q.get("select").split(","), [
       {
         source_row_id: version,
@@ -108,13 +108,13 @@ test("monthly review compares Finances, companies, SelBox and differences within
 }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
-  await page.route("**/rest/v1/financial_outcomes?*", (route) =>
+  await page.route("**/rest/v1/rpc/financial_outcome_page?*", (route) =>
     createReplies(route).csvReply(
       new URL(route.request().url()).searchParams.get("select").split(","),
       [],
     ),
   );
-  await page.route("**/rest/v1/financial_review_monthly?*", (route) => {
+  await page.route("**/rest/v1/rpc/financial_review_month_page?*", (route) => {
     const params = new URL(route.request().url()).searchParams;
     return createReplies(route).csvReply(params.get("select").split(","), [
       {

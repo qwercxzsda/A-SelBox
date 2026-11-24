@@ -45,13 +45,26 @@ def save(path: Path, result: Record) -> None:
     temporary.replace(path)
 
 
-def run(description: str | None, scope: str, measure: Measurement) -> None:
+def run(
+    description: str | None,
+    scope: str,
+    measure: Measurement,
+    *,
+    local_read: Callable[[int], Record] | None = None,
+) -> None:
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--output-dir", type=Path, required=True, help="Fresh sanitized result directory"
     )
     parser.add_argument("--repeat", type=positive_repetitions, default=5)
-    parser.add_argument("--fixtures", type=parse_fixtures, default=("seed",))
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument("--fixtures", type=parse_fixtures, default=("seed",))
+    if local_read is not None:
+        target.add_argument(
+            "--local-read-only",
+            action="store_true",
+            help="Read the populated repository Supabase project on loopback port 54322",
+        )
     args = parser.parse_args()
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -64,6 +77,12 @@ def run(description: str | None, scope: str, measure: Measurement) -> None:
     }
     temporary: Path | None = None
     try:
+        if local_read is not None and args.local_read_only:
+            measured = local_read(args.repeat)
+            measured["fixture_setup"] = {"method": "Read-only local Supabase project"}
+            result["fixtures"].append(measured)
+            result["status"] = "completed"
+            return
         password, image = runtime()
         result["postgrest_image"] = image
         with TemporaryDirectory(prefix="aselbox-benchmark-") as directory:
