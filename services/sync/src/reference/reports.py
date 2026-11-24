@@ -34,7 +34,6 @@ _REQUIRED = {
     },
     "AGED_STORAGE": {
         "snapshot-date",
-        "amount-charged",
         "country",
         "fnsku",
         "asin",
@@ -56,6 +55,23 @@ _REQUIRED = {
 }
 
 
+_AGED_TIERS = ("short-time-range-long-term-storage-fee", "long-time-range-long-term-storage-fee")
+_TIER_COLUMNS = {*_AGED_TIERS, *("qty-charged-" + tier for tier in _AGED_TIERS)}
+
+
+def _tiered_storage_row(row: dict[str, str]) -> dict[str, str]:
+    # A two-tier document has one product row with a fee and quantity for each
+    # age range. Keep the source row intact when allocating and rounding its tax.
+    try:
+        amounts = [Decimal(row[tier]) for tier in _AGED_TIERS]
+        quantities = [Decimal(row["qty-charged-" + tier]) for tier in _AGED_TIERS]
+    except InvalidOperation:
+        raise ValueError("Tiered storage fees and quantities must be decimal.") from None
+    if not all(value.is_finite() for value in amounts + quantities):
+        raise ValueError("Tiered storage fees and quantities must be finite.")
+    return {**row, "amount-charged": str(sum(amounts)), "qty-charged": str(sum(quantities))}
+
+
 def _read_document(raw: bytes, source: str, scope: str) -> Iterator[dict[str, str]]:
     try:
         decoded = raw.decode("utf-8-sig")
@@ -72,9 +88,19 @@ def _read_document(raw: bytes, source: str, scope: str) -> Iterator[dict[str, st
         or "\x00" in decoded
     ):
         raise ValueError("Report headers are missing or ambiguous.")
+    tiered = False
+    if source == "AGED_STORAGE":
+        tier_fields = _TIER_COLUMNS.intersection(headers)
+        if tier_fields:
+            if tier_fields != _TIER_COLUMNS or "amount-charged" in headers:
+                raise ValueError("Aged storage tier columns are incomplete or ambiguous.")
+            tiered = True
+        elif "amount-charged" not in headers:
+            raise ValueError("Aged storage report is missing charge columns.")
     for values in reader:
         if values:
-            yield dict(zip(headers, values, strict=True))
+            row = dict(zip(headers, values, strict=True))
+            yield _tiered_storage_row(row) if tiered else row
 
 
 def _month(value: date | datetime) -> str:

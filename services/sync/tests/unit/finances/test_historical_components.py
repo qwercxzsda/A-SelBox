@@ -44,10 +44,23 @@ def _transaction(
 
 
 class HistoricalComponentTests(unittest.TestCase):
-    def test_unobserved_lightning_deal_id_shape_fails_closed(self) -> None:
+    def test_lightning_deal_uses_only_its_verified_item_deal_id(self) -> None:
         path = ("AmazonFees", "RunLightningDealFee", "Base")
         row = _transaction("SellerDealPayment", "-150", ((path, "-150"),))
-        with self.assertRaisesRegex(ValueError, "Unsupported Finances monetary path"):
+        item = cast(list[dict[str, object]], row["items"])[0]
+        with self.assertRaisesRegex(ValueError, "DEAL_ID"):
+            build_components(row, CURRENCY_DECIMALS)
+        item["relatedIdentifiers"] = [
+            {"itemRelatedIdentifierName": "DEAL_ID", "itemRelatedIdentifierValue": "deal-1"}
+        ]
+        (fee,) = build_components(row, CURRENCY_DECIMALS)
+        self.assertEqual(
+            (fee.component_type, fee.route, fee.reference_id), ("DEAL_FEES", "PROMOTION", "deal-1")
+        )
+        row["relatedIdentifiers"] = [
+            {"relatedIdentifierName": "ORDER_ID", "relatedIdentifierValue": "other"}
+        ]
+        with self.assertRaisesRegex(ValueError, "consistent item DEAL_ID"):
             build_components(row, CURRENCY_DECIMALS)
 
         for kind, unreviewed_path in (

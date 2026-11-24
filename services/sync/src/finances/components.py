@@ -91,6 +91,7 @@ def build_components(
                 definition,
                 item,
                 links,
+                transaction_type=kind,
                 liquidation=liquidation,
                 sku=sku,
                 asin=asin,

@@ -244,6 +244,7 @@ test("fixed catalogs include the agreed vocabulary even when no source row curre
       "Send to FBA",
       "Resolve stranded inventory",
       "Edit listing",
+      "Create Outlet deal",
       "Lower price",
       "Advertise listing",
       "No excess inventory",

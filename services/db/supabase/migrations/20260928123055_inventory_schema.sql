@@ -74,8 +74,8 @@ create table private.inventory_items (
     recommended_ship_in_units bigint check (recommended_ship_in_units >= 0),
     recommended_ship_in_date date check (isfinite(recommended_ship_in_date)),
     recommended_action text check (recommended_action in (
-        'Advertise listing', 'CreateShippingPlan', 'Edit listing', 'GoToRestock',
-        'GoToStranded', 'Lower price', 'NoExcessInventory',
+        'Advertise listing', 'Create Outlet deal', 'CreateShippingPlan', 'Edit listing',
+        'GoToRestock', 'GoToStranded', 'Lower price', 'NoExcessInventory',
         'NoRestockExcessActionRequired', 'SendToFBA'
     )),
     primary key (capture_id, sku),

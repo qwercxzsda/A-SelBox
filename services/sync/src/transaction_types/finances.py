@@ -188,6 +188,7 @@ def _mapping() -> dict[tuple[str, tuple[str, ...]], FinancesType]:
         "FBAInboundTransportationProgramFee": "InboundTransportationFee",
         "FBAInboundDefectFee": "UnplannedServiceCharge",
     }
+    add("SellerDealPayment", ("AmazonFees", "RunLightningDealFee", "Base"), "DEAL_FEES")
     for fee, semantic in fees.items():
         for detail in ("Base", "Tax"):
             for root in ("AmazonFees", "FBAFees"):

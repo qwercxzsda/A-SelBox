@@ -13,7 +13,7 @@ from ..frozen_values import freeze_mapping
 from ..seller_namespaces import validate_seller_namespace
 
 INVENTORY_REPORT_TYPE = "GET_FBA_INVENTORY_PLANNING_DATA"
-INVENTORY_PREPROCESS_VERSION = "inventory-v1"
+INVENTORY_PREPROCESS_VERSION = "inventory-v2"
 UNSUPPORTED_MARKETPLACES = frozenset({"Amazon.nl", "Amazon.pl", "Amazon.se", "Amazon.com.be"})
 
 

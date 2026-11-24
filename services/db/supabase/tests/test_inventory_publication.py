@@ -165,13 +165,14 @@ class InventoryPublicationTests(InventoryFixture):
         self,
     ) -> None:
         acquisition = self.acquire()
-        original = self.capture(acquisition, [self.item()])
-        self.assertEqual(self.capture(acquisition, [self.item()]), original)
+        original = self.capture(acquisition, [self.item()], preprocess_version="inventory-v1")
+        self.assertEqual(
+            self.capture(acquisition, [self.item()], preprocess_version="inventory-v1"), original
+        )
         revised = self.capture(
             acquisition,
             [self.item(quantity=4)],
             expected=original,
-            preprocess_version="inventory-v2",
         )
         self.assertNotEqual(revised, original)
         self.assertEqual(

@@ -34,7 +34,7 @@ in one transaction. A failed publication retains the earlier complete result. Ot
 raw acquisitions remain available. Inventory does not participate in payout calculations.
 
 A capture records only success; there are no running/failed placeholder rows or current-version
-pointer. The inventory-specific `inventory-v1` label is independent of financial preprocessing.
+pointer. The inventory-specific `inventory-v2` label is independent of financial preprocessing.
 Change that label when parsing semantics change; replaying the selected acquisition with the same
 label is an idempotent no-op.
 
@@ -162,6 +162,7 @@ provide stable ties. The priorities below are UI choices, independent of the sou
 | `CreateShippingPlan` | Create shipping plan | 50 |
 | `GoToStranded` | Resolve stranded inventory | 40 |
 | `Edit listing` | Edit listing | 30 |
+| `Create Outlet deal` | Create Outlet deal | 20 |
 | `Lower price` | Lower price | 20 |
 | `Advertise listing` | Advertise listing | 10 |
 | `NoExcessInventory` | No excess inventory | 0 |

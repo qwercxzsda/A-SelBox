@@ -7,7 +7,7 @@ from typing import cast
 
 from services.sync.src.reference.invoices import invoice_rows
 from services.sync.src.reference.periods import shift_months
-from services.sync.src.reference.taxes import report_tax
+from services.sync.src.reference.taxes import finance_rate, report_tax
 from services.sync.tests.support.currencies import CURRENCY_DECIMALS
 
 
@@ -57,20 +57,29 @@ class SourceCostTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "registry"):
             invoice_rows(answer, "I", "123", {"JPY": 0})
 
-    def test_singapore_removal_tax_is_included_and_aged_storage_treatment_is_unknown(self) -> None:
+    def test_singapore_removal_includes_tax_and_aged_storage_excludes_tax(self) -> None:
         self.assertEqual(
             report_tax(
                 "SINGAPORE", "REMOVAL_ORDER", None, "SGD", Decimal("11.45"), CURRENCY_DECIMALS
             ),
             (Decimal("10.50"), Decimal("0.95")),
         )
-        with self.assertRaisesRegex(ValueError, "has not been observed"):
-            report_tax("SINGAPORE", "AGED_STORAGE", "SG", "SGD", Decimal("1"), CURRENCY_DECIMALS)
+        self.assertEqual(
+            report_tax("SINGAPORE", "AGED_STORAGE", "SG", "SGD", Decimal("5.5"), CURRENCY_DECIMALS),
+            (Decimal("5.50"), Decimal("0.50")),
+        )
+        with self.assertRaisesRegex(ValueError, "currency pair"):
+            report_tax("SINGAPORE", "AGED_STORAGE", "SG", "USD", Decimal("1"), CURRENCY_DECIMALS)
         with self.assertRaisesRegex(ValueError, "No observed tax"):
             report_tax("EU", "AGED_STORAGE", "FR", "EUR", Decimal("1"), CURRENCY_DECIMALS)
         self.assertEqual(
             report_tax("EU", "AGED_STORAGE", "ES", "EUR", Decimal(0), CURRENCY_DECIMALS), (0, 0)
         )
+
+    def test_observed_french_inbound_transport_charge_has_zero_tax(self) -> None:
+        self.assertEqual(finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_FEES"), Decimal("0"))
+        with self.assertRaisesRegex(ValueError, "No observed tax"):
+            finance_rate("Amazon.fr", "INBOUND_TRANSPORTATION_PROGRAM_FEES")
 
     def test_clamps_calendar_windows_at_month_end(self) -> None:
         self.assertEqual(shift_months(date(2024, 5, 31), -3), date(2024, 2, 29))

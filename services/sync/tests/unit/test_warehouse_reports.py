@@ -95,6 +95,54 @@ class WarehouseReportTests(unittest.TestCase):
                 },
             )
 
+    def test_tiered_aged_storage_sums_both_amounts_and_keeps_each_product_row(self) -> None:
+        short = "short-time-range-long-term-storage-fee"
+        long = "long-time-range-long-term-storage-fee"
+        headers = [
+            "snapshot-date",
+            "sku",
+            "fnsku",
+            "asin",
+            "currency",
+            "country",
+            short,
+            "qty-charged-" + short,
+            long,
+            "qty-charged-" + long,
+        ]
+        values = [
+            "2026-08-14T00:00:00Z",
+            "SKU",
+            "X012345678",
+            "B012345678",
+            "SGD",
+            "SG",
+            "0.10",
+            "1",
+            "5.40",
+            "54",
+        ]
+
+        def parse(columns: list[str], data: list[str]) -> list[dict[str, object]]:
+            content = "\n".join(("\t".join(columns), "\t".join(data), "\t".join(data)))
+            return prepare_report(
+                "AGED_STORAGE", content.encode(), "SINGAPORE", MONTH, END, CURRENCY_DECIMALS
+            )["2026-08"]
+
+        first, second = parse(headers, values)
+        self.assertEqual(first, second)
+        self.assertEqual(first["fee_amount"], Decimal("5.50"))
+        self.assertEqual(first["base_amount"], Decimal("5.50"))
+        self.assertEqual(first["tax_amount"], Decimal("0.50"))
+        self.assertEqual(first["quantity_charged"], "55")
+        self.assertEqual(first["sku_printed"], "SKU")
+        with self.assertRaisesRegex(ValueError, "incomplete or ambiguous"):
+            parse(headers[:-1], values[:-1])
+        with self.assertRaisesRegex(ValueError, "incomplete or ambiguous"):
+            parse([*headers, "amount-charged"], [*values, "5.50"])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            parse(headers, [*values[:-2], "NaN", "54"])
+
     def test_zero_row_answer_loads_every_finished_month(self) -> None:
         groups = prepare_report(
             "AGED_STORAGE",

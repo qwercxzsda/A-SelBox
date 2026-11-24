@@ -9,6 +9,7 @@ HEALTH_STATUSES = (
 
 RECOMMENDED_ACTIONS = (
     "Advertise listing",
+    "Create Outlet deal",
     "CreateShippingPlan",
     "Edit listing",
     "GoToRestock",

@@ -14,6 +14,7 @@ export const INVENTORY_RECOMMENDATIONS = {
   CreateShippingPlan: { label: "Create shipping plan", tone: "replenishment", urgency: 50 },
   GoToStranded: { label: "Resolve stranded inventory", tone: "attention", urgency: 40 },
   "Edit listing": { label: "Edit listing", tone: "listing", urgency: 30 },
+  "Create Outlet deal": { label: "Create Outlet deal", tone: "neutral", urgency: 20 },
   "Lower price": { label: "Lower price", tone: "neutral", urgency: 20 },
   "Advertise listing": { label: "Advertise listing", tone: "neutral", urgency: 10 },
   NoExcessInventory: { label: "No excess inventory", tone: "neutral", urgency: 0 },

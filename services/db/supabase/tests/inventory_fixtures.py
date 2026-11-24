@@ -10,7 +10,7 @@ from services.sync.src.database.acquisitions import (
     persist_inventory_acquisition,
 )
 from services.sync.src.database.inventory import publish_inventory_capture
-from services.sync.src.inventory.models import PreparedInventory
+from services.sync.src.inventory.models import INVENTORY_PREPROCESS_VERSION, PreparedInventory
 from services.sync.src.inventory.serialization import inventory_from_payload
 
 
@@ -48,7 +48,7 @@ class InventoryFixture(SourceModelFixture):
         items: list[dict[str, object]],
         *,
         expected: str | None = None,
-        preprocess_version: str = "inventory-v1",
+        preprocess_version: str = INVENTORY_PREPROCESS_VERSION,
         **scope_changes: object,
     ) -> str:
         database = TransactionDatabase(self.connection)

@@ -37,7 +37,7 @@ _FEE_COUNTRIES = {
     "REMOVAL_FEES": ("US GB", "JP", "", ""),
     "LABELING_FEES": ("", "JP", "", ""),
     "INBOUND_PLACEMENT_FEES": ("US", "", "", ""),
-    "INBOUND_TRANSPORTATION_FEES": ("DE US GB", "", "", ""),
+    "INBOUND_TRANSPORTATION_FEES": ("DE US GB FR", "", "", ""),
     "INBOUND_TRANSPORTATION_PROGRAM_FEES": ("DE GB", "", "", ""),
     "INBOUND_DEFECT_FEES": ("GB", "", "", ""),
     "ADVERTISING": ("US GB JP FR DE IT BE SE ES PL NL IE", "AU SG", "", ""),
@@ -103,8 +103,12 @@ def report_tax(
     else:
         if country is None:
             raise ValueError("A storage report must name a country.")
-        if source == "AGED_STORAGE" and country == "SG":
-            raise ValueError("Singapore aged storage tax treatment has not been observed.")
+        if (
+            source == "AGED_STORAGE"
+            and country == "SG"
+            and (scope, currency) != ("SINGAPORE", "SGD")
+        ):
+            raise ValueError("Unknown Singapore aged storage account and currency pair.")
         kind = {"STORAGE": "STORAGE_FEES", "AGED_STORAGE": "AGED_STORAGE_FEES"}[source]
         rate = finance_rate(marketplace_for_country(country), kind)
         included = source == "AGED_STORAGE" and country == "JP"

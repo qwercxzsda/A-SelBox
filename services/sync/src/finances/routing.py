@@ -61,6 +61,7 @@ def charge_route(
     item: Mapping[str, object],
     links: Mapping[str, str],
     *,
+    transaction_type: str,
     liquidation: bool,
     sku: str | None,
     asin: str | None,
@@ -97,6 +98,11 @@ def charge_route(
         )
     order = links.get("ORDER_ID")
     if route == "PROMOTION":
+        if transaction_type == "SellerDealPayment":
+            deal = _unique(_item_ids(item, "DEAL_ID"))
+            if deal is None or (order is not None and order != deal):
+                raise ValueError("Lightning deal fee requires a consistent item DEAL_ID.")
+            return Route(route, deal)
         return Route(route, order)
     if route == "SHIPMENT":
         return Route("SHIPMENT", _shipment_id(links, item))
