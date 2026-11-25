@@ -4,6 +4,7 @@ import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { summaryAmount, summaryBucket, summaryPeriods, typeBucket } from "./summary-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 import { feeRow as feeRecord, feeDetails } from "./sku-configuration-fixtures.mjs";
+import { openRawData, openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 const completedPolls = (fixture) => fixture.revisionRequests.filter(({ completed }) => completed);
 const financialRequests = (fixture) => ({
@@ -164,7 +165,7 @@ for (const [source, tab, other] of [["finances", "Finances", "references"]]) {
     page,
   }) => {
     const fixture = await setup(page, "administrator");
-    await page.getByRole("tab", { name: tab, exact: true }).click();
+    await openWorkspaceTab(page, tab);
     const sku = "FINANCES-1";
     await expect(rowWithSku(page, sku)).toBeVisible();
     const rows = () => fixture.requests.filter(({ dataset }) => dataset === source).length;
@@ -305,7 +306,7 @@ test("a timed-out revision check keeps displayed data and the next scheduled che
     await page.clock.fastForward(60_000);
     await started.promise;
     await page.clock.fastForward(30_000);
-    await expect(page.getByRole("alert")).toContainText("Workspace access timed out");
+    await expect(page.getByRole("alert")).toContainText("The request timed out.");
     await expect.poll(() => timedOutPoll.failure).toBeTruthy();
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     expect(financialRequests(fixture)).toEqual(financial);
@@ -390,13 +391,13 @@ test("an account role change rebuilds the workspace with the current permissions
   page,
 }) => {
   const fixture = await setup(page, "administrator");
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   await expect(rowWithSku(page, "FINANCES-1")).toBeVisible();
   fixture.roles["member-a"] = "member";
   fixture.prefixes["member-a"] = "MEMBER";
   await page.clock.fastForward(60_000);
   await expect(rowWithSku(page, "MEMBER-001")).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Finances", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Raw data", exact: true })).toHaveCount(0);
   await expect(page.getByText("Administrator", { exact: true })).toHaveCount(0);
   expect(fixture.authRequests).toBe(1);
 });
@@ -519,11 +520,16 @@ test("a manual retry requested during an unrelated selective refresh runs when t
 }) => {
   const fixture = await setup(page, "administrator");
   fixture.datasetStatusForRequest = ({ dataset }) => (dataset === "finances" ? 403 : 200);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   await expect(page.getByRole("alert")).toContainText("HTTP 403");
   fixture.revisionStatus = 503;
   await page.clock.fastForward(60_000);
-  await expect(page.getByRole("button", { name: "Retry update", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Could not check for updates" })
+      .getByRole("button", { name: "Retry", exact: true }),
+  ).toBeVisible();
   fixture.revisionStatus = 200;
   const started = deferred();
   const release = deferred();
@@ -536,7 +542,11 @@ test("a manual retry requested during an unrelated selective refresh runs when t
     await page.clock.fastForward(60_000);
     await started.promise;
     fixture.datasetStatusForRequest = null;
-    await page.getByRole("button", { name: "Retry update", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Could not check for updates" })
+      .getByRole("button", { name: "Retry", exact: true })
+      .click();
     release.resolve();
     await expect(rowWithSku(page, "FINANCES-1")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);

@@ -29,7 +29,8 @@ export function respondWithWorkspaceLists(fixture, { request, url, user, reply, 
       : Object.keys(fixture.roles).map((id) => ({
           user_id: id,
           email: fixture.accountEmails[id] ?? `${id}@example.test`,
-          email_confirmed: fixture.accountConfirmed[id] ?? true,
+          // PostgREST CSV writes booleans as "t" and "f".
+          email_confirmed: (fixture.accountConfirmed[id] ?? true) ? "t" : "f",
           access_role: fixture.roles[id],
           company_id: fixture.roles[id] === "member" ? fixture.companyIds[id] : null,
           created_at: "2026-09-01T00:00:00Z",

@@ -55,16 +55,21 @@ cleanup status and writes results atomically.
   raw-view substring queries verify these benchmark terms without sorting over-limit scopes.
   Frontend tests separately cover humanized labels and Unicode matching.
 
-- **Workspace reads** exercise fee configuration, company SKU lists, inventory captures/items,
-  workspace revisions, payout lists, readiness and saved report records and totals for both roles.
-  The administrator also reads account access, assignment warnings, payout setup blockers, and
-  the ordered Financial review pages with and without marketplace/month filters. This runner
-  times complete PostgreSQL fetches in read-only transactions using the authenticated database
+- **Workspace reads** exercise fee configuration, the assignment list, company SKU lists,
+  inventory captures/items, workspace revisions, payout lists, readiness and saved report records
+  and totals for both roles.
+  The administrator also reads account access, assignment history, payout setup blockers, and
+  Financial review: the months of the marketplace-year with the most outcomes, then the
+  difference and SelBox record pages of that year's busiest month, whole and narrowed to its
+  largest reason or group.
+  The administrator's Raw data cases read each report view's first page in its default order,
+  the monthly storage count and the lines of the invoice with the most lines; without a visible
+  invoice that last case is skipped. This runner times complete PostgreSQL fetches in read-only transactions using the authenticated database
   role and the selected user's JWT subject. Browser rendering and HTTP transport are outside
   those timings. The aggregation benchmark covers the administrator's complete SKU catalog.
   Each case gets one warm-up. Results record role, case, measured milliseconds and median.
   The report drawer uses the largest visible nonempty latest report; member selection prefers
-  an account with such a report. Missing accounts, reports or outcome scopes are marked as
+  an account with such a report. Missing accounts, reports, assignments or outcome scopes are marked as
   skipped. Review filter values are discovered from visible rows and stay in memory.
 
 The live reference view includes company and account outcomes. Raw Finances cases retain immutable historical versions for administrators.

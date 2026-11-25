@@ -133,6 +133,6 @@ for (const width of [1440, 390]) {
     await expect(records.locator("tbody tr")).toHaveCount(1);
     await expect(records.locator(".transaction-type-group")).toHaveCount(1);
     await expect(records.locator(".transaction-type-group")).toHaveText(["Sales & refunds"]);
-    await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
+    await drawer.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   });
 }

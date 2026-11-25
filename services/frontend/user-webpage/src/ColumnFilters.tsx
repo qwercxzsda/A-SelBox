@@ -6,6 +6,8 @@ import { SearchInput } from "./SearchInput";
 export type ColumnMenuFilter =
   | {
       kind: "month";
+      /** Names the month field, e.g. "Report month". */
+      label: string;
       value: string;
       onChange: (value: string) => void;
     }
@@ -152,7 +154,7 @@ export function SelectionFilter({
         ))}
         {options.length === 0 ? (
           <Text c="dimmed" size="sm" py="sm">
-            {query ? "No matching options." : "No options available."}
+            {query ? "No matching options" : "No options available"}
           </Text>
         ) : null}
       </div>

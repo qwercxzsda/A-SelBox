@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Table, Text, Title } from "@mantine/core";
 import { formatRecordMonth } from "./date-display";
-import "./MonthGroupedTable.css";
+import "./GroupedTable.css";
 
 /** Month heading shared by the saved reports in one table group. */
 export function MonthGroupCell({
@@ -14,7 +14,7 @@ export function MonthGroupCell({
   description: ReactNode;
 }) {
   return (
-    <Table.Th scope="rowgroup" rowSpan={rowSpan} className="month-group-cell">
+    <Table.Th scope="rowgroup" rowSpan={rowSpan} className="group-header-cell">
       <Title order={3}>
         <time dateTime={month.slice(0, 7)}>{formatRecordMonth(month)}</time>
       </Title>

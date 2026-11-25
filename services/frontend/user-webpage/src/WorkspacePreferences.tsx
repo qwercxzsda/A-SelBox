@@ -76,8 +76,7 @@ export function WorkspacePreferences({
               zIndex: "var(--mantine-z-index-max)",
             }}
           >
-            This browser could not retain the latest workspace changes. Reloading may lose unsaved
-            edits.
+            Reloading may lose unsaved edits.
           </Alert>
         </Portal>
       ) : null}

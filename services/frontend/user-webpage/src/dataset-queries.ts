@@ -20,6 +20,10 @@ export function datasetQueryOptions(
   const { sort, pageSize, pageIndex } = options;
   return queryOptions({
     queryKey: [...scope.key, sort.column, sort.direction, pageSize, pageIndex],
+    // Keep the previous page on screen while a changed search, filter, order or page loads.
+    // Rows never stand in for another account or dataset.
+    placeholderData: (previous: PageResult | undefined, previousQuery) =>
+      previousQuery && scope.sameView(previousQuery.queryKey) ? previous : undefined,
     queryFn: async ({ signal, client }) => {
       let result: PageResult;
       try {

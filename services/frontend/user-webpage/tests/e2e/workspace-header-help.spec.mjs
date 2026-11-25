@@ -1,7 +1,7 @@
 import { expect, test } from "./accessibility-fixture.mjs";
 import { financesRow, liveRow } from "./api-fixtures.mjs";
 
-import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
+import { WORKSPACE_COMPANY, setupAdministratorWorkspace } from "./administrator-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { item } from "./sku-configuration-fixtures.mjs";
@@ -11,13 +11,13 @@ const ADMIN_TABS = [
   "Inventory",
   "Payout reports",
   "Current fees",
+  "Assignments",
   "User access",
   "Companies",
-  "Assignments",
-  "Finances",
+  "Raw data",
   "Financial review",
 ];
-const MEMBER_TABS = ["Transactions", "Inventory", "Payout reports", "Current fees"];
+const MEMBER_TABS = ["Transactions", "Inventory", "Payout reports", "Current fees", "Assignments"];
 const workspaceTabs = (page) => page.getByRole("tablist", { name: "Workspace data", exact: true });
 const helpButton = (page, title) =>
   page.getByRole("button", { name: `${title} help`, exact: true });
@@ -71,15 +71,15 @@ async function helpIconAppearance(button) {
 
 async function setup(page, role = "administrator") {
   const fixture = await mockSupabase(page);
-  setupFinancialReview(fixture);
+  setupAdministratorWorkspace(fixture);
   fixture.roles["member-a"] = role;
-  fixture.liveRows = [liveRow("HEADER", 1, REVIEW_COMPANY)];
+  fixture.liveRows = [liveRow("HEADER", 1, WORKSPACE_COMPANY)];
   fixture.financesRows = [financesRow(1)];
 
-  fixture.skuConfigurationItems = [item("HEADER-SKU", { company_id: REVIEW_COMPANY })];
+  fixture.skuConfigurationItems = [item("HEADER-SKU", { company_id: WORKSPACE_COMPANY })];
   await mockInventory(page, [
     inventoryRow("HEADER-SKU", {
-      company_id: REVIEW_COMPANY,
+      company_id: WORKSPACE_COMPANY,
       recommended_action: "GoToRestock",
       recommended_ship_in_units: "10",
     }),

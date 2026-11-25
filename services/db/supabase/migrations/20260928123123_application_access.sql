@@ -71,15 +71,17 @@ using (
         where a.user_id = (select auth.uid())
     )
 );
+-- Members read their company's current assignments of every kind; fee periods,
+-- source facts and inventory stay on the SKU-only projection below.
 create policy assignment_keys_read on public.assignment_keys for select to authenticated using (
     (select private.is_administrator()) or id in (
-        select o.sku_id from private.current_owned_sku_terms() as o
+        select o.key_id from private.current_owned_assignments() as o
     )
 );
 create policy assignment_versions_read on public.assignment_versions
 for select to authenticated using (
     (select private.is_administrator()) or id in (
-        select o.terms_version_id from private.current_owned_sku_terms() as o
+        select o.version_id from private.current_owned_assignments() as o
     )
 );
 create policy periods_read on public.sku_fee_periods for select to authenticated using (

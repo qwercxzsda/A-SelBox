@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { columnHeader, sortBy } from "./table-actions.mjs";
 
 const targetUser = "00000000-0000-4000-8000-000000000001";
 const companyA = "00000000-0000-4000-8000-00000000000a";
@@ -9,7 +10,8 @@ const targetEmail = "new-member@example.test";
 const accountRow = (page, email) =>
   page.getByRole("row").filter({ has: page.getByText(email, { exact: true }) });
 const membershipDrawer = (page) =>
-  page.getByRole("dialog", { name: "Company membership", exact: true });
+  page.getByRole("dialog", { name: "User access details", exact: true });
+const savedNotice = (page, text) => page.getByRole("status").filter({ hasText: text });
 
 async function setupAdministrator(page, role = "unassigned") {
   const fixture = await mockSupabase(page);
@@ -31,15 +33,15 @@ async function chooseCompany(page, name) {
   await page.getByRole("option", { name, exact: true }).click();
 }
 
+/** A successful save closes the drawer, names the account on the page and returns to its row. */
 async function saveMembership(page, company) {
   await membershipDrawer(page)
     .getByRole("button", { name: "Save membership", exact: true })
     .click();
-  await expect(accountRow(page, targetEmail)).toContainText(company);
-  await membershipDrawer(page)
-    .getByRole("button", { name: "Close membership details", exact: true })
-    .click();
   await expect(membershipDrawer(page)).toBeHidden();
+  await expect(savedNotice(page, `Membership saved: ${targetEmail}`)).toBeVisible();
+  await expect(accountRow(page, targetEmail)).toContainText(company);
+  await expect(accountRow(page, targetEmail)).toBeFocused();
 }
 
 test("administrator assigns an unassigned user and can find the persisted membership after reload", async ({
@@ -83,19 +85,111 @@ test("administrator assigns an unassigned user and can find the persisted member
   await membershipDrawer(page)
     .getByRole("button", { name: "Confirm revocation", exact: true })
     .click();
+  await expect(membershipDrawer(page)).toBeHidden();
+  await expect(savedNotice(page, `Membership revoked: ${targetEmail}`)).toBeVisible();
   await expect(accountRow(page, targetEmail)).toContainText("Unassigned");
+  await page.reload();
+  await accountRow(page, targetEmail).click();
   await expect(
     membershipDrawer(page).getByRole("combobox", { name: "Company", exact: true }),
   ).toHaveValue("");
   await expect(
     membershipDrawer(page).getByRole("button", { name: "Save membership", exact: true }),
   ).toBeDisabled();
-  await page.reload();
-  await expect(
-    membershipDrawer(page).getByRole("combobox", { name: "Company", exact: true }),
-  ).toHaveValue("");
   expect(fixture.membershipRequests).toHaveLength(2);
 });
+
+test("User access names each email like a company and shows whether it is confirmed", async ({
+  page,
+}) => {
+  const fixture = await setupAdministrator(page, "member");
+  fixture.accountConfirmed[targetUser] = false;
+  await page.reload();
+  const accounts = page.getByRole("table", { name: "User accounts", exact: true });
+  await expect(accounts.getByRole("columnheader")).toHaveText([
+    /^Email/,
+    /^Email confirmed/,
+    /^Role/,
+    /^Company/,
+    /^Joined \(UTC\)/,
+  ]);
+  await expect(
+    page
+      .getByRole("group", { name: "Account controls", exact: true })
+      .locator(".pagination-summary"),
+  ).toHaveText(/^1–\d+ of \d+ users$/);
+  const confirmed = (email) => accountRow(page, email).locator('td[data-column="email_confirmed"]');
+  await expect(confirmed(targetEmail)).toHaveText("No");
+  await expect(confirmed("member-b@example.test")).toHaveText("Yes");
+
+  const nameStyle = (locator) =>
+    locator.evaluate((element) => {
+      const style = globalThis.getComputedStyle(element);
+      const cell = globalThis.getComputedStyle(element.closest("td"));
+      return [style.fontWeight, style.fontSize, style.color, cell.backgroundColor];
+    });
+  const email = accountRow(page, targetEmail).locator(".list-row-name");
+  await expect(email).toHaveText(targetEmail);
+  const emailStyle = await nameStyle(email);
+
+  await sortBy(page, "Email confirmed", "Ascending");
+  await expect(columnHeader(accounts, "Email confirmed")).toHaveAttribute("aria-sort", "ascending");
+  await expect
+    .poll(() =>
+      fixture.requests
+        .filter(({ dataset }) => dataset === "accounts")
+        .at(-1)
+        ?.params.get("order"),
+    )
+    .toMatch(/^email_confirmed\.asc\./);
+  await expect(accounts.locator("tbody tr").first()).toContainText(targetEmail);
+
+  await page.getByRole("tab", { name: "Companies", exact: true }).click();
+  const company = page
+    .getByRole("table", { name: "Companies", exact: true })
+    .locator(".inspectable-row .list-row-name")
+    .first();
+  await expect(company).toBeVisible();
+  expect(await nameStyle(company)).toEqual(emailStyle);
+});
+
+/** The top of a cell's first text, which moves when the text's line height differs from the cell's. */
+const textTop = (cell) =>
+  cell.evaluate((element) => {
+    const { document, NodeFilter } = globalThis;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) =>
+        node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
+    });
+    const range = document.createRange();
+    range.selectNodeContents(walker.nextNode());
+    return range.getBoundingClientRect().top;
+  });
+
+for (const viewport of [
+  { width: 1440, height: 900 },
+  { width: 390, height: 844 },
+])
+  test(`row names line up with the next cell of their row at ${String(viewport.width)}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await setupAdministrator(page, "member");
+    for (const [tab, table] of [
+      ["User access", "User accounts"],
+      ["Companies", "Companies"],
+    ]) {
+      await page.getByRole("tab", { name: tab, exact: true }).click();
+      const cells = page
+        .getByRole("table", { name: table, exact: true })
+        .locator("tbody tr.inspectable-row")
+        .first()
+        .locator("td");
+      await expect(cells.first().locator(".list-row-name")).toBeVisible();
+      await expect(cells.first()).toHaveCSS("font-size", "13px");
+      expect(await textTop(cells.first())).toBeCloseTo(await textTop(cells.nth(1)), 0);
+    }
+  });
 
 test("administrator transfers a member then explicitly confirms membership revocation", async ({
   page,
@@ -103,7 +197,8 @@ test("administrator transfers a member then explicitly confirms membership revoc
   const fixture = await setupAdministrator(page, "member");
   await accountRow(page, targetEmail).click();
   await chooseCompany(page, "South Company");
-  await expect(membershipDrawer(page)).toContainText("Current company: North Company");
+  const context = membershipDrawer(page).locator(".detail-drawer-context");
+  await expect(context).toHaveText(`${targetEmail} · North Company`);
   await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
   const metadataToggle = membershipDrawer(page).getByRole("button", {
     name: "Additional details",
@@ -118,7 +213,7 @@ test("administrator transfers a member then explicitly confirms membership revoc
   ).toContainText(companyA);
   await metadataToggle.click();
   await page.reload();
-  await expect(membershipDrawer(page)).toContainText("Current company: North Company");
+  await expect(context).toHaveText(`${targetEmail} · North Company`);
   await expect(membershipDrawer(page).getByRole("status")).toContainText("Unsaved change");
   expect(fixture.membershipRequests).toHaveLength(0);
   await saveMembership(page, "South Company");
@@ -142,11 +237,9 @@ test("administrator transfers a member then explicitly confirms membership revoc
   await membershipDrawer(page)
     .getByRole("button", { name: "Confirm revocation", exact: true })
     .click();
-  await expect(accountRow(page, targetEmail)).toContainText("Unassigned");
-  await membershipDrawer(page)
-    .getByRole("button", { name: "Close membership details", exact: true })
-    .click();
   await expect(membershipDrawer(page)).toBeHidden();
+  await expect(savedNotice(page, `Membership revoked: ${targetEmail}`)).toBeVisible();
+  await expect(accountRow(page, targetEmail)).toContainText("Unassigned");
   await expect(accountRow(page, targetEmail)).not.toContainText("South Company");
   expect(fixture.membershipRequests).toHaveLength(2);
   expect(fixture.membershipRequests[1].body).toMatchObject({
@@ -250,7 +343,7 @@ for (const width of [1440, 390]) {
     await page.reload();
     await accountRow(page, targetEmail).click();
     const drawer = membershipDrawer(page);
-    await expect(drawer).toContainText("This user has not confirmed their email yet");
+    await expect(drawer).toContainText("Email not confirmed. They can't sign in yet.");
     const additionalDetails = drawer.getByRole("button", {
       name: "Additional details",
       exact: true,
@@ -268,9 +361,9 @@ for (const width of [1440, 390]) {
     await expect(identifiers.getByRole("row").filter({ hasText: "Company ID" })).toContainText(
       companyA,
     );
-    await expect(identifiers.getByRole("row").filter({ hasText: "Joined" })).toContainText(
-      "2026-09-01 00:00:00 UTC",
-    );
+    const joined = identifiers.getByRole("row").filter({ hasText: "Joined (UTC)" });
+    await expect(joined).toContainText("2026-09-01 00:00:00");
+    await expect(joined).not.toContainText("00:00:00 UTC");
     await expect(identifiers.getByRole("row").filter({ hasText: "Email confirmed" })).toContainText(
       "No",
     );

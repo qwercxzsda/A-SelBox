@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchPayoutTypeTotals, type CanonicalRow } from "./api";
 import { AmountBreakdown } from "./AmountBreakdown";
 import { PayoutComponents } from "./PayoutComponents";
-import { getErrorMessage } from "./view-model";
+import { loadErrorDetail } from "./load-error";
 
 export function PayoutAmounts({ row, accessToken }: { row: CanonicalRow; accessToken: string }) {
   const reportId = row.id ?? "";
@@ -27,7 +27,7 @@ export function PayoutAmounts({ row, accessToken }: { row: CanonicalRow; accessT
       savedTotal={total}
       totals={query.data}
       loading={query.isFetching}
-      error={query.error ? getErrorMessage(query.error) : null}
+      error={query.error ? loadErrorDetail(query.error) : null}
       onRetry={() => void query.refetch()}
       renderRecords={(selection) => (
         <PayoutComponents

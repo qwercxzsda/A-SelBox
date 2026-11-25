@@ -44,9 +44,7 @@ function parsePublished(
     value.changed_count !== changes.length ||
     value.published.length !== changes.length
   )
-    throw new Error(
-      "The save response was incomplete. Refresh the configuration before trying again.",
-    );
+    throw new Error("The save response was incomplete. Refresh saved settings first.");
   const expected = new Set(changes.map((change) => change.sku));
   const published = value.published.map((entry: unknown) => {
     if (
@@ -55,9 +53,7 @@ function parsePublished(
       !expected.delete(entry.sku) ||
       !isUuid(entry.terms_version_id)
     )
-      throw new Error(
-        "The save response was invalid. Refresh the configuration before trying again.",
-      );
+      throw new Error("The save response was invalid. Refresh saved settings first.");
     return { sku: entry.sku, terms_version_id: entry.terms_version_id };
   });
   return { published, changed_count: published.length };
@@ -70,13 +66,7 @@ export function createSkuConfigurationApi(transport: ApiTransport) {
       signal?: AbortSignal,
     ): Promise<SkuConfiguration> {
       return parseSkuConfiguration(
-        await transport.postRpc(
-          accessToken,
-          "sku_configuration",
-          {},
-          "Assignments and fees",
-          signal,
-        ),
+        await transport.postRpc(accessToken, "sku_configuration", {}, "Current fees", signal),
       );
     },
 
@@ -91,7 +81,7 @@ export function createSkuConfigurationApi(transport: ApiTransport) {
           options.accessToken,
           "publish_sku_configuration",
           { p_changes: changes, p_change_reason: reason },
-          "Save assignments and fees",
+          "Save current fees",
         );
         return parsePublished(result, changes);
       } catch (error) {
@@ -102,7 +92,7 @@ export function createSkuConfigurationApi(transport: ApiTransport) {
           throw error;
         throw new SkuConfigurationError(
           "unconfirmed",
-          "We could not confirm the save. Reload the latest saved settings before saving again.",
+          "Result unknown. Refresh saved settings first.",
         );
       }
     },

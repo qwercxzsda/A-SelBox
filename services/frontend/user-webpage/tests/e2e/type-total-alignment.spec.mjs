@@ -239,7 +239,7 @@ for (const [user, role] of [
         path: testInfo.outputPath("type-total-alignment.png"),
         animations: "disabled",
       });
-      await summary.getByRole("button", { name: "Close breakdown", exact: true }).click();
+      await summary.getByRole("button", { name: "Close transaction totals", exact: true }).click();
       await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
       await page.getByRole("cell", { name: "5.00 USD", exact: true }).last().click();
       const payout = page.getByRole("dialog", { name: "Payout report details", exact: true });
@@ -271,8 +271,8 @@ for (const scenario of [
     await assertTotals(summary, scenario.expected, true);
     await assertHeaderAmounts(summary, "Sales & refunds", ["100.00 USD", "—", "—"], true);
     await expect(
-      summary.getByRole("region", { name: "Breakdown total", exact: true }),
-    ).toContainText("1 transaction has uncalculated amounts.");
+      summary.getByRole("region", { name: "Breakdown total", exact: true }).getByRole("note"),
+    ).toHaveText("1 missing fee rate");
     const records = summary.getByRole("table", { name: "Amount records", exact: true });
     await expect(
       recordRow(records, "PRODUCT_SALES-001").locator('td[data-column="company_amount"]'),

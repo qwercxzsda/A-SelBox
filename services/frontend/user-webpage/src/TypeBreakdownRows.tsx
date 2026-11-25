@@ -1,12 +1,13 @@
 import { useId, useLayoutEffect, useRef } from "react";
-import { FinancialAmounts } from "./FinancialAmounts";
+import { FinancialAmounts, MissingFeeRateNote } from "./FinancialAmounts";
 import { Accordion, Button, Group, Table, Text } from "@mantine/core";
-import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
+import type { TransactionTypeTotal } from "./api/types";
 import { sourceCodeLabel } from "./categories";
 import { formatMoney } from "./decimal";
 import type { TransactionTypeGroup } from "./type-breakdown-groups";
 
 import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
+import { countLabel } from "./pagination";
 import type { RecordSelection } from "./AmountBreakdown";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailStrings } from "./detail-view-state";
@@ -14,14 +15,6 @@ import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
 import type { TypeGroupId } from "./transaction-type-families";
 
 type SelectRecords = (selection: RecordSelection) => void;
-
-function UncalculatedNote({ total }: { total: CurrencyTotal }) {
-  return total.missingFeeCount > 0 ? (
-    <Text size="xs" c="orange.9" mt={2}>
-      {total.missingFeeCount.toLocaleString("en-US")} uncalculated
-    </Text>
-  ) : null;
-}
 
 function AmountRow({
   total,
@@ -37,7 +30,7 @@ function AmountRow({
         <Text inherit fw={500} title={total.type}>
           {label}
         </Text>
-        <UncalculatedNote total={total} />
+        <MissingFeeRateNote count={total.missingFeeCount} mt={2} />
       </Table.Th>
       {FINANCIAL_AMOUNTS.map(([field, , recordField]) => (
         <Table.Td key={field} data-column={recordField} ta="right">
@@ -84,11 +77,11 @@ function MobileType({
             onSelectRecords({ label, types: [total.type] });
           }}
         >
-          {total.rowCount.toLocaleString("en-US")} {total.rowCount === 1 ? "record" : "records"}
+          {countLabel(total.rowCount, "records")}
         </Button>
       </Group>
       <FinancialAmounts total={total} />
-      <UncalculatedNote total={total} />
+      <MissingFeeRateNote count={total.missingFeeCount} mt={2} />
     </article>
   );
 }
@@ -154,7 +147,7 @@ export function TypeBreakdownRows({
   const amountIdPrefix = useId();
   const controls = useRef(new Map<TypeGroupId, HTMLButtonElement>());
   const focused = useRef(false);
-  const hasUncalculatedAmounts = groups.some((group) => group.totals.missingFeeCount > 0);
+  const hasMissingFeeRates = groups.some((group) => group.totals.missingFeeCount > 0);
   const [expanded, setExpanded] = useWorkspacePreference<string[]>(
     `${stateKey}:type-groups`,
     () => (focusedGroup ? [focusedGroup] : []),
@@ -183,7 +176,7 @@ export function TypeBreakdownRows({
         <span className="type-breakdown-group-name">Type</span>
         <span className="type-breakdown-group-amounts">
           {FINANCIAL_AMOUNTS.map((field) => (
-            <span key={field[0]}>{financialAmountLabel(field, hasUncalculatedAmounts)}</span>
+            <span key={field[0]}>{financialAmountLabel(field, hasMissingFeeRates)}</span>
           ))}
         </span>
       </div>
@@ -225,13 +218,11 @@ export function TypeBreakdownRows({
                 aria-label={`${group.label} subtotal`}
               >
                 <Text size="xs" c="dimmed">
-                  {group.totals.rowCount.toLocaleString("en-US")}{" "}
-                  {group.totals.rowCount === 1 ? "record" : "records"} across{" "}
-                  {group.types.length.toLocaleString("en-US")}{" "}
-                  {group.types.length === 1 ? "type" : "types"}
+                  {countLabel(group.totals.rowCount, "records")} across{" "}
+                  {countLabel(group.types.length, "types")}
                 </Text>
                 <FinancialAmounts total={group.totals} />
-                <UncalculatedNote total={group.totals} />
+                <MissingFeeRateNote count={group.totals.missingFeeCount} mt={2} />
                 <Button
                   mt="sm"
                   size="xs"

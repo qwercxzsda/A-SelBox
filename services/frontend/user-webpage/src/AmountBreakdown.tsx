@@ -1,13 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
-import { Alert, Button, Group, Paper, Skeleton, Stack, Text } from "@mantine/core";
+import { Button, Group, Paper, Skeleton, Stack, Text } from "@mantine/core";
 import type { CurrencyTotal, TransactionTypeTotal } from "./api/types";
 import { groupTransactionTypes, totalTransactionTypes } from "./type-breakdown-groups";
 import { TypeBreakdownRows } from "./TypeBreakdownRows";
 import { TypeBreakdownAmounts } from "./TypeBreakdownAmounts";
-import { FinancialAmounts } from "./FinancialAmounts";
+import { FinancialAmounts, MissingFeeRateNote } from "./FinancialAmounts";
+import { countLabel } from "./pagination";
 import { LoadingStatus } from "./LoadingStatus";
 import { DetailSection } from "./DetailSection";
-import { AmountPrecisionNote } from "./AmountPrecisionNote";
+import { ErrorAlert } from "./ErrorAlert";
+import { HelpPopover } from "./HelpPopover";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeRecordSelection } from "./detail-view-state";
 import type { TypeGroupId } from "./transaction-type-families";
@@ -36,6 +38,7 @@ export function AmountBreakdown({
   totals: TransactionTypeTotal[] | undefined;
   savedTotal?: CurrencyTotal;
   loading: boolean;
+  /** The short cause of a failed read (`loadErrorDetail`). */
   error: string | null;
   onRetry: () => void;
   renderRecords: (selection: RecordSelection) => ReactNode;
@@ -77,43 +80,39 @@ export function AmountBreakdown({
           p="md"
         >
           <Group justify="space-between" gap="xs">
-            <Text component="h3" m={0} fw={600} size="lg">
-              Total
-            </Text>
+            <Group gap={6} wrap="nowrap">
+              <Text component="h3" m={0} fw={600} size="lg">
+                Total
+              </Text>
+              <HelpPopover label="Total help">
+                Amounts show 2 decimals. Totals use full precision, so rows may not add up exactly.
+                {total.missingFeeCount > 0
+                  ? " Company amount leaves out records without a fee rate; add the rates in Current fees."
+                  : null}
+              </HelpPopover>
+            </Group>
             {totals !== undefined ? (
               <Text size="xs" c="dimmed">
-                {total.rowCount.toLocaleString("en-US")}{" "}
-                {total.rowCount === 1 ? "record" : "records"} across{" "}
-                {typeCount.toLocaleString("en-US")} {typeCount === 1 ? "type" : "types"}
+                {countLabel(total.rowCount, "records")} across {countLabel(typeCount, "types")}
               </Text>
             ) : null}
           </Group>
           <FinancialAmounts total={total} />
-          <AmountPrecisionNote />
-          {total.missingFeeCount > 0 ? (
-            <Text size="sm" c="orange.9" role="note" mt="sm">
-              {total.missingFeeCount.toLocaleString("en-US")}{" "}
-              {total.missingFeeCount === 1 ? "transaction has" : "transactions have"} uncalculated
-              amounts. Totals include known amounts.
-            </Text>
-          ) : null}
+          <MissingFeeRateNote count={total.missingFeeCount} mt="xs" />
         </Paper>
       ) : null}
       <DetailSection
         ref={amountsRef}
         title="Amounts by type"
-        description="Breakdown of the total above by type. Expand a type group to view its types and records."
         actions={<LoadingStatus state={loading && totals !== undefined ? "updating" : null} />}
       >
         {error ? (
-          <Alert color="red" role="alert" mb="md">
-            <Stack gap="xs" align="start">
-              {error}
-              <Button color="red" variant="subtle" loading={loading} onClick={onRetry}>
-                Retry breakdown
-              </Button>
-            </Stack>
-          </Alert>
+          <ErrorAlert
+            title="Could not load amounts by type"
+            detail={error}
+            retrying={loading}
+            onRetry={onRetry}
+          />
         ) : null}
         {loading && totals === undefined ? (
           <Stack gap="md" role="status" aria-label="Loading amounts by type">

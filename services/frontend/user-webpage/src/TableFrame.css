@@ -5,6 +5,53 @@
   overflow: hidden;
 }
 
+/* A fixed chip line: applied filters appear and disappear without moving the table. */
+.table-status-row {
+  --table-status-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--table-status-height);
+  margin-bottom: 4px;
+}
+
+.table-status-filters {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+
+.table-status-actions {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+@media (max-width: 720px) {
+  .table-status-row {
+    flex-wrap: wrap;
+    row-gap: 0;
+    height: auto;
+  }
+  .table-status-filters {
+    flex-basis: 100%;
+    height: var(--table-status-height);
+  }
+}
+
+/* The previous result stays in place while the next one loads; its rows cannot be opened.
+   A short delay avoids a flash when the next result arrives quickly. */
+.table-card[data-placeholder] tbody,
+.table-card[data-placeholder] .empty-state {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 120ms ease 150ms;
+}
+
+.scroll-reserve {
+  flex-shrink: 0;
+  overflow-anchor: none;
+}
+
 .table-horizontal-scroll {
   overflow-x: auto;
 }

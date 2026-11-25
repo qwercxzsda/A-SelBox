@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { applyDates, selectColumnOptions, sortBy, columnHeader } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 for (const role of ["administrator", "member"]) {
   test(`${role} can see and remove table refinements and recover without losing ordering`, async ({
@@ -40,7 +41,7 @@ for (const role of ["administrator", "member"]) {
     await expect(filters).toContainText("Source: Finances");
     await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
     await page.getByLabel("Search", { exact: true }).fill("NO-MATCH");
-    await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Reset search and filters", exact: true }).click();
     await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
     await expect(filters).toHaveCount(0);
@@ -105,7 +106,7 @@ for (const width of [1440, 834, 390]) {
 
     await signIn(page);
     for (const tab of ["Finances"]) {
-      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await openWorkspaceTab(page, tab);
       const table = page.getByRole("table", { name: "Financial records", exact: true });
       await expect(table.locator("tbody tr")).toHaveCount(1);
       await expect(
@@ -133,7 +134,9 @@ for (const width of [1440, 834, 390]) {
         metadata.getByRole("cell", { name: "Processing version", exact: true }),
       ).toBeVisible();
       await expect(metadata.getByRole("cell", { name: "v0", exact: true })).toBeVisible();
-      await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
+      await drawer
+        .getByRole("button", { name: `Close ${tab.toLowerCase()} record details`, exact: true })
+        .click();
     }
   });
 }

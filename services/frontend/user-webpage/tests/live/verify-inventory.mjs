@@ -88,8 +88,13 @@ async function verifyMetrics(page, sample) {
   await expect(metric(detail, "Recommended ship-in date")).toHaveText(
     field("recommended_ship_in_date") ?? "—",
   );
-  await expect(detail.locator(".inventory-health-label")).toHaveText(field("health_status") ?? "—");
-  await expect(detail.locator(".inventory-action-label")).toHaveText(
+  // The badge, or the muted dash in its place when Amazon gives no value.
+  const label = (section) =>
+    detail
+      .getByRole("region", { name: section, exact: true })
+      .locator(".detail-section-body > :first-child");
+  await expect(label("Inventory health status")).toHaveText(field("health_status") ?? "—");
+  await expect(label("Recommendation")).toHaveText(
     field("recommended_action") === null ? "—" : recommendationLabel(field("recommended_action")),
   );
   const source = detail.getByRole("button", { name: "Additional details", exact: true });
@@ -192,7 +197,7 @@ try {
       .getByRole("checkbox", { name: account.sample.marketplace_name, exact: true })
       .check();
     await marketplaceMenu.getByRole("button", { name: "Close options", exact: true }).click();
-    await expect(page.getByText("1–1 of 1 inventory items", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
     stage = role + ":metrics";
     await verifyMetrics(page, account.sample);
     stage = role + ":lightweight-refresh";

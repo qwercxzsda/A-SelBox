@@ -139,10 +139,8 @@ test("phone column filters support unassigned inventory and keyboard recovery fr
   await page.keyboard.press("Escape");
   await expect(company).toBeFocused();
   await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
-  await expect(
-    page.getByText("No inventory matches these filters.", { exact: true }),
-  ).toBeVisible();
-  await expect(pagination(page)).toContainText("0–0 of 0 inventory items");
+  await expect(page.getByText("No matching inventory", { exact: true })).toBeVisible();
+  await expect(pagination(page)).toContainText(/(^|\D)0 inventory items/);
   const marketplaceMenu = await openColumn(page, "Marketplace");
   await expect(
     marketplaceMenu.getByRole("checkbox", { name: "Amazon.com", exact: true }),

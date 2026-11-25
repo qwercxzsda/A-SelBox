@@ -65,8 +65,8 @@ for (const user of ["member", "administrator"]) {
     );
     await expect(source.getByText("2026-09-27", { exact: true })).toBeVisible();
     await expect(source.getByText("2026-09-28", { exact: true })).toBeVisible();
-    await expect(source.getByText("2026-09-28 03:00:00 UTC", { exact: true })).toBeVisible();
-    await expect(source.getByText("2026-09-28 04:00:00 UTC", { exact: true })).toBeVisible();
+    await expect(source.getByText("2026-09-28 03:00:00", { exact: true })).toBeVisible();
+    await expect(source.getByText("2026-09-28 04:00:00", { exact: true })).toBeVisible();
     await expect(details.getByText("Inbound received", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Send to FBA|Create shipment/ })).toHaveCount(0);
     await expect(
@@ -97,13 +97,11 @@ test("inventory browser paging, exact punctuation filters and tab state stay ind
   await expect(page.getByText("SKU-024", { exact: true })).toBeVisible();
   await expect(page.getByText("26–27 of 27 inventory items", { exact: true })).toBeVisible();
   await page.getByLabel("Search", { exact: true }).fill(special);
-  await expect(page.getByText("1–1 of 1 inventory items", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("1 inventory item", { exact: true }).first()).toBeVisible();
   expect(fixture.requests).toHaveLength(1);
   expect(fixture.requests.every((request) => !request.has("and"))).toBe(true);
   await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
-  await expect(
-    page.getByText("No inventory matches these filters.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("No matching inventory", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
@@ -111,11 +109,12 @@ test("inventory browser paging, exact punctuation filters and tab state stay ind
   await expect(
     page.getByRole("button", { name: "Remove Marketplace: Amazon.com", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+  await page.getByRole("button", { name: "Reset search and filters", exact: true }).click();
   await expect(page.getByText("1–25 of 27 inventory items", { exact: true }).first()).toBeVisible();
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
 });
 
-test("inventory recovers automatically from an initial failure with unchanged revisions and no reload buttons", async ({
+test("inventory recovers automatically from an initial failure with unchanged revisions", async ({
   page,
 }) => {
   await page.clock.install();
@@ -124,18 +123,34 @@ test("inventory recovers automatically from an initial failure with unchanged re
   fixture.failed = true;
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-  await expect(page.getByText(/Could not load inventory/)).toBeVisible();
+  const alert = page.getByRole("alert").filter({ hasText: "Could not load inventory" });
+  await expect(alert).toBeVisible();
+  await expect(alert.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await expect(page.getByText("private database details")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Refresh inventory|Retry inventory/ })).toHaveCount(
-    0,
-  );
   fixture.failed = false;
   await page.clock.fastForward(60_000);
   await expect(page.getByText("FIRST", { exact: true })).toBeVisible();
+  await expect(alert).toHaveCount(0);
   const requests = fixture.requests.length;
   await page.clock.fastForward(60_000);
   await expect(page.getByText("FIRST", { exact: true })).toBeVisible();
   expect(fixture.requests).toHaveLength(requests);
+});
+
+test("inventory Retry reloads a failed read without waiting for the next update", async ({
+  page,
+}) => {
+  await mockSupabase(page);
+  const fixture = await mockInventory(page, [inventoryRow("FIRST")]);
+  fixture.failed = true;
+  await signIn(page);
+  await page.getByRole("tab", { name: "Inventory", exact: true }).click();
+  const alert = page.getByRole("alert").filter({ hasText: "Could not load inventory" });
+  await expect(alert).toBeVisible();
+  fixture.failed = false;
+  await alert.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByText("FIRST", { exact: true })).toBeVisible();
+  await expect(alert).toHaveCount(0);
 });
 
 test("desktop inventory menus search the whole catalog, filter before paging, and preserve controls on reload", async ({
@@ -191,12 +206,18 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["RESTOCK"]);
   expect(inventory.requests).toHaveLength(1);
-  await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Applied inventory filters", exact: true })
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
   await columnTrigger(region, "Inventory health status").click();
   await page.getByRole("checkbox", { name: "Unavailable", exact: true }).check();
   await page.keyboard.press("Escape");
   await expect(skus).toHaveText(["UNKNOWN"]);
-  await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Applied inventory filters", exact: true })
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
   await columnTrigger(region, "Recommendation").click();
   await page.getByRole("checkbox", { name: "Send to FBA", exact: true }).check();
   await page.getByRole("button", { name: "Least urgent first", exact: true }).click();
@@ -219,13 +240,14 @@ test("desktop inventory menus search the whole catalog, filter before paging, an
   await expect(details.getByText("Inbound received", { exact: true })).toBeVisible();
   await details.getByRole("button", { name: "Close inventory details", exact: true }).click();
   await expect(region.getByRole("columnheader").last()).toHaveAttribute("aria-sort", "ascending");
-  await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Applied inventory filters", exact: true })
+    .getByRole("button", { name: "Clear filters", exact: true })
+    .click();
   await page.getByLabel("Search", { exact: true }).fill("send to fba");
   await expect(skus).toHaveText(["SEND"]);
   await page.getByLabel("Search", { exact: true }).fill("not-present");
-  await expect(
-    page.getByText("No inventory matches these filters.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("No matching inventory", { exact: true })).toBeVisible();
   await expect(columnTrigger(region, "Recommendation")).toBeVisible();
 });
 
@@ -390,9 +412,7 @@ test("an inventory revision refreshes local search while unchanged checks read n
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await page.getByLabel("Search", { exact: true }).fill("NEW");
-  await expect(
-    page.getByText("No inventory matches these filters.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("No matching inventory", { exact: true })).toBeVisible();
   const reads = inventory.requests.length;
   await poll(page, workspace);
   expect(inventory.requests).toHaveLength(reads);
@@ -425,10 +445,9 @@ test("inventory retains data and retries failed revision checks without a manual
   const reads = inventory.requests.length;
   workspace.revisionStatus = 503;
   await page.clock.fastForward(60_000);
-  await expect(page.getByRole("alert")).toContainText("Updates retry automatically.");
-  await expect(
-    page.getByRole("button", { name: /Retry update|Refresh inventory|Retry inventory/ }),
-  ).toHaveCount(0);
+  const check = page.getByRole("alert").filter({ hasText: "Could not check for updates" });
+  await expect(check).toContainText("Retrying automatically.");
+  await expect(check.getByRole("button")).toHaveCount(0);
   await expect(page.getByText("FIRST", { exact: true })).toBeVisible();
   expect(inventory.requests).toHaveLength(reads);
   workspace.revisionStatus = 200;

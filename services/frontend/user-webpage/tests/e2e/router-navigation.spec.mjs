@@ -65,6 +65,29 @@ test("typing replaces the current history entry while paging and tab changes rem
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
 });
 
+test("links corrected to the loaded data replace their history entry, so Back leaves them", async ({
+  page,
+}) => {
+  const fixture = await mockSupabase(page);
+  await mockInventory(page, [inventoryRow("QA-001")]);
+  await signIn(page);
+  await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
+  const before = page.url();
+  // 30 transactions fill two pages of 25: page index 9 is corrected to the last page.
+  expect(fixture.totalCount).toBe(30);
+  await page.goto("/?tab=live&page=9");
+  await expect(page).toHaveURL(/[?&]page=1(?:&|$)/);
+  await page.goBack();
+  await expect(page).toHaveURL(before);
+  await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
+  // An inventory row the snapshot lacks leaves the URL the same way.
+  await page.goto("/?tab=inventory&row=missing");
+  await expect(page.getByRole("button", { name: "Show transactions for QA-001" })).toBeVisible();
+  await expect(page).not.toHaveURL(/row=/);
+  await page.goBack();
+  await expect(page).toHaveURL(before);
+});
+
 test("signing out during a page request clears routed state without losing unrelated URL data", async ({
   page,
 }) => {

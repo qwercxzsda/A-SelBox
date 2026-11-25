@@ -1,6 +1,7 @@
 import { Text } from "@mantine/core";
-import { INVENTORY_OVERDUE_DAYS, inventoryAge, inventorySourceDay } from "./inventory-coverage";
+import { INVENTORY_OUT_OF_DATE_RULE, inventoryAge, inventorySourceDay } from "./inventory-coverage";
 
+/** "2026-09-27 · 58 days old · Out of date", the same in the table and the drawer. */
 export function InventorySourceDate({
   snapshotDate,
   reportCreatedAt,
@@ -12,28 +13,29 @@ export function InventorySourceDate({
   reportCreatedAt: string;
   marketplace: string;
   now: number;
+  /** The smaller line under a SKU in the table. */
   compact?: boolean;
 }) {
   const snapshot = inventorySourceDay(snapshotDate, marketplace);
   const day = snapshot ?? inventorySourceDay(reportCreatedAt, marketplace);
   const age = inventoryAge(day, now, marketplace);
-  const sourceLabel = snapshot ? "Stock as of " : "Stock date unavailable · Report ";
-  const warning = age.overdue ? " · Out of date" : "";
-  const description = `${sourceLabel}${day ?? "date unavailable"}${day ? ` · ${age.label}` : ""}${warning}`;
-  const ageLabel = compact ? age.compactLabel : age.label;
   return (
     <Text
-      mt={4}
+      mt={compact ? 4 : undefined}
       size={compact ? "xs" : "sm"}
-      c={age.overdue ? "#8a5000" : "dimmed"}
+      c={age.overdue ? "var(--ui-status-warning-text)" : compact ? "dimmed" : undefined}
       className="inventory-source-date"
       data-compact={compact || undefined}
-      title={`${description}. Dates more than ${String(INVENTORY_OVERDUE_DAYS)} calendar days old in this marketplace are out of date.`}
+      title={
+        day && !snapshot
+          ? `Stock date unavailable; report date shown. ${INVENTORY_OUT_OF_DATE_RULE}`
+          : INVENTORY_OUT_OF_DATE_RULE
+      }
     >
-      {compact ? (day && !snapshot ? "Report " : "") : sourceLabel}
-      {day ? <time dateTime={day}>{day}</time> : compact ? "Date unavailable" : "date unavailable"}
-      {day ? ` · ${ageLabel}` : ""}
-      {warning}
+      {day && !snapshot ? "Report " : ""}
+      {day ? <time dateTime={day}>{day}</time> : "Date unavailable"}
+      {day ? ` · ${age.label}` : ""}
+      {age.overdue ? " · Out of date" : ""}
     </Text>
   );
 }

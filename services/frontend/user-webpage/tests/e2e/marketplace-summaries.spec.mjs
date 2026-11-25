@@ -49,7 +49,7 @@ for (const width of [390, 1440]) {
     const dayCard = summaryCard(page, "Last day");
     await expect(
       dayCard.getByRole("button", {
-        name: "Filter transactions to Nov 5, 2026 · UTC",
+        name: "Filter transactions to 2026-11-05 · UTC",
         exact: true,
       }),
     ).toHaveCount(1);
@@ -102,7 +102,7 @@ for (const width of [390, 1440]) {
         p_date_from: "2026-11-05",
         p_date_to: "2026-11-06",
       });
-      await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+      await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
     }
     expect(fixture.breakdownRequests).toHaveLength(3);
   });
@@ -125,7 +125,7 @@ test("a month-end latest transaction still uses the previous month for every mar
 
   await expect(
     summaryCard(page, "Last day").getByRole("button", {
-      name: "Filter transactions to Nov 29, 2026 · UTC",
+      name: "Filter transactions to 2026-11-29 · UTC",
       exact: true,
     }),
   ).toHaveCount(1);
@@ -162,7 +162,7 @@ test("a month-end latest transaction still uses the previous month for every mar
       p_date_from: "2026-10-01",
       p_date_to: "2026-10-31",
     });
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await summaryCard(page, "Last month")
     .getByRole("button", {
       name: "Filter transactions to October 2026 · UTC",
@@ -190,7 +190,7 @@ test("marketplace and selected-date filters never move the shared UTC day or mon
   const day = summaryCard(page, "Last day");
   const month = summaryCard(page, "Last month");
   await expect(
-    day.getByRole("button", { name: "Filter transactions to Nov 29, 2026 · UTC", exact: true }),
+    day.getByRole("button", { name: "Filter transactions to 2026-11-29 · UTC", exact: true }),
   ).toHaveCount(1);
   await columnTrigger(page, "Marketplace").click();
   const menu = page.getByRole("dialog", { name: "Marketplace options", exact: true });
@@ -202,7 +202,7 @@ test("marketplace and selected-date filters never move the shared UTC day or mon
   await applyDates(page, "2026-10-01", "2026-10-31");
   await expect(japan.selected).toContainText("No transactions");
   await expect(
-    day.getByRole("button", { name: "Filter transactions to Nov 29, 2026 · UTC", exact: true }),
+    day.getByRole("button", { name: "Filter transactions to 2026-11-29 · UTC", exact: true }),
   ).toHaveCount(1);
   await expect(
     month.getByRole("button", { name: "Filter transactions to October 2026 · UTC", exact: true }),

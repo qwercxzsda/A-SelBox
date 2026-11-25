@@ -52,14 +52,16 @@ test("source-record errors and unavailable versions stay visible with recovery a
   state.status = 403;
   await opener.click();
   await expect(detail(page).getByRole("alert")).toBeInViewport();
-  await expect(detail(page).getByRole("alert")).toContainText("Could not load source record.");
+  await expect(detail(page).getByRole("alert")).toContainText("Could not load source record");
   state.status = 200;
   state.missing = true;
-  await detail(page).getByRole("button", { name: "Retry source record", exact: true }).click();
+  await detail(page).getByRole("button", { name: "Retry", exact: true }).click();
   await expect(
-    detail(page).getByText(/This exact source row\/version is no longer available/),
+    detail(page).getByText("This record version is no longer available", { exact: true }),
   ).toBeInViewport();
-  await detail(page).getByRole("button", { name: "Close row details", exact: true }).click();
+  await detail(page)
+    .getByRole("button", { name: "Close finances record details", exact: true })
+    .click();
   await expect(opener).toBeFocused();
   expect(
     state.requests.filter((args) => args.p_row_id).every((args) => args.p_version_id === versionId),
@@ -83,8 +85,6 @@ test("a source error completed before the drawer mounts remains visible", async 
   } finally {
     await page.clock.resume();
   }
-  await expect(detail(page).getByRole("alert")).toContainText("Could not load source record.");
-  await expect(
-    detail(page).getByRole("button", { name: "Retry source record", exact: true }),
-  ).toBeInViewport();
+  await expect(detail(page).getByRole("alert")).toContainText("Could not load source record");
+  await expect(detail(page).getByRole("button", { name: "Retry", exact: true })).toBeInViewport();
 });

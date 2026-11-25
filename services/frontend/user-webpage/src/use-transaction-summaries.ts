@@ -7,14 +7,13 @@ import {
 import {
   summaryPeriods,
   selectedPeriod,
-  TOTALS_PERIOD_LABELS,
   type DateRange,
   type PeriodDefinition,
 } from "./summary-periods";
 import type { MarketplaceSummary, SummaryState } from "./summary-types";
 import type { DatasetFilters, TransactionSummaryScope, TransactionSearchValues } from "./api/types";
 import type { Identity } from "./auth-session";
-import { getErrorMessage } from "./view-model";
+import { loadErrorDetail } from "./load-error";
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { summaryMarketplaces, sortMarketplaceSummaries } from "./summary-marketplaces";
 import { resolveTransactionSearch } from "./transaction-search";
@@ -55,12 +54,11 @@ function periodQueryOptions(
 function summaryState(
   definition: PeriodDefinition | null,
   query: UseQueryResult<MarketplaceCurrencyTotal[]>,
-  title: string,
 ): SummaryState {
   return {
     definition,
     pending: definition !== null && query.isPending,
-    error: query.error ? `${title}: ${getErrorMessage(query.error)}` : null,
+    error: query.error ? loadErrorDetail(query.error) : null,
   };
 }
 
@@ -104,13 +102,12 @@ export function useTransactionSummaries(
   const selectedQuery = useQuery(
     periodQueryOptions(identity, periods.selected?.range ?? null, scope, searchValues),
   );
-  const discoveryError = latest.error
-    ? `Latest transaction date: ${getErrorMessage(latest.error)}`
-    : null;
+  // Last day and Last month are anchored on the latest transaction date.
+  const discoveryError = latest.error ? loadErrorDetail(latest.error) : null;
   const states = {
-    day: summaryState(periods.day, dayQuery, TOTALS_PERIOD_LABELS.day),
-    month: summaryState(periods.month, monthQuery, TOTALS_PERIOD_LABELS.month),
-    selected: summaryState(periods.selected, selectedQuery, TOTALS_PERIOD_LABELS.selected),
+    day: summaryState(periods.day, dayQuery),
+    month: summaryState(periods.month, monthQuery),
+    selected: summaryState(periods.selected, selectedQuery),
   };
   for (const period of ["day", "month"] as const) {
     states[period].pending ||= latest.isPending;

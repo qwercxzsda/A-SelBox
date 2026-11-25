@@ -4,9 +4,11 @@ import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 const targetUser = "00000000-0000-4000-8000-000000000001";
 const companyId = "00000000-0000-4000-8000-00000000000a";
 const otherUser = "00000000-0000-4000-8000-000000000002";
-const drawer = (page) => page.getByRole("dialog", { name: "Company membership", exact: true });
+const drawer = (page) => page.getByRole("dialog", { name: "User access details", exact: true });
 const accountRow = (page) =>
   page.getByRole("row").filter({ hasText: "pending-member@example.test" });
+const savedNotice = (page) =>
+  page.getByRole("status").filter({ hasText: /^Membership (saved|revoked): / });
 
 async function startAssignment(page) {
   const fixture = await mockSupabase(page);
@@ -37,7 +39,7 @@ test("a pending membership failure survives switching tabs and can be corrected"
     await drawer(page).getByRole("button", { name: "Save membership", exact: true }).click();
     await expect.poll(() => fixture.membershipRequests.length).toBe(1);
     await drawer(page)
-      .getByRole("button", { name: "Close membership details", exact: true })
+      .getByRole("button", { name: "Close user access details", exact: true })
       .click();
     await page.getByRole("tab", { name: "Companies", exact: true }).click();
     await page.getByRole("tab", { name: "User access", exact: true }).click();
@@ -51,8 +53,9 @@ test("a pending membership failure survives switching tabs and can be corrected"
     await expect(save).toBeEnabled();
     fixture.membershipStatus = 200;
     await save.click();
+    await expect(drawer(page)).toBeHidden();
+    await expect(savedNotice(page)).toHaveText("Membership saved: pending-member@example.test");
     await expect(accountRow(page)).toContainText("North Company");
-    await expect(drawer(page).getByRole("alert")).toHaveCount(0);
     expect(fixture.membershipRequests).toHaveLength(2);
   } finally {
     response.resolve();
@@ -69,7 +72,7 @@ test("a membership completion cannot change another account's draft or feedback"
     await drawer(page).getByRole("button", { name: "Save membership", exact: true }).click();
     await expect.poll(() => fixture.membershipRequests.length).toBe(1);
     await drawer(page)
-      .getByRole("button", { name: "Close membership details", exact: true })
+      .getByRole("button", { name: "Close user access details", exact: true })
       .click();
     const other = page.getByRole("row").filter({ hasText: "other-member@example.test" });
     await other.click();
@@ -81,13 +84,11 @@ test("a membership completion cannot change another account's draft or feedback"
     await expect(accountRow(page)).toContainText("North Company");
     await expect(company).toHaveValue("North Company");
     await expect(drawer(page).getByRole("status")).toContainText("Unsaved change");
-    await expect(drawer(page).getByText("Company membership saved.", { exact: true })).toHaveCount(
-      0,
-    );
+    await expect(savedNotice(page)).toHaveCount(0);
     expect(fixture.roles[otherUser]).toBe("unassigned");
     expect(fixture.membershipRequests).toHaveLength(1);
     await drawer(page)
-      .getByRole("button", { name: "Close membership details", exact: true })
+      .getByRole("button", { name: "Close user access details", exact: true })
       .click();
     await other.click();
     await expect(company).toHaveValue("North Company");
@@ -108,7 +109,7 @@ for (const status of [200, 503]) {
       await drawer(page).getByRole("button", { name: "Save membership", exact: true }).click();
       await expect.poll(() => fixture.membershipRequests.length).toBe(1);
       await drawer(page)
-        .getByRole("button", { name: "Close membership details", exact: true })
+        .getByRole("button", { name: "Close user access details", exact: true })
         .click();
       await expect(drawer(page)).toBeHidden();
       await accountRow(page).click();
@@ -128,11 +129,18 @@ for (const status of [200, 503]) {
           drawer(page).getByRole("combobox", { name: "Company", exact: true }),
         ).toHaveValue("North Company");
       } else {
+        await expect(drawer(page)).toBeHidden();
+        await expect(savedNotice(page)).toHaveText("Membership saved: pending-member@example.test");
         await expect(accountRow(page)).toContainText("North Company");
-        await expect(drawer(page).getByRole("status")).toContainText("Company membership saved.");
+        await accountRow(page).click();
         await drawer(page).getByRole("button", { name: "Revoke membership", exact: true }).click();
         await drawer(page).getByRole("button", { name: "Confirm revocation", exact: true }).click();
+        await expect(drawer(page)).toBeHidden();
+        await expect(savedNotice(page)).toHaveText(
+          "Membership revoked: pending-member@example.test",
+        );
         await expect(accountRow(page)).toContainText("Unassigned");
+        await accountRow(page).click();
         await expect(
           drawer(page).getByRole("combobox", { name: "Company", exact: true }),
         ).toHaveValue("");
@@ -155,7 +163,7 @@ test("an earlier account's late completion cannot replace the current account's 
     await drawer(page).getByRole("button", { name: "Save membership", exact: true }).click();
     await expect.poll(() => fixture.membershipRequests.length).toBe(1);
     await drawer(page)
-      .getByRole("button", { name: "Close membership details", exact: true })
+      .getByRole("button", { name: "Close user access details", exact: true })
       .click();
     await page.getByRole("row").filter({ hasText: "other-member@example.test" }).click();
     await drawer(page)
@@ -163,14 +171,15 @@ test("an earlier account's late completion cannot replace the current account's 
       .fill("North Company");
     await page.getByRole("option", { name: "North Company", exact: true }).click();
     await drawer(page).getByRole("button", { name: "Save membership", exact: true }).click();
-    const success = drawer(page)
-      .getByRole("status")
-      .filter({ hasText: "Company membership saved." });
-    await expect(success).toBeVisible();
+    await expect(drawer(page)).toBeHidden();
+    const success = savedNotice(page);
+    await expect(success).toHaveText("Membership saved: other-member@example.test");
+    const otherRow = page.getByRole("row").filter({ hasText: "other-member@example.test" });
+    await expect(otherRow).toBeFocused();
     response.resolve();
     await expect(accountRow(page)).toContainText("North Company");
-    await expect(success).toBeVisible();
-    await expect(success).toBeFocused();
+    await expect(success).toHaveText("Membership saved: other-member@example.test");
+    await expect(otherRow).toBeFocused();
     expect(fixture.membershipRequests).toHaveLength(2);
     expect(fixture.companyIds[otherUser]).toBe(companyId);
   } finally {

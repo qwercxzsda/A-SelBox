@@ -97,7 +97,7 @@ for (const width of [1440, 1920, 834, 390]) {
     );
     await expect(
       cards[0].getByRole("button", {
-        name: "Filter transactions to Jul 31, 2026 · UTC",
+        name: "Filter transactions to 2026-07-31 · UTC",
         exact: true,
       }),
     ).toHaveCount(1);
@@ -150,7 +150,7 @@ for (const width of [1440, 1920, 834, 390]) {
 
     for (const name of [
       "Assignments",
-      "Finances",
+      "Raw data",
       "Current fees",
       "User access",
       "Companies",

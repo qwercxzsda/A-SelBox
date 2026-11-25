@@ -31,6 +31,13 @@ _REQUIRED = {
         "country_code",
         "currency",
         "fulfillment_center",
+        "average_quantity_on_hand",
+        "product_size_tier",
+        "estimated_total_item_volume",
+        "volume_units",
+        "est_vol_for_sus",
+        "est_base_msf",
+        "est_sus",
     },
     "AGED_STORAGE": {
         "snapshot-date",
@@ -57,6 +64,27 @@ _REQUIRED = {
 
 _AGED_TIERS = ("short-time-range-long-term-storage-fee", "long-time-range-long-term-storage-fee")
 _TIER_COLUMNS = {*_AGED_TIERS, *("qty-charged-" + tier for tier in _AGED_TIERS)}
+# A monthly storage report states its rate in exactly one form. In every archived report
+# (October 2025 to October 2026), Australia and Singapore print one storage rate; Europe,
+# Japan and North America print a base rate and a utilization surcharge rate.
+_STORAGE_RATES = (("storage_rate",), ("base_rate", "utilization_surcharge_rate"))
+_VOLUME_UNITS = {"cubic feet", "cubic meters"}
+# The two-rate reports also print the storage utilization ratio, always in weeks: a decimal,
+# or ">52". Every report prints Amazon's split of the fee: the volume the surcharge applies
+# to, the base fee and the surcharge. In the two-rate reports the base fee and the surcharge
+# add up to the fee within 0.0001; a one-rate report prints all three as zero.
+_UTILIZATION_COLUMNS = {"storage_utilization_ratio", "storage_utilization_ratio_units"}
+_UTILIZATION_RATIO = re.compile(r">52|[0-9]+(?:\.[0-9]+)?")
+_FEE_SPLIT = ("est_vol_for_sus", "est_base_msf", "est_sus")
+_FEE_SPLIT_TOLERANCE = Decimal("0.0001")
+# The quantity Amazon fills for each removal order type, then the one it leaves blank, in
+# every archived report (November 2025 to November 2026).
+_DISPOSED, _SHIPPED = "disposed-quantity", "shipped-quantity"
+_REMOVAL_QUANTITIES = {
+    "Disposal": (_DISPOSED, _SHIPPED),
+    "Return": (_SHIPPED, _DISPOSED),
+    "Liquidations": (_SHIPPED, _DISPOSED),
+}
 
 
 def _tiered_storage_row(row: dict[str, str]) -> dict[str, str]:
@@ -70,6 +98,79 @@ def _tiered_storage_row(row: dict[str, str]) -> dict[str, str]:
     if not all(value.is_finite() for value in amounts + quantities):
         raise ValueError("Tiered storage fees and quantities must be finite.")
     return {**row, "amount-charged": str(sum(amounts)), "qty-charged": str(sum(quantities))}
+
+
+def _aged_storage_tiers(headers: list[str]) -> bool:
+    """Whether the aged storage document states its charges in two age tiers."""
+    tier_fields = _TIER_COLUMNS.intersection(headers)
+    if tier_fields:
+        if tier_fields != _TIER_COLUMNS or "amount-charged" in headers:
+            raise ValueError("Aged storage tier columns are incomplete or ambiguous.")
+        return True
+    if "amount-charged" not in headers:
+        raise ValueError("Aged storage report is missing charge columns.")
+    return False
+
+
+def _check_storage_rates(headers: list[str]) -> None:
+    stated = [names for names in _STORAGE_RATES if set(names).intersection(headers)]
+    if len(stated) != 1 or not set(stated[0]).issubset(headers):
+        raise ValueError("Storage rate columns are missing or ambiguous.")
+    expected = _UTILIZATION_COLUMNS if "base_rate" in headers else set[str]()
+    if _UTILIZATION_COLUMNS.intersection(headers) != expected:
+        raise ValueError("Storage utilization columns do not match the storage rate form.")
+
+
+def _report_amount(value: str) -> Decimal:
+    """A fee as Amazon printed it: a finite decimal."""
+    try:
+        amount = Decimal(value)
+    except InvalidOperation:
+        raise ValueError("Report amount must be decimal.") from None
+    if not amount.is_finite():
+        raise ValueError("Invalid report currency or amount.")
+    return amount
+
+
+def _storage_figure(value: str) -> Decimal:
+    """A quantity, volume or rate as Amazon printed it, including exponent notation."""
+    try:
+        figure = Decimal(value)
+    except InvalidOperation:
+        raise ValueError("Storage quantities, volumes and rates must be decimal.") from None
+    if not figure.is_finite() or figure < 0:
+        raise ValueError("Storage quantities, volumes and rates must be finite and non-negative.")
+    return figure
+
+
+def _storage_fee_split(r: dict[str, str]) -> dict[str, Any]:
+    """Amazon's split of a two-rate fee, with the storage utilization ratio behind it."""
+    split = {name: _storage_figure(r[name]) for name in _FEE_SPLIT}
+    if "base_rate" not in r:
+        if any(split.values()):
+            raise ValueError("A one-rate storage report cannot state a utilization surcharge.")
+        return {}
+    ratio = r["storage_utilization_ratio"]
+    if r["storage_utilization_ratio_units"] != "weeks" or not _UTILIZATION_RATIO.fullmatch(ratio):
+        raise ValueError("Unrecognized storage utilization ratio.")
+    fee = _report_amount(r["estimated_monthly_storage_fee"])
+    if abs(split["est_base_msf"] + split["est_sus"] - fee) > _FEE_SPLIT_TOLERANCE:
+        raise ValueError("Storage base fee and utilization surcharge do not add up to the fee.")
+    return {"storage_utilization_ratio": ratio, **split}
+
+
+def _storage_basis(r: dict[str, str]) -> dict[str, Any]:
+    """Amazon's quantity, product size tier, volume, rate and fee split behind a storage fee."""
+    if not r["product_size_tier"].strip() or r["volume_units"] not in _VOLUME_UNITS:
+        raise ValueError("Unrecognized storage product size tier or volume units.")
+    figures = ("average_quantity_on_hand", "estimated_total_item_volume")
+    rates = [name for names in _STORAGE_RATES for name in names if name in r]
+    return {
+        "product_size_tier": r["product_size_tier"],
+        "volume_units": r["volume_units"],
+        **{name: _storage_figure(r[name]) for name in (*figures, *rates)},
+        **_storage_fee_split(r),
+    }
 
 
 def _read_document(raw: bytes, source: str, scope: str) -> Iterator[dict[str, str]]:
@@ -88,15 +189,9 @@ def _read_document(raw: bytes, source: str, scope: str) -> Iterator[dict[str, st
         or "\x00" in decoded
     ):
         raise ValueError("Report headers are missing or ambiguous.")
-    tiered = False
-    if source == "AGED_STORAGE":
-        tier_fields = _TIER_COLUMNS.intersection(headers)
-        if tier_fields:
-            if tier_fields != _TIER_COLUMNS or "amount-charged" in headers:
-                raise ValueError("Aged storage tier columns are incomplete or ambiguous.")
-            tiered = True
-        elif "amount-charged" not in headers:
-            raise ValueError("Aged storage report is missing charge columns.")
+    if source == "STORAGE":
+        _check_storage_rates(headers)
+    tiered = source == "AGED_STORAGE" and _aged_storage_tiers(headers)
     for values in reader:
         if values:
             row = dict(zip(headers, values, strict=True))
@@ -134,7 +229,11 @@ def _storage(source: str, r: dict[str, str]) -> tuple[str, dict[str, Any]]:
         month = date.fromisoformat(r["month_of_charge"] + "-01").isoformat()
         key = month
         country = r["country_code"]
-        fields = {"month_of_charge": month, "fulfillment_center": r["fulfillment_center"]}
+        fields = {
+            "month_of_charge": month,
+            "fulfillment_center": r["fulfillment_center"],
+            **_storage_basis(r),
+        }
     else:
         snapshot = _instant(r["snapshot-date"])
         key = _month(snapshot)
@@ -166,10 +265,13 @@ def _removal(r: dict[str, str]) -> tuple[str, dict[str, Any]]:
         end < start
         or not r["order-id"]
         or re.fullmatch(r"[0-9]{3}-[0-9]{7}-[0-9]{7}", r["order-id"])
-        or r["order-type"] not in {"Disposal", "Return", "Liquidations"}
+        or r["order-type"] not in _REMOVAL_QUANTITIES
         or r["order-status"] not in {"Pending", "Completed", "Cancelled"}
     ):
         raise ValueError("Unrecognized removal order identity, status or date range.")
+    filled, blank = _REMOVAL_QUANTITIES[r["order-type"]]
+    if not r.get(filled) or r.get(blank):
+        raise ValueError("Removal order quantities do not match the order type.")
     validate_product(sku=r["sku"], fnsku=r["fnsku"])
     return r["order-id"], {
         "removal_order_id": r["order-id"],
@@ -203,15 +305,10 @@ def _money_row(
         "AGED_STORAGE": "amount-charged",
         "REMOVAL_ORDER": "removal-fee",
     }[source]
-    try:
-        amount = Decimal(r[field] or "0") if source == "REMOVAL_ORDER" else Decimal(r[field])
-    except InvalidOperation:
-        raise ValueError("Report amount must be decimal.") from None
+    amount = _report_amount((r[field] or "0") if source == "REMOVAL_ORDER" else r[field])
     currency = r["currency"] or None
-    if (
-        not amount.is_finite()
-        or (currency is None and (source != "REMOVAL_ORDER" or amount))
-        or (currency and not re.fullmatch("[A-Z]{3}", currency))
+    if (currency is None and (source != "REMOVAL_ORDER" or amount)) or (
+        currency and not re.fullmatch("[A-Z]{3}", currency)
     ):
         raise ValueError("Invalid report currency or amount.")
     base, tax = report_tax(

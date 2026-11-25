@@ -154,6 +154,20 @@ test("inventory details distinguish missing metrics from zero and SKU navigation
   await expect(metric(page, "Reserved")).toHaveText("Reserved—");
   await expect(metric(page, "Sales")).toHaveText("Sales—");
   await expect(metric(page, "Recommended ship-in date")).toHaveText("Recommended ship-in date—");
+  // A missing health status or recommendation is the plain muted dash, never an empty badge.
+  const badges = ".ui-status-badge, .inventory-action-label";
+  await expect(row(page, "ZERO").locator(badges)).toHaveCount(0);
+  await expect(row(page, "ZERO").locator("td > .muted-value")).toHaveText(["—", "—"]);
+  await expect(details(page).locator(badges)).toHaveCount(0);
+  for (const section of ["Inventory health status", "Recommendation"]) {
+    const body = details(page).getByRole("region", { name: section, exact: true });
+    await expect(body.locator(".detail-section-body > .muted-value")).toHaveText("—");
+    // The metrics sit as far below the dash as below a badge.
+    await expect(body.locator(".detail-section-body > .muted-value + dl")).toHaveCSS(
+      "margin-top",
+      "12px",
+    );
+  }
   await details(page)
     .getByRole("button", { name: "Show transactions for ZERO", exact: true })
     .click();
@@ -235,10 +249,7 @@ test("inventory F5 restores the selected capture using fresh data and revisions 
   await checkRevision(page, workspace);
   await expect(details(page)).toHaveCount(0);
   await expect(
-    page.getByText(
-      "The latest imported snapshots contain no inventory items in this marketplace scope.",
-      { exact: true },
-    ),
+    page.getByText("The latest snapshots have no items here", { exact: true }),
   ).toBeVisible();
 });
 

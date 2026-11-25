@@ -3,9 +3,9 @@ import { mockSupabase, signIn } from "./fixtures.mjs";
 import { financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 
-import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
+import { WORKSPACE_COMPANY, setupAdministratorWorkspace } from "./administrator-fixtures.mjs";
 import { item, feeRow, feeDetails } from "./sku-configuration-fixtures.mjs";
-import { companyRow, companyPanel, closeCompanyDetails } from "./company-actions.mjs";
+import { companyRow, companyDrawer, closeCompanyDetails } from "./company-actions.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
@@ -105,6 +105,12 @@ async function hoverEmphasizesText(page, locator) {
   await expectStableBounds(locator, bounds);
 }
 
+/** In-page actions (opening a drawer) use accent text without the link underline. */
+async function hoverShadesTextAction(page, locator) {
+  await expect(locator).toHaveCSS("text-decoration-line", "none");
+  await hoverChangesShade(page, locator);
+}
+
 async function expectKeyboardFocus(page, locator) {
   await page.keyboard.press("Tab");
   await locator.focus();
@@ -119,15 +125,15 @@ async function expectKeyboardFocus(page, locator) {
 
 async function setup(page, administrator = true) {
   const fixture = await mockSupabase(page);
-  setupFinancialReview(fixture);
+  setupAdministratorWorkspace(fixture);
   if (!administrator) fixture.roles["member-a"] = "member";
-  fixture.skuConfigurationItems = [item("S1", { company_id: REVIEW_COMPANY })];
-  fixture.assignments = skuAssignments(["S1"], REVIEW_COMPANY);
+  fixture.skuConfigurationItems = [item("S1", { company_id: WORKSPACE_COMPANY })];
+  fixture.assignments = skuAssignments(["S1"], WORKSPACE_COMPANY);
   fixture.financesRows = [financesRow(1)];
 
   fixture.aggregateRows = [summaryBucket("2026-09-01", "10"), summaryBucket("2026-09-02", "0")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
-  await mockInventory(page, [inventoryRow("S1", { company_id: REVIEW_COMPANY })]);
+  await mockInventory(page, [inventoryRow("S1", { company_id: WORKSPACE_COMPANY })]);
   await signIn(page);
   await currentTotals(page).waitFor();
   return fixture;
@@ -163,7 +169,7 @@ test("summary rows, UTC period shortcuts and the date chooser keep distinct keyb
       currentTotals(page).getByRole("article", { name: `${title} totals`, exact: true }),
     ).toBeVisible();
   }
-  await hoverEmphasizesText(page, open);
+  await hoverShadesTextAction(page, open);
   await expectKeyboardFocus(page, open);
   await hoverChangesShade(page, date);
   await expectKeyboardFocus(page, date);
@@ -176,7 +182,7 @@ test("summary rows, UTC period shortcuts and the date chooser keep distinct keyb
   const period = currentTotals(page)
     .getByRole("article", { name: "Last day totals", exact: true })
     .getByRole("button", {
-      name: "Filter transactions to Sep 1, 2026 · UTC",
+      name: "Filter transactions to 2026-09-01 · UTC",
       exact: true,
     });
   await expect(period).toHaveAttribute("data-action", "filter");
@@ -194,8 +200,8 @@ test("summary rows, UTC period shortcuts and the date chooser keep distinct keyb
   const breakdown = panel(page, "Transaction totals");
   await expect(breakdown).toBeVisible();
   await hoverChangesShade(page, button(breakdown, "Sales & refunds details"));
-  await hoverChangesShade(page, button(breakdown, "Close breakdown"));
-  await button(breakdown, "Close breakdown").click();
+  await hoverChangesShade(page, button(breakdown, "Close transaction totals"));
+  await button(breakdown, "Close transaction totals").click();
   await expect(open).toBeFocused();
 });
 
@@ -211,7 +217,8 @@ test("workspace controls share hover feedback across every administrator tab", a
   await hoverChangesShade(page, button(options, "Close options"));
   await button(options, "Close options").click();
 
-  for (const name of ["Transactions", "Finances", "Payout reports", "User access"]) {
+  // Raw data opens on its Finances source.
+  for (const name of ["Transactions", "Raw data", "Payout reports", "User access"]) {
     const tab = page.getByRole("tab", { name, exact: true });
     await hoverChangesShade(page, tab);
     await tab.click();
@@ -231,10 +238,9 @@ test("workspace controls share hover feedback across every administrator tab", a
       page,
       {
         Transactions: "Transaction details",
-        Finances: "Finances record details",
-        "Monthly storage report": "Monthly storage report record details",
+        "Raw data": "Finances record details",
         "Payout reports": "Payout report details",
-        "User access": "Company membership",
+        "User access": "User access details",
       }[name],
     );
     await expect(details).toBeVisible();
@@ -252,12 +258,12 @@ test("workspace controls share hover feedback across every administrator tab", a
   }
 
   await page.getByRole("tab", { name: "Financial review", exact: true }).click();
-  await expect(page.getByRole("combobox", { name: "Show", exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Months", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
-  const details = companyRow(page, "Review Company");
+  const details = companyRow(page, "Workspace Company");
   await hoverChangesShade(page, details);
   await details.click();
-  await hoverChangesShade(page, button(companyPanel(page, "Review Company"), "View members"));
+  await hoverChangesShade(page, button(companyDrawer(page), "View members"));
   await closeCompanyDetails(page);
   await button(page, "Add company").click();
   const create = button(page, "Create company");
@@ -271,14 +277,16 @@ test("workspace controls share hover feedback across every administrator tab", a
   await expectKeyboardFocus(page, create);
 });
 
-test("SKU text actions share accent styling in fees, inventory and companies", async ({ page }) => {
+test("SKU links share underlined accent styling in fees, inventory and companies", async ({
+  page,
+}) => {
   await setup(page);
   const amountAction = summaryDetails(page);
   await expect(amountAction).toBeVisible();
   const accentColor = (await appearance(amountAction)).color;
   for (const name of ["Current fees", "Inventory", "Companies"]) {
     await page.getByRole("tab", { name, exact: true }).click();
-    if (name === "Companies") await companyRow(page, "Review Company").press("Enter");
+    if (name === "Companies") await companyRow(page, "Workspace Company").press("Enter");
     if (name === "Current fees") await feeRow(page, "S1").press("Enter");
     const sku = button(page, "Show transactions for S1");
     await expect(sku).toHaveCSS("color", accentColor);
@@ -319,18 +327,64 @@ test("filter fields, checkbox labels and company choices have matching pointer f
     .getByRole("row")
     .filter({ has: page.getByText("member-b@example.test", { exact: true }) })
     .click();
-  const membership = panel(page, "Company membership");
+  const membership = panel(page, "User access details");
   const company = membership.getByRole("combobox", { name: "Company", exact: true });
   await hoverChangesShade(page, company);
-  await company.fill("Review");
-  const option = page.getByRole("option", { name: "Review Company", exact: true });
+  await company.fill("Workspace");
+  const option = page.getByRole("option", { name: "Workspace Company", exact: true });
   await company.press("ArrowDown");
   await expect(option).toHaveAttribute("data-combobox-selected");
   await expect(option).toHaveCSS("color", (await appearance(company)).color);
   await hoverChangesShade(page, option);
   await option.click();
-  await expect(company).toHaveValue("Review Company");
+  await expect(company).toHaveValue("Workspace Company");
   await expect(button(membership, "Save membership")).toBeEnabled();
+});
+
+test("load errors share one alert: UI text and the same Retry on every tab", async ({ page }) => {
+  const fixture = await setup(page);
+  // Subtle buttons take the primary colour's light-variant text.
+  const subtleText = await page.evaluate(() => {
+    const probe = globalThis.document.createElement("span");
+    probe.style.color = "var(--mantine-primary-color-light-color)";
+    globalThis.document.body.append(probe);
+    const color = globalThis.getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  const bodyText = await page
+    .locator("body")
+    .evaluate((body) => globalThis.getComputedStyle(body).color);
+  fixture.configurationStatus = 500;
+  fixture.referenceAssignmentsStatus = 500;
+  const retries = [];
+  for (const name of ["Current fees", "Assignments"]) {
+    await page.getByRole("tab", { name, exact: true }).click();
+    const alert = page.getByRole("alert").filter({ has: button(page, "Retry") });
+    await expect(alert).toHaveCount(1);
+    await expect(alert.locator(".mantine-Alert-message")).toHaveCSS("color", bodyText);
+    const retry = button(alert, "Retry");
+    // Every Retry reads the same; its description names the failure it retries.
+    await expect(retry).toHaveAccessibleDescription(/HTTP 500/);
+    retries.push(
+      await retry.evaluate((element) => ({
+        variant: element.dataset.variant,
+        size: element.dataset.size,
+        color: globalThis.getComputedStyle(element).color,
+        fontSize: globalThis.getComputedStyle(element).fontSize,
+        height: element.getBoundingClientRect().height,
+        rightGap:
+          element.closest('[role="alert"]').getBoundingClientRect().right -
+          element.getBoundingClientRect().right,
+      })),
+    );
+    await hoverChangesShade(page, retry);
+  }
+  expect(retries[1]).toEqual(retries[0]);
+  expect(retries[0]).toMatchObject({ variant: "subtle", size: "compact-sm", color: subtleText });
+  fixture.referenceAssignmentsStatus = 200;
+  await button(page.getByRole("alert"), "Retry").click();
+  await expect(page.getByRole("alert").filter({ has: button(page, "Retry") })).toHaveCount(0);
 });
 
 test.describe("mouse input on a touch-configured browser", () => {
@@ -357,7 +411,7 @@ test.describe("mouse input on a touch-configured browser", () => {
     await setup(page);
     expect(await page.evaluate(() => globalThis.matchMedia("(hover: hover)").matches)).toBe(false);
     await hoverChangesShade(page, button(page, "Sign out"));
-    await hoverEmphasizesText(page, summaryDetails(page));
+    await hoverShadesTextAction(page, summaryDetails(page));
     await hoverChangesShade(page, button(page, "Choose dates · UTC"));
     await hoverChangesShade(page, page.getByRole("tab", { name: "Transactions", exact: true }));
     await hoverChangesShade(page, firstRecord(page));
@@ -371,7 +425,7 @@ test.describe("mouse input on a touch-configured browser", () => {
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await hoverChangesShade(page, button(page, "Add company"));
     await page.getByRole("tab", { name: "Companies", exact: true }).click();
-    await hoverChangesShade(page, companyRow(page, "Review Company"));
+    await hoverChangesShade(page, companyRow(page, "Workspace Company"));
     await button(page, "Add company").click();
     const create = button(page, "Create company");
     await expect(create).toBeDisabled();
@@ -403,8 +457,13 @@ test.describe("touch interaction", () => {
     await open.tap();
     await expect(panel(page, "Transaction totals")).toBeVisible();
     await waitForAnimations(panel(page, "Transaction totals"));
-    await button(page, "Close breakdown").tap();
+    await button(page, "Close transaction totals").tap();
     await expect.poll(() => appearance(open)).toEqual(idleAction);
+    // Compact disclosures keep the 24px minimum touch target on coarse pointers.
+    await page.getByRole("tab", { name: "Current fees", exact: true }).tap();
+    const disclosure = button(page, "Show fee periods for S1");
+    await expect(disclosure).toBeVisible();
+    expect((await disclosure.boundingBox()).height).toBeGreaterThanOrEqual(24);
     await page.getByRole("tab", { name: "Inventory", exact: true }).tap();
     await button(page, "Show transactions for S1").tap();
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(

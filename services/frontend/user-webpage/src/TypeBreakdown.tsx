@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Drawer, Text, Title } from "@mantine/core";
 import type { TransactionTypeTotal } from "./api/types";
-import { DrawerHeading } from "./DrawerHeading";
+import { DetailDrawer } from "./DetailDrawer";
 import { SummaryFilters, type SummaryFilter } from "./SummaryFilters";
 import { AmountBreakdown, type RecordSelection } from "./AmountBreakdown";
 import type { TypeGroupId } from "./transaction-type-families";
@@ -38,7 +37,7 @@ export function TypeBreakdown({
   // Restored open drawers mount fully entered and do not emit an enter callback.
   const [entered, setEntered] = useState(opened);
   return (
-    <Drawer
+    <DetailDrawer
       opened={opened}
       onClose={onClose}
       onEnterTransitionEnd={() => {
@@ -47,23 +46,10 @@ export function TypeBreakdown({
       onExitTransitionEnd={() => {
         setEntered(false);
       }}
-      title={
-        <DrawerHeading
-          title="Transaction totals"
-          context={`${title} · ${periodLabel} · UTC · ${currency}`}
-        />
-      }
-      position="right"
-      size="min(1440px, 100vw)"
-      padding="lg"
-      closeButtonProps={{ "aria-label": "Close breakdown" }}
+      title="Transaction totals"
+      context={`${title} · ${periodLabel} · UTC · ${currency}`}
+      width="full"
     >
-      <Title order={3} size="h4" style={{ overflowWrap: "anywhere" }}>
-        {title}
-      </Title>
-      <Text c="dimmed" size="sm" mt={4} mb="sm">
-        Dates: {periodLabel} · UTC · {currency}
-      </Text>
       <SummaryFilters filters={appliedFilters} />
       <AmountBreakdown
         key={stateKey}
@@ -77,6 +63,6 @@ export function TypeBreakdown({
         onRetry={onRetry}
         renderRecords={renderRecords}
       />
-    </Drawer>
+    </DetailDrawer>
   );
 }

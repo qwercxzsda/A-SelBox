@@ -3,7 +3,7 @@
 }
 
 .missing-value {
-  color: #9b4c0b;
+  color: var(--ui-status-warning-text);
   font-weight: 600;
 }
 
@@ -15,7 +15,7 @@
 
 .stacked-cell-secondary {
   color: var(--ui-text-muted);
-  font-size: 11px;
+  font-size: var(--ui-font-caption);
   line-height: 1.4;
   font-weight: 400;
 }

@@ -1,7 +1,8 @@
 import { LoginPanel } from "./LoginPanel";
 import { SessionRestorePanel } from "./SessionRestorePanel";
 import { lazy, Suspense, useEffect } from "react";
-import { Alert, Button, Stack, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
+import { ErrorAlert } from "./ErrorAlert";
 import { companyLabel } from "./view-model";
 import { useAuth } from "./use-auth";
 import { RecoveryRequestPanel } from "./RecoveryRequestPanel";
@@ -16,21 +17,16 @@ const AuthenticatedWorkspace = lazy(async () => {
   }
 });
 
+/** The workspace code did not download; Retry reloads the page. */
 function WorkspaceLoadError() {
   return (
-    <Alert color="red" role="alert">
-      <Stack gap="sm" align="start">
-        <Text>Could not load the workspace. Reload to try again.</Text>
-        <Button
-          variant="light"
-          onClick={() => {
-            window.location.reload();
-          }}
-        >
-          Reload workspace
-        </Button>
-      </Stack>
-    </Alert>
+    <ErrorAlert
+      title="Could not load the workspace"
+      detail="The page download failed."
+      onRetry={() => {
+        window.location.reload();
+      }}
+    />
   );
 }
 

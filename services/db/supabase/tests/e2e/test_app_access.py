@@ -98,6 +98,22 @@ class AppAccessTests(LocalWorkflowCase):
         )
         self.assertEqual(protected.status_code, 403)
 
+    def test_assignment_list_is_one_rpc_value_scoped_to_the_caller(self) -> None:
+        company = create_company(self.database, "Assignment list company")
+        _, administrator = self.create_administrator()
+        _, member = self.create_member(company)
+        _, unassigned = self.create_auth_user()
+        endpoint = "/rest/v1/rpc/reference_assignments"
+        listed = self.stack.request("POST", endpoint, token=administrator)
+        self.assertEqual(listed.status_code, 200)
+        self.assertIsInstance(listed.json()["items"], list)
+        owned = self.stack.request("POST", endpoint, token=member)
+        self.assertEqual(owned.status_code, 200)
+        self.assertEqual(owned.json(), {"items": []})
+        denied = self.stack.request("POST", endpoint, token=unassigned)
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(denied.json()["code"], "42501")
+
     def test_one_sku_assignment_combines_namespaces_through_rest_and_transfers_together(
         self,
     ) -> None:

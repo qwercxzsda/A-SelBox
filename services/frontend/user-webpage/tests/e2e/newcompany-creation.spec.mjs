@@ -4,6 +4,7 @@ import {
   closeCompanyCreation,
   closeCompanyDetails,
   companyCreation,
+  companyDrawer,
   companyPanel,
   companyRow,
 } from "./company-actions.mjs";
@@ -19,7 +20,7 @@ import {
 const pendingUser = "0198b50b-701a-7000-8000-000000000701";
 const nameInput = (page) => page.getByLabel("Company name", { exact: true });
 const createButton = (page) => page.getByRole("button", { name: "Create company", exact: true });
-const membership = (page) => page.getByRole("dialog", { name: "Company membership", exact: true });
+const membership = (page) => page.getByRole("dialog", { name: "User access details", exact: true });
 const accountRow = (page, email) =>
   page.getByRole("row").filter({ has: page.getByText(email, { exact: true }) });
 
@@ -258,7 +259,7 @@ test("Companies lists saved company details and opens exact SKU transactions or 
   await expect(page.getByText(COMPANY, { exact: true })).toBeVisible();
   await expect(
     companyPanel(page, "Alpha Company").getByRole("row", {
-      name: "Created 2026-08-01 12:34:56 UTC",
+      name: "Created (UTC) 2026-08-01 12:34:56",
       exact: true,
     }),
   ).toBeVisible();
@@ -277,12 +278,8 @@ test("Companies lists saved company details and opens exact SKU transactions or 
     .toEqual(["S1"]);
   await page.getByRole("tab", { name: "Companies", exact: true }).click();
   await companyRow(page, "Beta Company").click();
-  await expect(
-    page.getByText("No SKUs are assigned to this company.", { exact: true }),
-  ).toBeVisible();
-  await companyPanel(page, "Beta Company")
-    .getByRole("button", { name: "View members", exact: true })
-    .click();
+  await expect(page.getByText("No assigned SKUs", { exact: true })).toBeVisible();
+  await companyDrawer(page).getByRole("button", { name: "View members", exact: true }).click();
   await expect(page.getByRole("tab", { name: "User access", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -332,12 +329,12 @@ test("creation opens the result details using the existing page size", async ({ 
       .getByRole("button", { name: "Additional details", exact: true })
       .click();
     await expect(
-      companyPanel(page, "Company 40a").getByRole("row", { name: "Created —", exact: true }),
+      companyPanel(page, "Company 40a").getByRole("row", { name: "Created (UTC) —", exact: true }),
     ).toBeVisible();
     await page.reload();
     await expect(
       companyPanel(page, "Company 40a").getByRole("row", {
-        name: "Created 2026-09-02 03:04:05 UTC",
+        name: "Created (UTC) 2026-09-02 03:04:05",
         exact: true,
       }),
     ).toBeVisible();

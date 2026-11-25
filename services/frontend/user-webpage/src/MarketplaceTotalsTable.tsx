@@ -1,6 +1,8 @@
 import { Skeleton, UnstyledButton, VisuallyHidden } from "@mantine/core";
 import type { MarketplaceCurrencyTotal } from "./api";
 import { formatAmount, formatMoney } from "./decimal";
+import { missingFeeRateCount } from "./financial-amounts";
+import { countLabel } from "./pagination";
 import type { MarketplaceSummary, OpenSummaryBreakdown, SummaryState } from "./summary-types";
 import { TOTALS_PERIOD_LABELS, type PeriodDefinition, type TotalsPeriod } from "./summary-periods";
 
@@ -33,9 +35,9 @@ function TotalRow({
         <small
           className="totals-records"
           data-record-count={total.rowCount}
-          aria-label={`${String(total.rowCount)} records`}
+          aria-label={countLabel(total.rowCount, "records")}
         >
-          {total.rowCount.toLocaleString("en-US")} {total.rowCount === 1 ? "row" : "rows"}
+          {countLabel(total.rowCount, "records")}
         </small>
       </th>
       <td className="totals-number" data-amount-field="reportedAmount">
@@ -59,8 +61,8 @@ function TotalRow({
           </span>
         </UnstyledButton>
         {total.missingFeeCount > 0 ? (
-          <small className="totals-known-amount" role="note">
-            Known amount · {total.missingFeeCount.toLocaleString("en-US")} uncalculated
+          <small className="totals-missing-fee-rates" role="note">
+            {missingFeeRateCount(total.missingFeeCount)}
           </small>
         ) : null}
       </td>

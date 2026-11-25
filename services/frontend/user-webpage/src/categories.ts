@@ -1,3 +1,5 @@
+import type { ReviewReason, SelboxGroup } from "./api/financial-review.ts";
+
 const LABELS: Record<string, string> = {
   FINANCES: "Finances",
   COMPANY: "Company",
@@ -8,7 +10,7 @@ const LABELS: Record<string, string> = {
   SELBOX: "SelBox",
   APPLIED: "Fee applied",
   NOT_APPLICABLE: "Fee not applicable",
-  MISSING_FEE: "Fee rate missing",
+  MISSING_FEE: "Missing fee rate",
   administrator: "Administrator",
   member: "Member",
   unassigned: "Unassigned",
@@ -40,6 +42,7 @@ const SOURCE_ACRONYMS = new Set([
   "TDS",
   "SKU",
   "ASIN",
+  "ID",
   "COD",
   "MFN",
   "SOA",
@@ -90,3 +93,22 @@ export function sourceCodeLabel(value: string): string {
 export function humanizeCode(value: string): string {
   return LABELS[value] ?? value.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
 }
+
+/** Fixed labels for difference reasons; the review decoders reject any other code. */
+export const REVIEW_REASON_LABELS: Record<ReviewReason, string> = {
+  NO_ASSIGNMENT: "No assignment",
+  REFERENCE_NOT_FOUND: "Reference not found",
+  ROUNDING: "Rounding errors",
+  TOTALS_DIFFER: "Totals differ",
+  CHARGED_IN_ANOTHER_MONTH: "Charged in another month",
+  SPLIT_OWNERSHIP: "Split ownership",
+  LEDGER_MONTH_NOT_LOADED: "Ledger month not loaded",
+  NOT_IN_LEDGER: "Not in ledger",
+  NO_ID_ON_CHARGE: "No ID on charge",
+};
+
+export const SELBOX_GROUP_LABELS: Record<SelboxGroup, string> = {
+  ACCOUNT_FEE: "Account fees",
+  BALANCE_MOVEMENT: "Balance movements",
+  TAX_RECLASSIFICATION: "Tax reclassifications",
+};

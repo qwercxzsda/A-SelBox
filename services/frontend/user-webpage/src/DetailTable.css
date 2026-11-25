@@ -9,28 +9,27 @@
 .detail-section-header {
   min-height: 32px;
 }
-.detail-section-title {
+.detail-section-heading {
   flex: 1;
+  min-width: 0;
+}
+.detail-section-title {
   min-width: 0;
   margin: 0;
   font-size: var(--ui-font-section);
   font-weight: 600;
 }
+/* Collapsible titles keep the section title style: no underline, no accent color. */
 .detail-section-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
+  gap: 6px;
   min-height: 32px;
-  font-size: inherit;
-}
-.detail-section-chevron {
-  color: var(--ui-text-muted);
-  flex-shrink: 0;
-}
-.detail-section-chevron[data-opened="true"] {
-  transform: rotate(180deg);
+  margin-inline-start: -4px;
+  padding-inline: 4px;
+  color: inherit;
+  font: inherit;
+  text-align: start;
 }
 .detail-section-body {
   margin-top: 12px;
@@ -67,10 +66,6 @@
 
 .record-metadata-table th:first-child {
   width: 34%;
-}
-.detail-table th,
-.detail-table td {
-  vertical-align: top;
 }
 .detail-table tbody th {
   font-weight: 500;

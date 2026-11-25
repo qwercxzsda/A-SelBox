@@ -134,9 +134,12 @@
   flex-direction: column;
   justify-content: flex-start;
 }
+/* The company column keeps room for its one-line "N missing fee rates" label. */
 .marketplace-totals-table tr {
   display: grid;
-  grid-template-columns: 22% 28% 20% 30%;
+  grid-template-columns:
+    minmax(0, 22fr) minmax(0, 28fr) minmax(0, 20fr)
+    minmax(calc(6.5rem + 2 * var(--totals-cell-padding)), 30fr);
   align-items: center;
 }
 .marketplace-totals-table .totals-market-heading {
@@ -225,10 +228,11 @@
   font-size: var(--ui-font-data);
   font-weight: 700;
 }
-.totals-known-amount {
+.totals-missing-fee-rates {
   display: block;
   margin-top: 2px;
-  color: #9b4c0b;
+  white-space: nowrap;
+  color: var(--ui-status-warning-text);
   font-size: var(--ui-font-caption);
   font-weight: 500;
   line-height: 1.4;

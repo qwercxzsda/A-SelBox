@@ -73,16 +73,21 @@ key is not a PostgreSQL login and cannot perform this administration.
 | --- | --- | --- | --- |
 | Company and account directory | All companies and accounts | Own company and account | Own account |
 | Create companies, change membership and publish assignments | Yes | No | No |
-| SKU ownership and fee periods | Current and historical versions | Current versions of own SKUs | No |
+| SKU, campaign, promotion and shipment assignments; fee periods | Current and historical versions | Current versions of own company's | No |
 | Financial review, reference information and assignment hints | All | No | No |
+| Raw data: Finances amounts and current advertising invoices and warehouse reports | All | No | No |
 | Company transactions and monthly payout reports | All companies | Own company | No |
 | Current daily inventory | All SKUs | Own SKUs | No |
 | Download archives, preprocess sources or run the payout worker | Trusted database and sync process only | No | No |
 
 An administrator uses the Assignments screen for campaigns, promotions and inbound shipments. Each change records its author, reason and version. The SKU editor publishes fee periods with the assignment. A stale version rejects the write. Clearing an assignment removes ownership across all dates and preserves its history.
 
+`public.reference_assignments()` returns the whole list in one JSON value. An administrator gets every known ID with its origin, warning, suggested company and products. A member gets only their company's current campaign, promotion and shipment assignments, read-only, with the ID, its kind and its marketplace. A campaign or promotion takes the marketplace on Amazon's record. A shipment record names none, so a shipment takes the marketplaces of the current Finances charges that name it. Products, suggestions and warnings can reveal another company's SKU ownership, so they and earlier versions stay administrator-only. Unassigned accounts are refused.
+
 The member’s access to a live transaction follows the company calculated from current assignments. A transfer changes access on the next request, including requests made with an existing session. A saved report belongs to the company on its header. Members can read that company’s saved records after an assignment changes.
 
-The database grants application roles read access through row-level policies and guarded RPCs. The role and company come from the account for `auth.uid()`. Browsers sign in with the public publishable key. Source acquisition manifests, invoice details, preprocessing jobs and publication privileges belong to trusted server-side processes.
+The database grants application roles read access through row-level policies and guarded RPCs. The role and company come from the account for `auth.uid()`. Browsers sign in with the public publishable key. Source acquisition manifests, preprocessing jobs and publication privileges belong to trusted server-side processes.
+
+The Raw data tab reads the current version of each advertising invoice and its lines, and of each monthly storage, aged storage and removal order report row, through the `public.current_ad_invoices`, `current_ad_invoice_lines`, `current_storage_rows`, `current_aged_storage_rows` and `current_removal_order_rows` views. They keep invoker security and return rows only to administrators. Members and unassigned accounts get an empty result, and anonymous callers are refused. Earlier versions stay in the database for payout replay but are not listed.
 
 See [source allocation](source_allocation.md) and [payout reports](company_payout_reports.md).

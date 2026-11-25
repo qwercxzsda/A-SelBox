@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Group, Paper, Stack, Text } from "@mantine/core";
+import { AlertTable } from "./AlertTable";
 import { ApiError, CompanyDeletionBlockedError, type Company } from "./api";
 import type { CompanyDeletionReason } from "./api/company-errors";
 import { useCompanyDirectory } from "./company-directory-context";
 import { useMountedRef } from "./use-mounted-ref";
 import { useActionFeedbackFocus } from "./use-action-feedback-focus";
+import { ErrorAlert } from "./ErrorAlert";
+import { saveError, saveErrorText, type SaveError } from "./save-error";
 
 const REASON_LABELS: Record<CompanyDeletionReason["code"], string> = {
   members: "Members",
@@ -15,11 +18,29 @@ const REASON_LABELS: Record<CompanyDeletionReason["code"], string> = {
   other_records: "Other linked records",
 };
 const REASON_ORDER = Object.keys(REASON_LABELS);
+const BLOCKER_COLUMNS = [
+  {
+    key: "record",
+    label: "Linked record",
+    value: ({ code }: CompanyDeletionReason) => REASON_LABELS[code],
+  },
+  {
+    key: "count",
+    label: "Count",
+    // An unnamed foreign key reports only that at least one record links to the company.
+    value: ({ code, count }: CompanyDeletionReason) =>
+      `${code === "other_records" ? "At least " : ""}${count.toLocaleString("en-US")}`,
+  },
+] as const;
 
-function deletionError(error: unknown): string {
-  if (error instanceof ApiError && error.status === 403)
-    return "Only administrators can delete companies.";
-  return "Could not confirm whether this company was deleted. Try again to check its status.";
+function deletionError(error: unknown): SaveError {
+  return saveError(
+    "delete the company",
+    error,
+    error instanceof ApiError && error.status === 403
+      ? "Only administrators can delete companies."
+      : "Could not confirm the deletion. Retry to check.",
+  );
 }
 
 export function DeleteCompanyControl({
@@ -31,10 +52,12 @@ export function DeleteCompanyControl({
 }) {
   const { canManage, isMutating, deletingId, remove } = useCompanyDirectory();
   const [confirming, setConfirming] = useState(false);
-  const [problem, setProblem] = useState<string | CompanyDeletionBlockedError | null>(null);
+  const [problem, setProblem] = useState<SaveError | CompanyDeletionBlockedError | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const feedbackRef = useActionFeedbackFocus(
-    problem instanceof CompanyDeletionBlockedError ? problem.message : problem,
+    problem instanceof CompanyDeletionBlockedError
+      ? problem.message
+      : problem && saveErrorText(problem),
     sectionRef,
   );
   const trigger = useRef<HTMLButtonElement>(null);
@@ -75,8 +98,7 @@ export function DeleteCompanyControl({
           Permanently delete {company.name}?
         </Text>
         <Text size="sm" c="dimmed">
-          Only companies without members, SKU assignments, fee versions, or payout records can be
-          deleted. This cannot be undone.
+          This cannot be undone.
         </Text>
         {problem instanceof CompanyDeletionBlockedError ? (
           <Alert
@@ -86,26 +108,21 @@ export function DeleteCompanyControl({
             role="alert"
             title="Company cannot be deleted"
           >
-            <Text size="sm">The company still has these linked records:</Text>
-            <ul className="company-deletion-reasons">
-              {problem.reasons
-                .toSorted(
+            <Stack gap="xs">
+              <Text size="sm">Linked records remain. Nothing was deleted.</Text>
+              <AlertTable
+                label={`Linked records of ${company.name}`}
+                columns={BLOCKER_COLUMNS}
+                rows={problem.reasons.toSorted(
                   (left, right) =>
                     REASON_ORDER.indexOf(left.code) - REASON_ORDER.indexOf(right.code),
-                )
-                .map(({ code, count }) => (
-                  <li key={code}>
-                    {REASON_LABELS[code]}: {code === "other_records" ? "at least " : ""}
-                    {count.toLocaleString("en-US")}
-                  </li>
-                ))}
-            </ul>
-            <Text size="sm">No records were deleted or unassigned.</Text>
+                )}
+                rowKey={({ code }) => code}
+              />
+            </Stack>
           </Alert>
         ) : problem ? (
-          <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">
-            {problem}
-          </Alert>
+          <ErrorAlert ref={feedbackRef} mb={0} {...problem} />
         ) : null}
         <Group gap="sm">
           <Button

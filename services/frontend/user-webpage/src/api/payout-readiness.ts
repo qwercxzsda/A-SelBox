@@ -4,6 +4,7 @@ import type { ApiTransport } from "./transport.ts";
 import type { CanonicalRow } from "./types.ts";
 import { requireUuid } from "./validation.ts";
 import { parseExactCount } from "./content-range.ts";
+import { parseCsvBoolean } from "./csv-boolean.ts";
 
 const PAYOUT_READINESS_PAGE_SIZE = 25;
 const FAILURE_REASONS = ["SETUP_REQUIRED", "SOURCE_REQUIRED", "PROCESSING_FAILED"] as const;
@@ -24,12 +25,6 @@ export interface PayoutReadinessFacts {
 interface PayoutReadinessPage<T> {
   rows: T[];
   hasNext: boolean;
-}
-
-function booleanField(row: CanonicalRow, field: string): boolean {
-  if (row[field] === "t") return true;
-  if (row[field] === "f") return false;
-  throw new Error(`Payout readiness returned an invalid ${field}`);
 }
 
 function nullableText(row: CanonicalRow, field: string): string | null {
@@ -56,13 +51,13 @@ function decodeReadiness(
     company_id: company,
     company_name: row.company_name,
     month: date,
-    eligible: booleanField(row, "eligible"),
-    mature: booleanField(row, "mature"),
-    refresh_pending: booleanField(row, "refresh_pending"),
+    eligible: parseCsvBoolean(row.eligible, "eligible"),
+    mature: parseCsvBoolean(row.mature, "mature"),
+    refresh_pending: parseCsvBoolean(row.refresh_pending, "refresh_pending"),
     failure_count: parseExactCount(row.failure_count),
     failure_reason: failureReason ?? null,
-    has_report: booleanField(row, "has_report"),
-    has_activity: booleanField(row, "has_activity"),
+    has_report: parseCsvBoolean(row.has_report, "has_report"),
+    has_activity: parseCsvBoolean(row.has_activity, "has_activity"),
     last_success_at: nullableText(row, "last_success_at"),
     next_attempt_at: nullableText(row, "next_attempt_at"),
   };

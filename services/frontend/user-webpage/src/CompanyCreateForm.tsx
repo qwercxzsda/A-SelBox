@@ -1,40 +1,37 @@
 import { useRef, useState } from "react";
-import { Alert, Button, Group, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, Stack, TextInput } from "@mantine/core";
 import { ApiError, type Company } from "./api";
 import { useCompanyDirectory } from "./company-directory-context";
+import { ErrorAlert } from "./ErrorAlert";
+import { saveError, saveErrorText, type SaveError } from "./save-error";
 import { useWorkspacePreference } from "./use-workspace-preference";
-import { getErrorMessage } from "./view-model";
 import { useMountedRef } from "./use-mounted-ref";
 import { useActionFeedbackFocus } from "./use-action-feedback-focus";
 
-function creationError(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 403) return "Only administrators can add companies.";
-    if (error.status === null || error.status >= 500)
-      return "Could not confirm whether the company was added. Try again with the same name; an existing company will be reused.";
-  }
-  return `Could not add company. ${getErrorMessage(error)}`;
+function knownReason(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined;
+  if (error.status === 403) return "Only administrators can add companies.";
+  if (error.status === null || error.status >= 500)
+    return "Could not confirm the company. Retry with the same name.";
+  return undefined;
 }
 
-export function CompanyCreateForm({
-  returnLabel,
-  onCreated,
-}: {
-  returnLabel: string | null;
-  onCreated: (company: Company) => void;
-}) {
+export function CompanyCreateForm({ onCreated }: { onCreated: (company: Company) => void }) {
   const { companies, canManage, create, isCreating, isMutating } = useCompanyDirectory();
   const [name, setName] = useWorkspacePreference(
     "company-create:name",
     () => "",
     (value) => (typeof value === "string" ? value.slice(0, 1000) : ""),
   );
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<SaveError | null>(null);
   const [notice, setNotice] = useState<{ companyId: string; message: string } | null>(null);
   const visibleNotice =
     notice && companies.some(({ id }) => id === notice.companyId) ? notice : null;
   const sectionRef = useRef<HTMLElement>(null);
-  const feedbackRef = useActionFeedbackFocus(problem ?? visibleNotice?.message ?? null, sectionRef);
+  const feedbackRef = useActionFeedbackFocus(
+    problem ? saveErrorText(problem) : (visibleNotice?.message ?? null),
+    sectionRef,
+  );
   const mounted = useMountedRef();
   const pending = useRef(false);
   if (!canManage) return null;
@@ -54,7 +51,7 @@ export function CompanyCreateForm({
       });
       onCreated(company);
     } catch (error) {
-      if (mounted.current) setProblem(creationError(error));
+      if (mounted.current) setProblem(saveError("add the company", error, knownReason(error)));
     } finally {
       pending.current = false;
     }
@@ -92,11 +89,7 @@ export function CompanyCreateForm({
             </Button>
           </Group>
         </form>
-        {problem ? (
-          <Alert ref={feedbackRef} tabIndex={-1} role="alert" color="red">
-            {problem}
-          </Alert>
-        ) : null}
+        {problem ? <ErrorAlert ref={feedbackRef} mb={0} {...problem} /> : null}
         {visibleNotice ? (
           <Alert
             ref={feedbackRef}
@@ -105,12 +98,7 @@ export function CompanyCreateForm({
             color="green"
             className="company-create-notice"
           >
-            <Text size="sm">{visibleNotice.message}</Text>
-            <Text size="sm">
-              {returnLabel
-                ? `Return to ${returnLabel} and select this company to continue. Your existing draft is unchanged.`
-                : "The company is now available in Current fees and User access."}
-            </Text>
+            {visibleNotice.message}
           </Alert>
         ) : null}
       </Stack>

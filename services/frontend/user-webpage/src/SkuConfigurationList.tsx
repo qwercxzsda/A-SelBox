@@ -1,33 +1,25 @@
 import { useRef } from "react";
-import { Button, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import { SkuConfigurationGroup } from "./SkuConfigurationGroup";
 import { ListToolbar } from "./ListToolbar";
 import { AppliedFeeFilters, FeeFilterHeader } from "./FeeListFilters";
-import { FEE_STATUSES, type FeeStatus } from "./fee-status";
 import { RecordTable, type RecordColumn } from "./RecordTable";
-import { filterFeeSkus, paginateFeeSkus } from "./fee-skus";
+import { CLEARED_FEE_FILTERS, feeMarketplaces, filterFeeList } from "./fee-filters";
+import { paginateLocalList } from "./local-list";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { companyLabel } from "./view-model";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
+import { showsBottomPager } from "./pagination";
+import { EmptyState } from "./EmptyState";
 import { TableColumnLabel } from "./TableColumnLabel";
+import { FEE_PERIOD_FROM_LABEL, FEE_PERIOD_UNTIL_LABEL } from "./fee-period-labels";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import "./SkuConfigurationList.css";
 
-function marketplacesFor(item: SkuConfigurationItem) {
-  return [
-    ...new Set(
-      [
-        ...item.periods.map((period) => period.marketplace_name),
-        ...item.requirements.map((requirement) => requirement.marketplace_name),
-      ].filter(Boolean),
-    ),
-  ].sort();
-}
-
 export function SkuConfigurationList({
   items,
+  loaded,
   companies,
   issuesBySku,
   administrator,
@@ -36,6 +28,8 @@ export function SkuConfigurationList({
   onViewStateChange,
 }: {
   items: SkuConfigurationItem[];
+  /** False until the first list arrives: no counts and no empty state yet. */
+  loaded: boolean;
   companies: Map<string, string>;
   issuesBySku: Map<string, SkuFormIssue[]>;
   administrator: boolean;
@@ -43,43 +37,15 @@ export function SkuConfigurationList({
 } & ViewStateProps<FeeViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
-  const { search, pageSize, selectedSku, expandedSkus, drafts } = viewState;
-  const draftSkus = new Set(drafts.map((draft) => draft.sku));
-  const unfinishedSkus = new Set(
-    viewState.editorDrafts.filter((editor) => !editor.isNew).map((editor) => editor.sku),
+  const { search, pageSize, selectedSku, expandedSkus } = viewState;
+  const { filtered, filters, statusOptions, statusesFor, hasFilters } = filterFeeList(
+    items,
+    viewState,
+    { administrator, companies, issuesBySku },
   );
-  const companyIds = administrator ? viewState.companyIds : [];
-  const statusOptions: readonly FeeStatus[] = administrator
-    ? FEE_STATUSES
-    : ["needs-setup", "saved"];
-  const selectedStatuses = viewState.statuses.filter((status) => statusOptions.includes(status));
-  const selectedSkus = new Set(viewState.skus);
-  const statusesFor = (sku: string): FeeStatus[] => {
-    const statuses: FeeStatus[] = [];
-    if (issuesBySku.has(sku)) statuses.push("needs-setup");
-    if (administrator && draftSkus.has(sku)) statuses.push("draft");
-    if (administrator && unfinishedSkus.has(sku)) statuses.push("unfinished");
-    return statuses.length ? statuses : ["saved"];
-  };
-  const filtered = filterFeeSkus(items, search, administrator ? companies : undefined).filter(
-    (item) =>
-      (!selectedSkus.size || selectedSkus.has(item.sku)) &&
-      (!companyIds.length || companyIds.includes(item.company_id)) &&
-      (!viewState.marketplaces.length ||
-        marketplacesFor(item).some((market) => viewState.marketplaces.includes(market))) &&
-      (!selectedStatuses.length ||
-        statusesFor(item.sku).some((status) => selectedStatuses.includes(status))),
-  );
-  const pagination = paginateFeeSkus(filtered, viewState.pageIndex, pageSize);
-  const canPrevious = pagination.pageIndex > 0;
-  const canNext = pagination.pageIndex < pagination.pageCount - 1;
-  const filters = {
-    skus: viewState.skus,
-    companyIds,
-    marketplaces: viewState.marketplaces,
-    statuses: selectedStatuses,
-  };
-  const marketplaceOptions = [...new Set(items.flatMap(marketplacesFor))].sort();
+  const pagination = paginateLocalList(filtered, viewState.pageIndex, pageSize);
+  const canPrevious = loaded && pagination.pageIndex > 0;
+  const canNext = loaded && pagination.pageIndex < pagination.pageCount - 1;
   const skuOptions = items.map((item) => item.sku);
   const header = (field: "skus" | "companyIds" | "marketplaces" | "statuses") => (
     <FeeFilterHeader
@@ -87,7 +53,6 @@ export function SkuConfigurationList({
       filters={filters}
       companies={companies}
       skus={skuOptions}
-      marketplaces={marketplaceOptions}
       statusOptions={statusOptions}
       onChange={changeFilters}
     />
@@ -105,30 +70,25 @@ export function SkuConfigurationList({
       header: header("marketplaces"),
     },
     { key: "rate", label: "Fee rate", align: "right", width: 100 },
-    { key: "from", label: "Effective from", width: 135 },
+    {
+      key: "from",
+      label: FEE_PERIOD_FROM_LABEL,
+      width: 135,
+      header: <TableColumnLabel label={FEE_PERIOD_FROM_LABEL} />,
+    },
     {
       key: "until",
-      label: "Effective until",
+      label: FEE_PERIOD_UNTIL_LABEL,
       width: 135,
-      header: <TableColumnLabel label="Effective until (exclusive)" />,
+      header: <TableColumnLabel label={FEE_PERIOD_UNTIL_LABEL} />,
     },
     { key: "status", label: "Status", width: 145, header: header("statuses") },
   ];
-  const hasFilters = Boolean(
-    search ||
-    viewState.skus.length ||
-    companyIds.length ||
-    viewState.marketplaces.length ||
-    selectedStatuses.length,
-  );
   function change(patch: Partial<FeeViewState>) {
     onViewStateChange((current) => ({ ...current, ...patch }));
   }
   function changeFilters(patch: Partial<FeeViewState>) {
     change({ ...patch, pageIndex: 0 });
-  }
-  function clearFilters() {
-    changeFilters({ search: "", skus: [], companyIds: [], marketplaces: [], statuses: [] });
   }
   function showControls() {
     revealSection(controlsRef.current);
@@ -153,7 +113,7 @@ export function SkuConfigurationList({
         }}
         pagination={{
           pageIndex: pagination.pageIndex,
-          pageCount: pagination.pageCount,
+          pageCount: loaded ? pagination.pageCount : null,
           canPrevious,
           canNext,
           onPrevious: () => {
@@ -166,53 +126,56 @@ export function SkuConfigurationList({
             change({ pageIndex });
           },
         }}
-        rowCount={pagination.visibleSkus.length}
+        rowCount={pagination.visibleItems.length}
         totalCount={pagination.totalCount}
         items="SKUs"
-      />
-      <AppliedFeeFilters
-        filters={filters}
-        companies={companies}
-        onChange={changeFilters}
-        focusTarget={searchInput}
+        message={loaded ? undefined : ""}
       />
       <RecordTable
         label="Current fee configurations"
         grouped
-        className="fee-configurations-table month-grouped-table"
+        className="fee-configurations-table grouped-table"
         columns={columns}
         minWidth={administrator ? 1230 : 1050}
+        appliedFilters={
+          <AppliedFeeFilters
+            filters={filters}
+            companies={companies}
+            onChange={changeFilters}
+            focusTarget={searchInput}
+          />
+        }
         emptyState={
-          pagination.visibleSkus.length === 0 ? (
-            <Stack align="center" gap="sm">
-              <Text c="dimmed">
-                {hasFilters
-                  ? "No SKUs match these filters."
+          loaded && pagination.visibleItems.length === 0 ? (
+            <EmptyState
+              title={
+                hasFilters
+                  ? "No matching SKUs"
                   : administrator
-                    ? "No SKUs are available yet."
-                    : "No SKUs are assigned to your company."}
-              </Text>
-              {hasFilters ? (
-                <Button
-                  variant="subtle"
-                  onClick={(event) => {
-                    if (event.detail === 0) searchInput.current?.focus();
-                    clearFilters();
-                  }}
-                >
-                  Clear search and filters
-                </Button>
-              ) : null}
-            </Stack>
+                    ? "No SKUs yet"
+                    : "No SKUs for your company yet"
+              }
+              action={
+                hasFilters
+                  ? {
+                      label: "Reset search and filters",
+                      focusTarget: searchInput,
+                      onClick: () => {
+                        changeFilters({ search: "", ...CLEARED_FEE_FILTERS });
+                      },
+                    }
+                  : undefined
+              }
+            />
           ) : undefined
         }
       >
-        {pagination.visibleSkus.map((item) => (
+        {pagination.visibleItems.map((item) => (
           <SkuConfigurationGroup
             key={item.sku}
             item={item}
             companyName={companyLabel(item.company_id, companies)}
-            marketplaces={marketplacesFor(item)}
+            marketplaces={feeMarketplaces(item)}
             statuses={statusesFor(item.sku)}
             administrator={administrator}
             selected={selectedSku === item.sku}
@@ -229,7 +192,7 @@ export function SkuConfigurationList({
           />
         ))}
       </RecordTable>
-      {pagination.visibleSkus.length > 10 || pagination.pageIndex > 0 ? (
+      {showsBottomPager(pagination.visibleItems.length, pagination.pageIndex) ? (
         <ListPageNavigation
           labels={{
             navigation: "SKU list navigation at bottom",

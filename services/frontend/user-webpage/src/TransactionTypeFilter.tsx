@@ -197,7 +197,7 @@ export function TransactionTypeFilter({
         ))}
         {visibleGroups.length === 0 ? (
           <Text c="dimmed" size="sm" py="sm">
-            {searching ? "No matching types." : "No types available."}
+            {searching ? "No matching types" : "No types available"}
           </Text>
         ) : null}
       </div>

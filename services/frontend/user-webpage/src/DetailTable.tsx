@@ -19,7 +19,7 @@ function cellContent(row: CanonicalRow, column: DetailColumn) {
   if (column.kind === "date")
     return (
       <time dateTime={value} title={value}>
-        {formatRecordDate(value)}
+        {formatRecordDate(value, { includeTimeZone: false })}
       </time>
     );
   if (column.kind === "source") return humanizeCode(value);
@@ -38,6 +38,7 @@ export function DetailTable({
   selectedRowKey,
   renderCell,
   onSelectRow,
+  canSelectRow = () => true,
 }: {
   label: string;
   columns: DetailColumn[];
@@ -48,6 +49,8 @@ export function DetailTable({
   selectedRowKey?: string | null;
   renderCell?: (row: CanonicalRow, column: DetailColumn) => ReactNode;
   onSelectRow?: (row: CanonicalRow) => void;
+  /** Rows without details to open stay plain. */
+  canSelectRow?: (row: CanonicalRow) => boolean;
 }) {
   const [containerRef, container] = useResizeObserver<HTMLDivElement>();
   const [tableRef, table] = useResizeObserver<HTMLTableElement>();
@@ -92,7 +95,7 @@ export function DetailTable({
             return (
               <Table.Tr
                 key={key}
-                {...(onSelectRow
+                {...(onSelectRow && canSelectRow(row)
                   ? inspectableRowProps(selected, () => {
                       onSelectRow(row);
                     })

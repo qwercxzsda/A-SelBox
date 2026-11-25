@@ -40,7 +40,7 @@ for (const width of [320, 390, 1440]) {
     const dayHeader = summaryCard(page, "Last day").locator(".totals-card-heading");
     const monthHeader = summaryCard(page, "Last month").locator(".totals-card-heading");
     const selectedHeader = summaryCard(page, "Selected dates").locator(".totals-card-heading");
-    await expect(dayHeader.getByRole("button")).toHaveText("Nov 5, 2026 · UTC");
+    await expect(dayHeader.getByRole("button")).toHaveText("2026-11-05 · UTC");
     await expect(monthHeader.getByRole("button")).toHaveText("October 2026 · UTC");
     await expect(selectedHeader.getByRole("button")).toHaveText("Choose dates · UTC");
     await expect(totals.locator(".totals-utc-badge")).toHaveCount(0);
@@ -62,7 +62,7 @@ for (const width of [320, 390, 1440]) {
     await expect(
       page.getByRole("dialog", { name: "Choose summary dates", exact: true }),
     ).toHaveCount(0);
-    await expect(selectedHeader.getByRole("button")).toHaveText("Oct 1–31, 2026 · UTC");
+    await expect(selectedHeader.getByRole("button")).toHaveText("2026-10-01 – 2026-10-31 · UTC");
     await expect
       .poll(() => fixture.requests.at(-1).args)
       .toMatchObject({
@@ -70,7 +70,7 @@ for (const width of [320, 390, 1440]) {
         p_date_to: "2026-10-31",
       });
     await dayHeader.getByRole("button").click();
-    await expect(selectedHeader.getByRole("button")).toHaveText("Nov 5, 2026 · UTC");
+    await expect(selectedHeader.getByRole("button")).toHaveText("2026-11-05 · UTC");
     await expect
       .poll(() => fixture.requests.at(-1).args)
       .toMatchObject({
@@ -80,8 +80,8 @@ for (const width of [320, 390, 1440]) {
 
     await applySummaryDates(page, "2026-11-01", "2026-11-06");
     const control = selectedHeader.getByRole("button");
-    await expect(control).toHaveText("Nov 1–6, 2026 · UTC");
-    await expect(control).toHaveAccessibleName("Change dates: Nov 1–6, 2026 · UTC");
+    await expect(control).toHaveText("2026-11-01 – 2026-11-06 · UTC");
+    await expect(control).toHaveAccessibleName("Change dates: 2026-11-01 – 2026-11-06 · UTC");
     await expectCornerControl(selectedHeader);
     await expect
       .poll(() => fixture.requests.at(-1).args)
@@ -97,12 +97,12 @@ for (const width of [320, 390, 1440]) {
     await expect(control).toBeFocused();
 
     await applySummaryDates(page, "2026-10-01", "2026-11-06");
-    await expect(control).toHaveText("Oct 1 – Nov 6, 2026 · UTC");
+    await expect(control).toHaveText("2026-10-01 – 2026-11-06 · UTC");
     await expectCornerControl(selectedHeader);
 
     await applyDates(page, "2025-12-31", "2026-11-06");
-    await expect(control).toHaveText("Dec 31, 2025 – Nov 6, 2026 · UTC");
-    await expect(dayHeader.getByRole("button")).toHaveText("Nov 5, 2026 · UTC");
+    await expect(control).toHaveText("2025-12-31 – 2026-11-06 · UTC");
+    await expect(dayHeader.getByRole("button")).toHaveText("2026-11-05 · UTC");
     await expect(monthHeader.getByRole("button")).toHaveText("October 2026 · UTC");
     const bounds = await control.boundingBox();
     const cardBounds = await summaryCard(page, "Selected dates").boundingBox();
@@ -122,9 +122,9 @@ for (const width of [320, 390, 1440]) {
     });
 
     await applySummaryDates(page, "2026-11-01", "");
-    await expect(control).toHaveText("From Nov 1, 2026 · UTC");
+    await expect(control).toHaveText("From 2026-11-01 · UTC");
     await applySummaryDates(page, "", "2026-11-06");
-    await expect(control).toHaveText("Through Nov 6, 2026 · UTC");
+    await expect(control).toHaveText("Through 2026-11-06 · UTC");
     await control.click();
     await chooser.getByRole("button", { name: "Clear dates", exact: true }).click();
     await expect(control).toHaveText("Choose dates · UTC");

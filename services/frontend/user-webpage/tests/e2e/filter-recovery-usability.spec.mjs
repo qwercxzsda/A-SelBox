@@ -6,7 +6,7 @@ import { openColumn } from "./table-actions.mjs";
 for (const [tab, label, recovery] of [
   ["Transactions", "Search", "Reset search and filters"],
   ["Payout reports", "Search", "Reset search and filters"],
-  ["Companies", "Search companies", "Clear search"],
+  ["Companies", "Search companies", "Reset search"],
   ["Current fees", "Search SKUs", "Clear search"],
 ]) {
   test(`${tab} empty-result recovery keeps keyboard focus in its search`, async ({ page }) => {

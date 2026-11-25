@@ -1,8 +1,12 @@
 import { useRef } from "react";
-import { Alert, Button, Group, Table, Text } from "@mantine/core";
+import { Table, Text } from "@mantine/core";
 import type { CanonicalRow } from "./api";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
-import { getErrorMessage, rowId, type ColumnDefinition } from "./view-model";
+import { ErrorAlert } from "./ErrorAlert";
+import { loadErrorDetail } from "./load-error";
+import { pageRangeSummary } from "./pagination";
+import type { ColumnDefinition } from "./table-columns";
+import { rowId } from "./view-model";
 import { PaginationBar } from "./PaginationBar";
 import { PayoutReportRow } from "./PayoutReportRow";
 import type { PayoutReportHistoryPage } from "./use-payout-report-histories";
@@ -29,12 +33,12 @@ export function PayoutReportHistory({
   const controls = useRef<HTMLDivElement>(null);
   const { query, rows, loadedCount, total, pageIndex, pageCount, showPagination, showControls } =
     page;
-  function revealControls() {
+  function focusControls() {
     controls.current?.focus({ preventScroll: true });
-    controls.current?.scrollIntoView({ block: "start", inline: "start", behavior: "instant" });
   }
+  /** The pager sits above the versions, so paging keeps the scroll position like list tabs. */
   function changePage(next: number) {
-    revealControls();
+    focusControls();
     onPageChange(next);
   }
   return (
@@ -50,27 +54,27 @@ export function PayoutReportHistory({
               className="payout-history-controls-content"
             >
               {query.isError ? (
-                <Alert color="red" role="alert">
-                  <Group justify="space-between" gap="sm">
-                    <Text size="sm">{getErrorMessage(query.error)}</Text>
-                    <Button
-                      variant="subtle"
-                      onClick={() => {
-                        revealControls();
-                        void query.refetch();
-                      }}
-                    >
-                      Retry versions
-                    </Button>
-                  </Group>
-                </Alert>
+                <ErrorAlert
+                  title="Could not load report versions"
+                  detail={loadErrorDetail(query.error)}
+                  retrying={query.isFetching}
+                  onRetry={() => {
+                    focusControls();
+                    controls.current?.scrollIntoView({
+                      block: "start",
+                      inline: "start",
+                      behavior: "instant",
+                    });
+                    void query.refetch();
+                  }}
+                />
               ) : query.isPending ? (
                 <Text role="status" size="var(--ui-font-caption)" c="dimmed">
                   Loading report versions…
                 </Text>
               ) : rows.length === 0 ? (
                 <Text size="sm" c="dimmed">
-                  {pageIndex === 0 ? "No previous versions." : "No versions on this page."}
+                  {pageIndex === 0 ? "No previous versions" : "No versions on this page"}
                 </Text>
               ) : null}
               {showPagination ? (
@@ -97,7 +101,13 @@ export function PayoutReportHistory({
                       ? "Loading report versions…"
                       : query.isError
                         ? "Report versions unavailable"
-                        : `${String(loadedCount ? pageIndex * DETAIL_PAGE_SIZE + 1 : 0)}–${String(pageIndex * DETAIL_PAGE_SIZE + loadedCount)} of ${total?.toLocaleString("en-US") ?? "—"} saved versions`
+                        : pageRangeSummary(
+                            pageIndex,
+                            DETAIL_PAGE_SIZE,
+                            loadedCount,
+                            total,
+                            "saved versions",
+                          )
                   }
                 />
               ) : null}

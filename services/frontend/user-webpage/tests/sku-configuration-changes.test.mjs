@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { feePeriodChanges } from "../src/sku-configuration-changes.ts";
+import { feePeriodChanges, feesSavedNotice } from "../src/sku-configuration-changes.ts";
 
 const period = (rate, from = "2026-01-01", to = null, marketplace = "Amazon.com") => ({
   marketplace_name: marketplace,
@@ -46,4 +46,13 @@ test("unfinished and duplicate periods remain distinguishable in review", () => 
   assert.deepEqual(feePeriodChanges([period("bad")], [period("")]), [
     { kind: "rate", period: period(""), previousRate: "bad" },
   ]);
+});
+
+test("the save notice names the saved SKUs, at most three", () => {
+  assert.equal(feesSavedNotice([{ sku: "S1" }]), "Fees saved: S1");
+  assert.equal(feesSavedNotice([{ sku: "S1" }, { sku: "S2" }]), "Fees saved: S1, S2");
+  assert.equal(
+    feesSavedNotice(["S1", "S2", "S3", "S4", "S5"].map((sku) => ({ sku }))),
+    "Fees saved: S1, S2, S3 and 2 more",
+  );
 });

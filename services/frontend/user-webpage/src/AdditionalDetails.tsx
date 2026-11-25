@@ -13,12 +13,7 @@ export function AdditionalDetails({
   label?: string;
 }) {
   return (
-    <DetailSection
-      title="Additional details"
-      stateKey={stateKey}
-      collapsible
-      description="Saved identifiers and metadata for this record."
-    >
+    <DetailSection title="Additional details" stateKey={stateKey} collapsible>
       <DetailTable
         label={label}
         className="record-metadata-table"

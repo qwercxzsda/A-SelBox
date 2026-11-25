@@ -15,15 +15,14 @@ export function FeeDraftStatus({
 }) {
   const hasChanges = draftCount > 0 || unfinishedCount > 0;
   if (!hasChanges) return null;
-  const summary = [
+  const summary = `Unsaved changes: ${[
     draftCount ? `${String(draftCount)} SKU ${draftCount === 1 ? "draft" : "drafts"}` : "",
     unfinishedCount
       ? `${String(unfinishedCount)} unfinished ${unfinishedCount === 1 ? "edit" : "edits"}`
       : "",
-    "not saved yet",
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(" · ")}`;
   return (
     <Group
       justify="space-between"

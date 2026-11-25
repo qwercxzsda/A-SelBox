@@ -40,17 +40,37 @@ function setup(fixture, administrator) {
 
 test("administrator can inspect blocked payout setup within Financial review", async ({ page }) => {
   const fixture = await openReviewReadiness(page, (state) => setup(state, true));
-  await expect(readiness(page)).toContainText("SKU fee coverage needs setup");
+  // One aligned row per company, with a short note and the next retry.
+  const companies = readiness(page).getByRole("table", { name: "Companies", exact: true });
+  await expect(companies.getByRole("columnheader")).toHaveText([
+    "Company",
+    "Status",
+    "Note",
+    "Next retry (UTC)",
+  ]);
+  const company = companies.getByRole("row", { name: /^Payout Company/ });
+  await expect(company.getByRole("cell")).toHaveText([
+    "Blocked",
+    "Missing fee ratesShow setup requirements",
+    "2026-10-18 18:00:00",
+  ]);
   expect(
     fixture.payoutReadinessRequests.some(({ endpoint }) =>
       endpoint.endsWith("payout_setup_blockers"),
     ),
   ).toBe(false);
   await readiness(page)
-    .getByRole("button", { name: "View setup requirements", exact: true })
+    .getByRole("button", { name: "Show setup requirements for Payout Company", exact: true })
     .click();
+  await expect(readiness(page).getByText("Add these fee rates in Current fees.")).toBeVisible();
   const setupTable = page.getByRole("table", { name: "Payout setup requirements", exact: true });
-  await expect(setupTable).toContainText("Add fee coverage");
+  // Every requirement is a missing fee rate, so no column repeats it.
+  await expect(setupTable.getByRole("columnheader")).toHaveText([
+    "SKU",
+    "Marketplace",
+    "First affected date",
+    "Last affected date",
+  ]);
   await expect(setupTable).toContainText("2026-04-03");
   await expect(setupTable).toContainText("MISSING-RATE-SKU");
   await expect(
@@ -68,7 +88,7 @@ for (const administrator of [false, true]) {
     await signIn(page);
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await applyReportMonth(page, "2026-04");
-    await expect(page.getByText("No matching reports", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching payout reports", { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: /payout readiness/ })).toHaveCount(0);
     await expect(page.getByText("MISSING-RATE-SKU", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Check readiness above", { exact: false })).toHaveCount(0);
@@ -97,6 +117,8 @@ test("readiness uses lightweight revision checks and changes automatically after
     await expect.poll(completedChecks).toBeGreaterThan(before);
     await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
   }
+  // Count from the first loaded readiness, not from a request still in flight.
+  await expect(readiness(page).getByText("Blocked", { exact: true })).toBeVisible();
   const original = requests();
   await checkForUpdates();
   expect(requests()).toBe(original);

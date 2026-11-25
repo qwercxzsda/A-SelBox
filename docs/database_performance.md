@@ -1,6 +1,6 @@
 # Frontend query performance
 
-The 24 November 2026 comparison used the same 48,493 Finances transactions, 308,886 amounts and 63 saved payout reports on both revisions. Times below are milliseconds for the public database functions used by the frontend. Each pair shows the median of five calls on populated clones under the same authenticated role, comparing `ca353da` with this revision. The execution order alternated after a warmup.
+The 24 November 2026 comparison used the same 48,493 Finances transactions, 308,886 amounts and 63 saved payout reports on both revisions. Times below are milliseconds for the public database functions the frontend called on that date. Each pair shows the median of five calls on populated clones under the same authenticated role, comparing `ca353da` with this revision. The execution order alternated after a warmup.
 
 | Request | Administrator | Company A | Company B |
 | --- | ---: | ---: | ---: |
@@ -11,16 +11,18 @@ The 24 November 2026 comparison used the same 48,493 Finances transactions, 308,
 | Marketplace totals, 60 days | 234 → 129 | 177 → 118 | 225 → 125 |
 | Type totals, 60 days | 239 → 124 | 182 → 109 | 234 → 126 |
 | Weekly trends, 60 days | 295 → 146 | 200 → 124 | 263 → 134 |
-| Monthly reconciliation, all months and markets | 352 → 242 | Admin only | Admin only |
-| Reconciliation for one month and market | 66 → 43 | Admin only | Admin only |
+| Monthly reconciliation, all months and markets (since removed) | 352 → 242 | Admin only | Admin only |
+| Reconciliation for one month and market (since removed) | 66 → 43 | Admin only | Admin only |
 | Exact raw Finances count | 46 → 7 | Admin only | Admin only |
 
-A separate HTTP run exercised GoTrue and PostgREST on the running preview. All 100 comparisons matched on returned values, row order, status and Content-Range, including eight denied requests. The slowest successful response in that run was the unfiltered monthly reconciliation at 246 ms. Single HTTP samples include transfer and scheduling variability. The paired database measurements above are more useful for comparing execution costs. [Request timings and comparison methods](evidence/frontend_query_latency_2026-11-24.json)
+Both reconciliation rows timed `financial_review_month_page`, which Financial review no longer calls. It now reads `financial_review_months`, timed under [Joins and indexes](#joins-and-indexes), and `financial_outcome_page`, which has not been timed yet.
+
+A separate HTTP run exercised GoTrue and PostgREST on the running preview. All 100 comparisons matched on returned values, row order, status and Content-Range, including eight denied requests. The slowest successful response in that run was the unfiltered monthly reconciliation, since removed, at 246 ms. Single HTTP samples include transfer and scheduling variability. The paired database measurements above are more useful for comparing execution costs. [Request timings and comparison methods](evidence/frontend_query_latency_2026-11-24.json)
 
 ## Joins and indexes
 
 - **Transaction counts and totals.** The shared predicate applies the company, UTC date, currency, SKU, marketplace, source, type, fee and resolved-search filters. Counts read the fields needed to identify qualifying amounts. A partial B-tree on `(version_id, sku, route)` supports index-only ownership checks for direct amounts. Totals combine fee bases by schedule, marketplace and local posting day before applying the exact percentage. Missing rates retain the original unknown amounts and counts.
-- **Reference allocations and monthly reconciliation.** The requested scope identifies relevant reference keys before joining invoices, ledger entries and orders. All charges associated with each selected key participate in allocation, including charges in other markets or months. The monthly query groups native activity by header, route and SKU before summing amounts for each account, market, currency and month.
+- **Reference allocations and monthly reconciliation.** The requested scope identifies relevant reference keys before joining invoices, ledger entries and orders. All charges associated with each selected key participate in allocation, including charges in other markets or months. The Financial review months query groups native activity by header, route, SKU and SelBox group before summing each measure, reason and group for every account, market, currency and month. On the 25 November 2026 development database (166,977 Finances transactions, 1.06 million amounts), the busiest marketplace-year, with 26,417 activity transactions, took a median 530 ms over five read-only runs. About half was native grouping and half reference allocation, whose ledger lookup join ran as a nested loop at that scope. The single-month reconciliation it replaces took 161 ms on the same data. These single-connection timings are not part of the paired comparison above.
 - **Raw Finances.** Date and marketplace counts sum the immutable, verified child counts on the transaction headers. Type and SKU filters use the amount rows. Widening the type key to `(amount_type, sku)` cost 104 KiB. The common SKU/type count through PostgREST took 33.4 → 10.2 ms.
 - **Saved payouts.** Report headers supply unfiltered counts and grand totals. Ordered record pages and type-filtered reads use the source and assignment versions pinned to the selected report. The database comparison matched all 125,747 records across 63 saved reports, plus all 158,838 current outcomes and 126,641 outcomes across 32 distinct frozen input selections. All 72 monthly reconciliation scopes balanced.
 - **Index cost.** Fresh application indexes totaled 70.23 → 72.86 MiB. A fresh publication of 654 transactions and 3,567 amounts took 395 → 414 ms. Replaying that capture took 243 → 248 ms. [Per-index sizes, query plans and write measurements](index_design.md)

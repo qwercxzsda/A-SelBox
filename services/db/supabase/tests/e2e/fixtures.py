@@ -201,22 +201,10 @@ def archived_finances(
     )
 
 
-def publish_removal_reference(
-    database: DatabaseConnection, storage: ArchiveStorage, seller: str, *, sku: str | None = None
+def _publish_reports(
+    database: DatabaseConnection, storage: ArchiveStorage, seller: str, reports: dict[str, str]
 ) -> None:
-    sku = sku if sku is not None else fixture_sku(seller)
-    reports = {
-        "INVENTORY_LEDGER": "Date\tFNSKU\tASIN\tMSKU\tLocation\tDisposition\n"
-        + f"08/2026\tX000000001\tB000000001\t{sku}\tUS\tSELLABLE\n",
-        "REMOVAL_ORDER": (
-            "request-date\tlast-updated-date\torder-id\torder-type\torder-status\t"
-            "sku\tfnsku\tremoval-fee\tcurrency\n"
-        )
-        + (
-            "2026-08-01T00:00:00Z\t2026-08-02T00:00:00Z\tREMOVAL-1\tDisposal\tCompleted\t"
-            f"{sku}\tX000000001\t10.00\tUSD\n"
-        ),
-    }
+    """Archive and preprocess each August report document as Amazon returned it."""
     with TemporaryDirectory() as temp:
         for source, body in reports.items():
             request = ReferenceRequest(
@@ -233,6 +221,122 @@ def publish_removal_reference(
             ):
                 manifest = download_reference(request, storage, Path(temp))
             preprocess_reference(database, storage, manifest)
+
+
+def publish_removal_reference(
+    database: DatabaseConnection, storage: ArchiveStorage, seller: str, *, sku: str | None = None
+) -> None:
+    sku = sku if sku is not None else fixture_sku(seller)
+    _publish_reports(
+        database,
+        storage,
+        seller,
+        {
+            "INVENTORY_LEDGER": "Date\tFNSKU\tASIN\tMSKU\tLocation\tDisposition\n"
+            + f"08/2026\tX000000001\tB000000001\t{sku}\tUS\tSELLABLE\n",
+            "REMOVAL_ORDER": (
+                "request-date\tlast-updated-date\torder-id\torder-type\torder-status\t"
+                "sku\tfnsku\tdisposed-quantity\tremoval-fee\tcurrency\n"
+            )
+            + (
+                "2026-08-01T00:00:00Z\t2026-08-02T00:00:00Z\tREMOVAL-1\tDisposal\tCompleted\t"
+                f"{sku}\tX000000001\t1\t10.00\tUSD\n"
+            ),
+        },
+    )
+
+
+def publish_storage_references(
+    database: DatabaseConnection, storage: ArchiveStorage, seller: str, *, sku: str | None = None
+) -> None:
+    """One August monthly storage row and one aged storage snapshot row."""
+    sku = sku if sku is not None else fixture_sku(seller)
+    _publish_reports(
+        database,
+        storage,
+        seller,
+        {
+            # North American reports state a base rate, a utilization surcharge rate, the
+            # storage utilization ratio and Amazon's split of the fee.
+            "STORAGE": (
+                "month_of_charge\tasin\tfnsku\tfulfillment_center\tcountry_code\t"
+                "volume_units\tproduct_size_tier\taverage_quantity_on_hand\t"
+                "estimated_total_item_volume\tstorage_utilization_ratio\t"
+                "storage_utilization_ratio_units\tbase_rate\tutilization_surcharge_rate\t"
+                "est_vol_for_sus\test_base_msf\test_sus\tcurrency\t"
+                "estimated_monthly_storage_fee\n"
+            )
+            + "2026-08\tB000000001\tX000000001\t'PHX7'\tUS\tcubic feet\tStandard-Size\t2.5\t"
+            + "0.96\t9.2\tweeks\t0.78\t0.0\t0.0\t0.75\t0.0\tUSD\t0.75\n",
+            "AGED_STORAGE": (
+                "snapshot-date\tsku\tfnsku\tasin\tcondition\tcurrency\tcountry\t"
+                "qty-charged\tamount-charged\tsurcharge-age-tier\n"
+            )
+            + f"2026-08-15T07:00:00+00:00\t{sku}\tX000000001\tB000000001\tNew\tUSD\tUS\t"
+            + "1\t0.25\t365+\n",
+        },
+    )
+
+
+def publish_named_reference(
+    database: DatabaseConnection,
+    storage: ArchiveStorage,
+    request: ReferenceRequest,
+    bundle: dict[str, object],
+) -> None:
+    """Archive and preprocess one named answer in the client's bundle format."""
+    answer = {
+        "source": request.source,
+        "native_id": request.native_id,
+        "marketplace_id": request.marketplace_id,
+        **bundle,
+    }
+    with (
+        TemporaryDirectory() as directory,
+        patch(
+            "services.sync.src.reference.named_client.download_named",
+            return_value=json.dumps(answer).encode(),
+        ),
+    ):
+        manifest = download_reference(request, storage, Path(directory))
+        preprocess_reference(database, storage, manifest)
+
+
+def publish_ad_invoice(database: DatabaseConnection, storage: ArchiveStorage, seller: str) -> None:
+    """One August advertising invoice with a campaign line and a rounding adjustment."""
+
+    def money(amount: str) -> dict[str, str]:
+        return {"amount": amount, "currencyCode": "USD"}
+
+    invoice: dict[str, object] = {
+        "invoiceSummary": {
+            "id": "INVOICE-1",
+            "status": "PAID_IN_FULL",
+            "invoiceDate": "20260901",
+            "fromDate": "20260801",
+            "toDate": "20260831",
+            "amountDue": money("3.50"),
+            "taxAmountDue": money("0"),
+            "taxRate": 0,
+        },
+        "invoiceLines": [
+            {
+                "campaignId": "CAMPAIGN-1",
+                "campaignName": "Fixture campaign",
+                "programName": "SPONSORED PRODUCTS",
+                "cost": money("3.51"),
+            }
+        ],
+        "adjustments": [{"description": "Rounding Adjustment", "amount": money("-0.01")}],
+        "promotions": [],
+        "taxDetail": {"taxBreakups": []},
+    }
+    publish_named_reference(
+        database,
+        storage,
+        ReferenceRequest("AD_INVOICE", "NA", MARKETPLACE_ID, seller, native_id="INVOICE-1"),
+        {"profile_id": "PROFILE-1", "body": json.dumps(invoice)},
+    )
 
 
 def company_with_fees(database: DatabaseConnection, seller: str, *, sku: str | None = None) -> str:

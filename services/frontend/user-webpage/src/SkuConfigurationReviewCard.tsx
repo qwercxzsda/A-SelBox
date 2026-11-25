@@ -68,7 +68,7 @@ export function SkuConfigurationReviewCard({
           <SkuFeePeriods item={draft} />
         ) : (
           <Text size="sm" c="dimmed">
-            No fee periods.
+            No fee periods
           </Text>
         )}
       </div>

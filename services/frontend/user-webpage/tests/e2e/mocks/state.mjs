@@ -96,6 +96,13 @@ export function createFixtureState() {
     beforeAssignments: async () => {},
     companiesStatus: 200,
     assignmentsStatus: 200,
+    // Campaign, promotion and shipment assignments (rpc/reference_assignments).
+    referenceAssignments: [],
+    referenceAssignmentRequests: [],
+    referenceAssignmentsStatus: 200,
+    beforeReferenceAssignments: async () => {},
+    assignmentVersions: [],
+    assignmentSaves: [],
     status: 200,
   };
 }

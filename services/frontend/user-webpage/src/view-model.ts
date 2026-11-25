@@ -1,16 +1,4 @@
 import type { AppAccount, CanonicalRow, DatasetKey, TableDatasetKey } from "./api/types.ts";
-import { DATASET_CONFIG } from "./api/config.ts";
-
-type CellKind = "code" | "company" | "date" | "month" | "money" | "percent" | "number" | "text";
-
-export interface ColumnDefinition {
-  align?: "right";
-  key: string;
-  kind: CellKind;
-  label: string;
-  sortable?: string;
-  secondary?: Pick<ColumnDefinition, "key" | "kind" | "label">;
-}
 
 interface WorkspacePresentation {
   description: string;
@@ -18,17 +6,17 @@ interface WorkspacePresentation {
 }
 
 interface DatasetPresentation extends WorkspacePresentation {
+  /** What one row is, in the plural, for counts: "1–25 of 120 invoices". */
+  items: string;
+  /** What a failed read names: "Could not load <loadSubject>". */
+  loadSubject: string;
   emptyMessage: string;
+  /** The empty-state title when search or filters match nothing. */
+  noMatchMessage: string;
   searchPlaceholder: string;
 }
 
-export const DATASET_ORDER: readonly DatasetKey[] = [
-  "live",
-  "finances",
-  "fees",
-  "payouts",
-  "accounts",
-];
+export const DATASET_ORDER: readonly DatasetKey[] = ["live", "fees", "payouts", "accounts"];
 
 export function visibleDatasets(account: AppAccount): readonly DatasetKey[] {
   if (account.access_role === "unassigned") return [];
@@ -41,14 +29,21 @@ export const DATASET_PRESENTATION = {
     description:
       "Dates, ordering, filters and totals use UTC. Reference costs use the posting date of the first matching Finances charge.",
     searchPlaceholder: "SKU, type, source, or marketplace",
-    emptyMessage: "No transactions match this view.",
+    items: "transactions",
+    loadSubject: "transactions",
+    emptyMessage: "No transactions yet",
+    noMatchMessage: "No matching transactions",
   },
   finances: {
     label: "Finances",
     description:
       "Source records from immutable transaction versions. Activity eligibility applies within each version; Transactions uses the current version.",
     searchPlaceholder: "SKU, type, or marketplace",
-    emptyMessage: "No Finances transactions match this view.",
+    // One amount Amazon breaks a Finances transaction into.
+    items: "breakdowns",
+    loadSubject: "Finances transactions",
+    emptyMessage: "No Finances transactions yet",
+    noMatchMessage: "No matching Finances transactions",
   },
   fees: {
     label: "Current fees",
@@ -59,90 +54,67 @@ export const DATASET_PRESENTATION = {
     description:
       "Monthly payouts include the company’s attributed Finances activity and service fees. Open a saved version to inspect its records.",
     searchPlaceholder: "Month, marketplace, or currency",
-    emptyMessage: "No payout reports match this view.",
+    items: "latest reports",
+    loadSubject: "payout reports",
+    emptyMessage: "No payout reports yet",
+    noMatchMessage: "No matching payout reports",
   },
   accounts: {
     label: "User access",
     description:
       "Select a user to assign, change, or revoke company membership. Administrator access is managed by the database manager.",
     searchPlaceholder: "Email",
-    emptyMessage: "No users match this view.",
+    items: "users",
+    loadSubject: "users",
+    emptyMessage: "No users yet",
+    noMatchMessage: "No matching users",
+  },
+  ad_invoices: {
+    label: "Advertising invoice",
+    description: "Amazon Ads invoices, one row per invoice. Open one to see its lines.",
+    searchPlaceholder: "Invoice ID",
+    items: "invoices",
+    loadSubject: "advertising invoices",
+    emptyMessage: "No advertising invoices yet",
+    noMatchMessage: "No matching advertising invoices",
+  },
+  storage: {
+    label: "Monthly storage report",
+    description: "Amazon's estimated monthly storage fee per FNSKU and fulfillment center.",
+    searchPlaceholder: "FNSKU or ASIN",
+    // One FNSKU at one fulfillment center for one month.
+    items: "storage fees",
+    loadSubject: "storage fees",
+    emptyMessage: "No storage fees yet",
+    noMatchMessage: "No matching storage fees",
+  },
+  aged_storage: {
+    label: "Aged storage report",
+    description: "Amazon's surcharge for stock held past an age limit, per monthly snapshot.",
+    searchPlaceholder: "FNSKU, ASIN, or SKU",
+    // One FNSKU in one monthly snapshot.
+    items: "aged storage fees",
+    loadSubject: "aged storage fees",
+    emptyMessage: "No aged storage fees yet",
+    noMatchMessage: "No matching aged storage fees",
+  },
+  removal_orders: {
+    label: "Removal order report",
+    description: "Requests to return or dispose of stock. The removal fee includes tax.",
+    searchPlaceholder: "Order ID, FNSKU, or SKU",
+    // One FNSKU and disposition of an order.
+    items: "removal order lines",
+    loadSubject: "removal orders",
+    emptyMessage: "No removal orders yet",
+    noMatchMessage: "No matching removal orders",
   },
 } satisfies Record<DatasetKey, WorkspacePresentation> &
   Record<TableDatasetKey, DatasetPresentation>;
 
 export const PAGE_SIZES = [25, 50, 100] as const;
 
-function column(key: string, label: string, kind: CellKind = "text"): ColumnDefinition {
-  return {
-    key,
-    label,
-    kind,
-    align: kind === "money" || kind === "percent" || kind === "number" ? "right" : undefined,
-  };
-}
-
-export const TABLE_COLUMNS: Record<TableDatasetKey, readonly ColumnDefinition[]> = {
-  live: [
-    column("activity_at", "Date (UTC)", "date"),
-    column("company_id", "Company", "company"),
-    column("sku", "SKU"),
-    column("marketplace_name", "Marketplace"),
-    column("source", "Source", "code"),
-    column("outcome", "Outcome", "code"),
-    column("component_type", "Type", "code"),
-    {
-      ...column("source_amount", "Reported amount", "money"),
-      secondary: column("quantity", "Quantity", "number"),
-    },
-    {
-      ...column("fee_amount", "Service fee", "money"),
-      secondary: column("fee_rate_percent", "Fee rate", "percent"),
-    },
-    column("company_amount", "Company amount", "money"),
-  ],
-  finances: [
-    column("activity_at", "Date (UTC)", "date"),
-    column("activity_eligible", "Activity eligibility", "code"),
-    column("sku", "SKU"),
-    column("marketplace_name", "Marketplace"),
-    column("route", "Route", "code"),
-    column("component_type", "Type", "code"),
-    column("amount", "Reported amount", "money"),
-    column("quantity", "Quantity", "number"),
-  ],
-  payouts: [
-    column("start_date", "Month", "month"),
-    column("company_id", "Company", "company"),
-    column("marketplace_name", "Marketplace"),
-    column("created_at", "Updated", "date"),
-    column("source_amount", "Reported amount", "money"),
-    column("fee_amount", "Service fee", "money"),
-    column("company_amount", "Company amount", "money"),
-  ],
-  accounts: [
-    column("email", "Email"),
-    column("access_role", "Role", "code"),
-    column("company_id", "Company", "company"),
-    column("created_at", "Joined", "date"),
-  ],
-};
-
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected request failure.";
-}
-
-export function displayColumns(
-  dataset: TableDatasetKey,
-  isAdministrator: boolean,
-): readonly ColumnDefinition[] {
-  const sortColumns: readonly string[] = DATASET_CONFIG[dataset].sortColumns;
-  return TABLE_COLUMNS[dataset]
-    .filter((column) => isAdministrator || column.kind !== "company")
-    .map((column) => ({
-      ...column,
-      sortable: sortColumns.includes(column.key) ? column.key : undefined,
-    }));
 }
 
 export function rowId(row: CanonicalRow): string {

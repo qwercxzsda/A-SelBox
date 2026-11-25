@@ -9,6 +9,7 @@ import {
   Drawer,
   Input,
   InputWrapper,
+  Modal,
   Paper,
   Select,
   Table,
@@ -41,11 +42,13 @@ export const appTheme = createTheme({
   },
   defaultRadius: "sm",
   radius: { xs: "4px", sm: "6px", md: "8px", lg: "12px", xl: "16px" },
+  // Text, Buttons and Inputs follow --ui-font-caption (12px) and --ui-font-data/control (13px).
+  fontSizes: { xs: "12px", sm: "13px" },
   fontFamily:
     'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   headings: { fontWeight: "600" },
   components: {
-    Alert: Alert.extend({ classNames: { title: "ui-alert-title" } }),
+    Alert: Alert.extend({ classNames: { title: "ui-alert-title", message: "ui-alert-message" } }),
     Paper: Paper.extend({
       defaultProps: { radius: "md" },
       classNames: { root: "ui-surface" },
@@ -64,9 +67,8 @@ export const appTheme = createTheme({
       defaultProps: { horizontalSpacing: 12, verticalSpacing: 8, tabularNums: true },
       classNames: { table: "ui-table", th: "ui-table-heading", td: "ui-table-cell" },
     }),
+    // DetailDrawer composes Drawer.Root; the Drawer class names style its parts.
     Drawer: Drawer.extend({
-      // Native CSS locks the page without canceling zoom or browser navigation gestures.
-      defaultProps: { lockScroll: false },
       classNames: {
         content: "ui-drawer-content",
         header: "ui-drawer-header",
@@ -74,7 +76,17 @@ export const appTheme = createTheme({
         body: "ui-drawer-body",
       },
     }),
+    DrawerRoot: Drawer.Root.extend({
+      // Native CSS locks the page without canceling zoom or browser navigation gestures.
+      defaultProps: { lockScroll: false },
+    }),
     DrawerContent: Drawer.Content.extend({ defaultProps: { ref: drawerScrollLockRef } }),
+    // Modals share the drawer header, title, padding and page lock.
+    Modal: Modal.extend({
+      defaultProps: { lockScroll: false },
+      classNames: { header: "ui-drawer-header", title: "ui-drawer-title", body: "ui-drawer-body" },
+    }),
+    ModalContent: Modal.Content.extend({ defaultProps: { ref: drawerScrollLockRef } }),
     Tabs: Tabs.extend({
       classNames: { list: "ui-tabs-list", tab: "ui-tabs-tab", panel: "ui-tabs-panel" },
     }),

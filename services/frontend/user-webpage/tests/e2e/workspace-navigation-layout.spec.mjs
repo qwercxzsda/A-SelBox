@@ -19,12 +19,14 @@ for (const { width, font } of [
     if (font) await page.addStyleTag({ content: `.dataset-tabs { font-family: ${font}; }` });
     const tabs = page.getByRole("tablist", { name: "Workspace data", exact: true });
     await expect(tabs.getByRole("tab")).toHaveCount(9);
+    // Phone widths scroll one row of tabs; measure positions within the scrolled row.
     const positions = async () =>
       tabs.getByRole("tab").evaluateAll((elements) =>
         elements.map((element) => {
+          const list = element.parentElement;
           const bounds = element.getBoundingClientRect();
           return {
-            x: Math.round(bounds.x),
+            x: Math.round(bounds.x - list.getBoundingClientRect().x + list.scrollLeft),
             y: Math.round(bounds.y),
             width: Math.round(bounds.width),
           };
@@ -44,6 +46,9 @@ for (const { width, font } of [
         "true",
       );
       await expect.poll(positions).toEqual(initial);
+      await expect(tabs.getByRole("tab", { name, exact: true })).toBeInViewport({ ratio: 0.95 });
     }
+    if (width <= 720)
+      expect(new Set(initial.map(({ y }) => y)).size, "tabs stay on one scrolling row").toBe(1);
   });
 }

@@ -145,8 +145,8 @@ test("daily and previous-month totals stay exact across transaction-list pages a
 });
 
 for (const [latest, currentStart, previousStart, previousEnd, previousLabel, dayLabel] of [
-  ["2024-02-29", "2024-02-01", "2024-01-01", "2024-01-31", "January 2024", "Feb 28, 2024"],
-  ["2026-01-31", "2026-01-01", "2025-12-01", "2025-12-31", "December 2025", "Jan 30, 2026"],
+  ["2024-02-29", "2024-02-01", "2024-01-01", "2024-01-31", "January 2024", "2024-02-28"],
+  ["2026-01-31", "2026-01-01", "2025-12-01", "2025-12-31", "December 2025", "2026-01-30"],
 ]) {
   test(`month-end latest date ${latest} still selects the previous calendar month`, async ({
     page,
@@ -164,7 +164,7 @@ for (const [latest, currentStart, previousStart, previousEnd, previousLabel, day
     await expect(summaryCard(page, "Last month")).toContainText(previousLabel);
     await expect(amount(month, "Reported amount")).toHaveText("500.00 USD");
     await expect(amount(month, "Company amount")).toHaveText("500.00 USD");
-    await expect(month.getByLabel("1 records", { exact: true })).toBeVisible();
+    await expect(month.getByLabel("1 record", { exact: true })).toBeVisible();
     await expect(summaries.getByRole("combobox")).toHaveCount(0);
     await summaryCard(page, "Last month")
       .getByRole("button", {
@@ -192,7 +192,7 @@ test("a selected previous month without activity is empty rather than falling ba
   await signIn(page);
   const { day, month } = periods(page);
 
-  await expect(summaryCard(page, "Last day")).toContainText("Jun 11, 2026");
+  await expect(summaryCard(page, "Last day")).toContainText("2026-06-11");
   await expect(day).toContainText("No transactions");
 
   await expect(summaryCard(page, "Last month")).toContainText("May 2026");
@@ -223,7 +223,7 @@ for (const known of [true, false]) {
       await expect(amount(period, "Reported amount")).toHaveText("300.00 USD");
       await expect(amount(period, "Known company amount")).toHaveText(known ? "95.00 USD" : "—");
       await expect(amount(period, "Service fee")).toHaveText(known ? "-5.00 USD" : "—");
-      await expect(period).toContainText("2 uncalculated");
+      await expect(period).toContainText("2 missing fee rates");
     }
   });
 }
@@ -285,7 +285,7 @@ test("latest-date errors leave transactions usable and Retry summaries can recov
   await expect(summaries.getByRole("alert")).toContainText("HTTP 403");
   expect(fixture.aggregateRequests).toHaveLength(0);
   fixture.latestStatus = 200;
-  await summaries.getByRole("button", { name: "Retry summaries", exact: true }).click();
+  await summaries.getByRole("button", { name: "Retry", exact: true }).click();
 
   await expect(amount(day, "Reported amount")).toHaveText("10.00 USD");
   await expect(summaries.getByRole("alert")).toHaveCount(0);

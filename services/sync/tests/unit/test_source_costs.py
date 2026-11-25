@@ -56,6 +56,12 @@ class SourceCostTests(unittest.TestCase):
         self.assertEqual([r["campaign_id"] for r in rows], ["1", "1"])
         with self.assertRaisesRegex(ValueError, "registry"):
             invoice_rows(answer, "I", "123", {"JPY": 0})
+        # Only observed statuses enter; the workspace has a label for each of them.
+        summary = cast(dict[str, object], answer["invoiceSummary"])
+        for status in ("ISSUED", "PAID_IN_PART", "WRITTEN_OFF", ""):
+            unpaid = {**answer, "invoiceSummary": {**summary, "status": status}}
+            with self.assertRaises(ValueError):
+                invoice_rows(unpaid, "I", "123", CURRENCY_DECIMALS)
 
     def test_singapore_removal_includes_tax_and_aged_storage_excludes_tax(self) -> None:
         self.assertEqual(

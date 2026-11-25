@@ -39,14 +39,12 @@ test("a saved zero report displays without a currency and remains readable durin
   await expect(
     drawer.getByRole("region", { name: "Breakdown total" }).getByText("0.00", { exact: true }),
   ).toHaveCount(3);
-  await expect(
-    drawer.getByText("No records match this selection.", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(drawer.getByText("No matching records", { exact: true }).first()).toBeVisible();
   await expect(drawer.getByRole("columnheader")).toHaveCount(0);
   await expect(drawer.getByText("Reconciliation", { exact: true })).toHaveCount(0);
   await expect(drawer.getByText(/\b0\.00 [A-Z]{3}\b/)).toHaveCount(0);
   await captureResponsiveReview(page, testInfo, "zero-payout-report");
-  await page.getByRole("button", { name: "Close row details" }).click();
+  await page.getByRole("button", { name: "Close payout report details" }).click();
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;
   const pollsBefore = completedPolls();
   fixture.revisions.finances = "1";

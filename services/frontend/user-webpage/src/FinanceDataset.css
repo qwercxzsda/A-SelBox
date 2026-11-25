@@ -7,13 +7,21 @@
   outline-offset: 4px;
 }
 
-.loading-state,
-.empty-state {
+/* Space that keeps the list in place after its filters shrink the summary (useListHold). */
+.transaction-summary-gap {
+  overflow-anchor: none;
+}
+
+/* Groups the list for useListHold without adding a box. */
+.finance-dataset-list {
+  display: contents;
+}
+
+.loading-state {
   display: grid;
   min-height: 150px;
   justify-items: center;
   align-content: center;
-  gap: 6px;
   color: var(--ui-text-muted);
   padding: 28px;
   text-align: center;

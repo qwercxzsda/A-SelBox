@@ -1,8 +1,7 @@
 import { isJsonObject } from "./validation.ts";
 
 export const MAX_TRANSACTION_TOTAL_GROUPS = 100_000;
-export const TRANSACTION_TOTALS_LIMIT_MESSAGE =
-  "This selection is too large. Choose a shorter date range or narrow your filters.";
+export const TRANSACTION_TOTALS_LIMIT_MESSAGE = "Too many records. Choose fewer dates or filters.";
 
 /** A recoverable selection limit, never a reason to retry the same expensive query. */
 export class TransactionTotalsLimitError extends Error {

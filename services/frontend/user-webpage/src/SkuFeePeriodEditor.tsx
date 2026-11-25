@@ -4,6 +4,7 @@ import type { UseFormReturnType } from "@mantine/form";
 import type { SkuConfigurationChange, SkuConfigurationPeriod } from "./api";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import marketplaces from "./generated/marketplaces.json";
+import { feePeriodFromInputLabel, feePeriodUntilInputLabel } from "./fee-period-labels";
 
 export function SkuFeePeriodEditor({
   form,
@@ -81,16 +82,17 @@ export function SkuFeePeriodEditor({
             error={errorFor("fee_rate_percent")}
           />
           <TextInput
-            label={`Start date ${number} (inclusive)`}
+            label={feePeriodFromInputLabel(number)}
             data-autofocus={initialFocusField === "valid_from" || undefined}
             type="date"
             {...form.getInputProps(path("valid_from"), { withError: false })}
             error={errorFor("valid_from")}
           />
           <TextInput
-            label={`End date ${number} (exclusive)`}
+            label={feePeriodUntilInputLabel(number)}
             data-autofocus={initialFocusField === "valid_to" || undefined}
             type="date"
+            data-path={path("valid_to")}
             value={period.valid_to ?? ""}
             onChange={(event) => {
               form.setFieldValue(path("valid_to"), event.currentTarget.value || null);

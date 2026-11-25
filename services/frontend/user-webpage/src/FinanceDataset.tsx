@@ -1,37 +1,37 @@
 import "./FinanceDataset.css";
-import { Alert, Button, Text } from "@mantine/core";
+import { Alert, Button, Group, Text } from "@mantine/core";
 import { type TableDatasetKey, DATASET_CONFIG } from "./api";
-import { RowDetail } from "./RowDetail";
+import { DatasetRecordDrawer } from "./DatasetRecordDrawer";
+import { DatasetTable } from "./DatasetTable";
 import { useFinanceTable } from "./use-finance-table";
-import { DATASET_PRESENTATION, displayColumns, getErrorMessage } from "./view-model";
+import { DATASET_PRESENTATION } from "./view-model";
 import type { Identity } from "./auth-session";
-import { FinancialTable } from "./FinancialTable";
-import { DatasetCountStatus } from "./DatasetCountStatus";
-import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
-import { FinanceColumnHeader } from "./FinanceColumnHeader";
-import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
+import type { CorrectableViewStateProps, DatasetViewState } from "./workspace-view-state";
 import { AmountOrderingLimitError } from "./api/amount-ordering";
 import { PayoutReports } from "./PayoutReports";
-import { AppliedTableFilters } from "./AppliedTableFilters";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
 import { TransactionSummaries } from "./TransactionSummaries";
-import { filterOptions, transactionTypeValues } from "./filter-options";
-import { transactionTypeSelectionLabels } from "./transaction-type-groups";
-import { CompanyMembership } from "./CompanyMembership";
-import { useBrowserOnline } from "./use-browser-online";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FinancialSourceLookup } from "./FinancialSourceLookup";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { ListToolbar } from "./ListToolbar";
 import { revealSection } from "./reveal-section";
+import { ErrorAlert } from "./ErrorAlert";
+import { loadErrorDetail } from "./load-error";
+import { showsBottomPager } from "./pagination";
+import type { LoadingState } from "./LoadingStatus";
+import { useListHold } from "./scroll-hold";
 
-interface FinanceDatasetProps extends ViewStateProps<DatasetViewState> {
+interface FinanceDatasetProps extends CorrectableViewStateProps<DatasetViewState> {
   identity: Identity;
   dataset: TableDatasetKey;
   onRetry: () => Promise<void>;
   onAddCompany?: () => void;
+  onShowTransactions?: (sku: string) => void;
   updating?: boolean;
+  /** Embedded under a parent header (Raw data): report the loading status instead of a header. */
+  onStatusChange?: (status: LoadingState) => void;
 }
 
 export function FinanceDataset(props: FinanceDatasetProps) {
@@ -48,13 +48,22 @@ function StandardFinanceDataset({
   onRetry,
   viewState,
   onViewStateChange,
+  onViewStateCorrect,
   onAddCompany,
+  onShowTransactions,
   updating = false,
+  onStatusChange,
 }: FinanceDatasetProps) {
-  const online = useBrowserOnline();
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const summariesRef = useRef<HTMLDivElement>(null);
+  const summaryGap = useRef<HTMLDivElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const listHold = useListHold(summariesRef, toolbarRef, summaryGap);
+  const list = useFinanceTable(identity, dataset, viewState, {
+    onViewStateChange,
+    onViewStateCorrect,
+  });
   const {
     table,
     query,
@@ -64,8 +73,7 @@ function StandardFinanceDataset({
     changeSearch,
     filters,
     changeFilters,
-    companies,
-  } = useFinanceTable(identity, dataset, viewState, onViewStateChange);
+  } = list;
   const { pageIndex, pageSize } = table.state.pagination;
   const rows = table.getRowModel().rows;
   const presentation = DATASET_PRESENTATION[dataset];
@@ -74,260 +82,219 @@ function StandardFinanceDataset({
   const canNext = totalCount === null ? rows.length === pageSize : table.getCanNextPage();
   const isBusy = query.isFetching;
   const selectedRow = table.getSelectedRowModel().rows[0]?.original ?? null;
-  const hasRefinements = activeFilterCount(filters) > 0 || search.trim().length > 0;
-  const columns = displayColumns(dataset, identity.account.access_role === "administrator");
-  const sort = viewState.sorting[0];
   const amountLimitExceeded = query.error instanceof AmountOrderingLimitError;
+  const status: LoadingState = query.isPending
+    ? "loading"
+    : query.isFetching || query.countQuery.isFetching || updating
+      ? "updating"
+      : null;
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [onStatusChange, status]);
   function showControls() {
     revealSection(toolbarRef.current);
   }
   return (
     <>
-      <WorkspaceHeader
-        title={presentation.label}
-        status={
-          query.isPending
-            ? "loading"
-            : query.isFetching || query.countQuery.isFetching || updating
-              ? "updating"
-              : null
-        }
-        help={<DatasetHelp dataset={dataset} />}
-        actions={
-          dataset === "accounts" && onAddCompany ? (
-            <Button variant="light" onClick={onAddCompany}>
-              Add company
-            </Button>
-          ) : undefined
-        }
-      />
-      {dataset === "live" ? (
-        <div
-          ref={summariesRef}
-          className="transaction-summary-region"
-          tabIndex={-1}
-          role="region"
-          aria-label="Transaction summary"
-        >
-          <TransactionSummaries
-            identity={identity}
-            onRetry={onRetry}
-            filters={filters}
-            search={debouncedSearch}
-            onShowFilters={() => {
-              showControls();
-              searchInput.current?.focus({ preventScroll: true });
-            }}
-            onPeriodSelect={({ from, to }) => {
-              changeFilters({ dateFrom: from, dateTo: to });
-            }}
-          />
-        </div>
-      ) : null}
-      {query.error ? (
-        <Alert color={amountLimitExceeded ? "orange" : "red"} role="alert" mb="md">
-          {getErrorMessage(query.error)}
-          {amountLimitExceeded ? (
-            <Button
-              variant="subtle"
-              onClick={() => {
-                const defaultSort = DATASET_CONFIG[dataset].defaultSort;
-                table.setSorting([{ id: defaultSort.column, desc: true }]);
-              }}
-            >
-              Order by date
-            </Button>
-          ) : (
-            <Button variant="subtle" disabled={isBusy} onClick={() => void onRetry()}>
-              Retry
-            </Button>
-          )}
-        </Alert>
-      ) : null}
-      <ListToolbar
-        controlsRef={toolbarRef}
-        label={dataset === "accounts" ? "Account controls" : "Record controls"}
-        search={{
-          inputRef: searchInput,
-          value: search,
-          placeholder: presentation.searchPlaceholder,
-          onChange: changeSearch,
-        }}
-        pageSize={pageSize}
-        onPageSizeChange={(pageSize) => {
-          table.setPagination({ pageIndex: 0, pageSize });
-        }}
-        extraControls={
-          dataset === "finances" ? (
-            <FinancialSourceLookup identity={identity} />
-          ) : dataset === "live" ? (
-            <Button
-              variant="subtle"
-              size="sm"
-              onClick={() => {
-                revealSection(summariesRef.current);
-              }}
-            >
-              <span aria-hidden="true">↑ </span> Back to summaries
-            </Button>
-          ) : undefined
-        }
-        pagination={{
-          pageIndex,
-          pageCount,
-          canPrevious,
-          canNext,
-          isBusy,
-          onPrevious: () => {
-            table.previousPage();
-          },
-          onNext: () => {
-            table.nextPage();
-          },
-          onPageChange: (pageIndex) => {
-            table.setPageIndex(pageIndex);
-          },
-        }}
-        rowCount={rows.length}
-        totalCount={totalCount}
-        items="rows"
-        message={
-          amountLimitExceeded
-            ? "Narrow your filters or order by date to load rows."
-            : query.isPending
-              ? ""
-              : undefined
-        }
-      />
-      <AppliedTableFilters
-        focusTarget={searchInput}
-        dataset={dataset}
-        filters={filters}
-        companies={companies}
-        typeLabels={transactionTypeSelectionLabels(
-          filterOptions(
-            "component_type",
-            transactionTypeValues(dataset, identity.account.access_role),
-            filters.types,
-          ),
-          filters.types,
-        )}
-        onChange={changeFilters}
-      />
-      <FinancialTable
-        dataset={dataset}
-        table={table}
-        isBusy={isBusy}
-        status={
-          <DatasetCountStatus
-            isError={query.countQuery.isError}
-            isFetching={false}
-            items="rows"
-            onRetry={() => {
-              showControls();
-              void query.countQuery.refetch();
-            }}
-          />
-        }
-        renderColumnHeader={(columnId) => {
-          const column = columns.find((definition) => definition.key === columnId);
-          return column ? (
-            <FinanceColumnHeader
-              column={column}
-              dataset={dataset}
-              identity={identity}
-              filters={filters}
-              onFiltersChange={changeFilters}
-              sort={{ column: sort.id, direction: sort.desc ? "desc" : "asc" }}
-              totalCount={query.totalCount}
-              onSortChange={({ column: id, direction }) => {
-                table.setSorting([{ id, desc: direction === "desc" }]);
-              }}
-            />
-          ) : null;
-        }}
-      >
-        {query.isPending && !online ? (
-          <div className="loading-state" role="status">
-            Waiting for a connection to load rows…
-          </div>
-        ) : null}
-        {!query.isPending && !query.isError && rows.length === 0 ? (
-          <div className="empty-state">
-            <Text fw={600}>
-              {pageIndex > 0 && totalCount === null
-                ? "No rows on this page"
-                : hasRefinements
-                  ? "No matching records"
-                  : presentation.emptyMessage}
-            </Text>
-            {hasRefinements ? (
-              <>
-                <Text c="dimmed" size="sm">
-                  Adjust your search or filters, or reset them to see all records.
-                </Text>
-                <Button
-                  mt="sm"
-                  variant="light"
-                  onClick={(event) => {
-                    if (event.detail === 0) searchInput.current?.focus();
-                    onViewStateChange({
-                      ...viewState,
-                      search: "",
-                      filters: normalizeDatasetFilters(),
-                      pagination: { ...viewState.pagination, pageIndex: 0 },
-                      selectedRowId: null,
-                    });
-                  }}
-                >
-                  Reset search and filters
-                </Button>
-              </>
-            ) : null}
-          </div>
-        ) : null}
-      </FinancialTable>
-      {rows.length > 10 ? (
-        <ListPageNavigation
-          labels={{
-            navigation: "Record navigation at bottom",
-            items: "records",
-            back: "Back to filters",
-          }}
-          pageIndex={pageIndex}
-          pageCount={pageCount}
-          canPrevious={canPrevious}
-          canNext={canNext}
-          isBusy={isBusy}
-          onBackToFilters={showControls}
-          onPageChange={(index) => {
-            table.setPageIndex(index);
-            showControls();
-          }}
-        />
-      ) : null}
-      {dataset === "accounts" ? (
-        <CompanyMembership
-          accessToken={identity.session.access_token}
-          companies={identity.companies}
-          row={selectedRow}
-          onAddCompany={onAddCompany}
-          onClose={() => {
-            table.resetRowSelection();
-          }}
-        />
-      ) : (
-        <RowDetail
-          accessToken={identity.session.access_token}
-          isAdministrator={identity.account.access_role === "administrator"}
-          companies={companies}
-          dataset={dataset}
-          row={selectedRow}
-          onClose={() => {
-            table.resetRowSelection();
-          }}
+      {onStatusChange ? null : (
+        <WorkspaceHeader
+          title={presentation.label}
+          status={status}
+          help={<DatasetHelp dataset={dataset} />}
+          actions={
+            dataset === "accounts" && onAddCompany ? (
+              <Button variant="light" onClick={onAddCompany}>
+                Add company
+              </Button>
+            ) : undefined
+          }
         />
       )}
+      {dataset === "live" ? (
+        <>
+          <div
+            ref={summariesRef}
+            className="transaction-summary-region"
+            tabIndex={-1}
+            role="region"
+            aria-label="Transaction summary"
+          >
+            <TransactionSummaries
+              identity={identity}
+              onRetry={onRetry}
+              filters={filters}
+              search={debouncedSearch}
+              onShowFilters={() => {
+                showControls();
+                searchInput.current?.focus({ preventScroll: true });
+              }}
+              onPeriodSelect={({ from, to }) => {
+                changeFilters({ dateFrom: from, dateTo: to });
+              }}
+            />
+          </div>
+          <div ref={summaryGap} className="transaction-summary-gap" aria-hidden="true" />
+        </>
+      ) : null}
+      <div className="finance-dataset-list" {...listHold}>
+        <DatasetAlerts
+          savedNotice={savedNotice}
+          loadSubject={presentation.loadSubject}
+          error={query.error}
+          retrying={isBusy}
+          onRetry={() => void onRetry()}
+          onOrderByDate={() => {
+            const defaultSort = DATASET_CONFIG[dataset].defaultSort;
+            table.setSorting([{ id: defaultSort.column, desc: true }]);
+          }}
+        />
+        <ListToolbar
+          controlsRef={toolbarRef}
+          label={dataset === "accounts" ? "Account controls" : "Record controls"}
+          search={{
+            inputRef: searchInput,
+            value: search,
+            placeholder: presentation.searchPlaceholder,
+            onChange: changeSearch,
+          }}
+          pageSize={pageSize}
+          onPageSizeChange={(pageSize) => {
+            table.setPagination({ pageIndex: 0, pageSize });
+          }}
+          extraControls={
+            dataset === "finances" ? (
+              <FinancialSourceLookup identity={identity} />
+            ) : dataset === "live" ? (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => {
+                  revealSection(summariesRef.current);
+                }}
+              >
+                <span aria-hidden="true">↑ </span> Back to summaries
+              </Button>
+            ) : undefined
+          }
+          pagination={{
+            pageIndex,
+            pageCount,
+            canPrevious,
+            canNext,
+            isBusy,
+            onPrevious: () => {
+              table.previousPage();
+            },
+            onNext: () => {
+              table.nextPage();
+            },
+            onPageChange: (pageIndex) => {
+              table.setPageIndex(pageIndex);
+            },
+          }}
+          rowCount={rows.length}
+          totalCount={totalCount}
+          items={presentation.items}
+          updating={query.isPlaceholderData}
+          message={
+            amountLimitExceeded
+              ? `${sentenceCase(presentation.items)} not loaded`
+              : query.isPending
+                ? ""
+                : undefined
+          }
+        />
+        <DatasetTable
+          identity={identity}
+          dataset={dataset}
+          list={list}
+          searchInput={searchInput}
+          onCountRetry={() => {
+            showControls();
+            void query.countQuery.refetch();
+          }}
+        />
+        {showsBottomPager(rows.length, pageIndex) ? (
+          <ListPageNavigation
+            labels={{
+              navigation: "Record navigation at bottom",
+              items: presentation.items,
+              back: "Back to filters",
+            }}
+            pageIndex={pageIndex}
+            pageCount={pageCount}
+            canPrevious={canPrevious}
+            canNext={canNext}
+            isBusy={isBusy}
+            onBackToFilters={showControls}
+            onPageChange={(index) => {
+              table.setPageIndex(index);
+              showControls();
+            }}
+          />
+        ) : null}
+        <DatasetRecordDrawer
+          identity={identity}
+          dataset={dataset}
+          row={selectedRow}
+          companies={list.companies}
+          onAddCompany={onAddCompany}
+          onShowTransactions={onShowTransactions}
+          onClose={() => {
+            table.resetRowSelection();
+          }}
+          onSaved={(notice) => {
+            setSavedNotice(notice);
+            table.resetRowSelection();
+          }}
+        />
+      </div>
+    </>
+  );
+}
+
+const sentenceCase = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** A saved change, an amount order over its limit (with the date order instead), or a load error. */
+function DatasetAlerts({
+  savedNotice,
+  loadSubject,
+  error,
+  retrying,
+  onRetry,
+  onOrderByDate,
+}: {
+  savedNotice: string | null;
+  loadSubject: string;
+  error: Error | null;
+  retrying: boolean;
+  onRetry: () => void;
+  onOrderByDate: () => void;
+}) {
+  return (
+    <>
+      {savedNotice ? (
+        <Alert color="green" role="status" mb="md">
+          {savedNotice}
+        </Alert>
+      ) : null}
+      {error instanceof AmountOrderingLimitError ? (
+        <Alert color="orange" role="alert" mb="md">
+          <Group justify="space-between" gap="xs">
+            <Text size="sm">{error.message}</Text>
+            <Button variant="subtle" size="compact-sm" onClick={onOrderByDate}>
+              Order by date
+            </Button>
+          </Group>
+        </Alert>
+      ) : error ? (
+        <ErrorAlert
+          title={`Could not load ${loadSubject}`}
+          detail={loadErrorDetail(error)}
+          retrying={retrying}
+          onRetry={onRetry}
+        />
+      ) : null}
     </>
   );
 }

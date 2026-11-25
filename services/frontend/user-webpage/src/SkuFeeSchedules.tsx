@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Stack, Text } from "@mantine/core";
+import { Stack, Text } from "@mantine/core";
 import { fetchSkuConfigurationHistory, type SkuConfigurationItem } from "./api";
 import type { Identity } from "./auth-session";
 import { DetailSection } from "./DetailSection";
@@ -9,7 +9,8 @@ import { LookupPagination } from "./LookupPagination";
 import { SkuFeeScheduleCard, type FeeSchedule } from "./SkuFeeScheduleCard";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { decodeDetailPage } from "./detail-view-state";
-import { getErrorMessage } from "./view-model";
+import { ErrorAlert } from "./ErrorAlert";
+import { loadErrorDetail } from "./load-error";
 import { revealSection } from "./reveal-section";
 
 interface FeeSchedulesProps {
@@ -98,28 +99,25 @@ function SavedFeeSchedules({
     <DetailSection
       ref={section}
       title="Marketplace fee periods"
-      description="Each saved version includes its complete fee schedule. Edit changes the current configuration."
+      help="Each version is a complete fee schedule. Edit changes the current one."
       actions={
         <LoadingStatus state={query.isPending ? "loading" : query.isFetching ? "updating" : null} />
       }
     >
       {query.isError ? (
-        <Alert color="red" role="alert">
-          Could not load saved fee versions. {getErrorMessage(query.error)}
-          <Button
-            variant="subtle"
-            onClick={() => {
-              section.current?.focus({ preventScroll: true });
-              void query.refetch();
-            }}
-          >
-            Retry saved versions
-          </Button>
-        </Alert>
+        <ErrorAlert
+          title="Could not load saved fee versions"
+          detail={loadErrorDetail(query.error)}
+          retrying={query.isFetching}
+          onRetry={() => {
+            section.current?.focus({ preventScroll: true });
+            void query.refetch();
+          }}
+        />
       ) : null}
       {query.isSuccess && query.data.versions.length === 0 && pageIndex > 0 ? (
         <Text c="dimmed" size="sm">
-          No saved versions are available on this page.
+          No versions on this page
         </Text>
       ) : null}
       <Stack gap="md">

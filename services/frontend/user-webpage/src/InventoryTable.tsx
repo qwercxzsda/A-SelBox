@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Group, Table } from "@mantine/core";
 import type { InventoryRow } from "./api/inventory";
 import type { InventorySortColumn } from "./inventory-view";
@@ -33,6 +34,8 @@ const RECOMMENDATION = INVENTORY_METRICS.recommendation.filter(
 );
 
 export function InventoryTable({
+  appliedFilters,
+  emptyState,
   rows,
   viewState,
   onChange,
@@ -45,6 +48,8 @@ export function InventoryTable({
   onShowTransactions,
   now,
 }: {
+  appliedFilters: ReactNode;
+  emptyState: ReactNode;
   rows: InventoryRow[];
   viewState: InventoryViewState;
   onChange: (patch: Partial<InventoryViewState>) => void;
@@ -105,6 +110,7 @@ export function InventoryTable({
       label="Inventory items"
       className="inventory-table-card"
       scrollClassName="inventory-scroll"
+      appliedFilters={appliedFilters}
     >
       <Table
         className="inventory-table"
@@ -221,6 +227,7 @@ export function InventoryTable({
           ))}
         </Table.Tbody>
       </Table>
+      {emptyState}
     </TableFrame>
   );
 }

@@ -24,8 +24,8 @@ test("company-filtered account pages and counts share the same company and email
     access_role: "member",
     company_id: COMPANY_ID,
     email: "member@example.test",
-    email_confirmed: true,
-    created_at: "2026-10-02T00:00:00Z",
+    email_confirmed: "t",
+    created_at: "2026-10-02 00:00:00+00",
   };
   const client = createApiClient(SETTINGS, async (url, init) => {
     const { pathname, searchParams } = new URL(url);
@@ -60,6 +60,28 @@ test("company-filtered account pages and counts share the same company and email
   assert.equal(count.params.get("limit"), "0");
   assert.equal(count.params.has("order"), false);
   assert.equal(new Headers(count.init.headers).get("Prefer"), "count=exact");
+});
+
+test("account directory rows carry PostgREST CSV booleans and offset timestamps or fail", async () => {
+  const valid = {
+    ...account,
+    email: "member@example.test",
+    email_confirmed: "f",
+    created_at: "2026-10-02 00:00:00.123456+00",
+  };
+  const page = (record) =>
+    createApiClient(
+      SETTINGS,
+      async () =>
+        new Response(csvRecord(record), {
+          headers: { "Content-Range": "0-0/1", "Content-Type": "text/csv" },
+        }),
+    ).fetchDatasetPage(pageRequest("accounts"));
+  assert.equal((await page(valid)).rows[0].email_confirmed, "f");
+  for (const email_confirmed of ["true", "false", "yes", "", null])
+    await assert.rejects(page({ ...valid, email_confirmed }), /invalid email_confirmed/);
+  for (const created_at of ["2026-10-02", "2026-10-02 00:00:00", "", null])
+    await assert.rejects(page({ ...valid, created_at }), /invalid created_at/);
 });
 
 test("account directory omits empty company selections for both pages and counts", async () => {

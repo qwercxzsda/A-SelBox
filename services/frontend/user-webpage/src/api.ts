@@ -3,6 +3,7 @@ import { readRuntimeConfig } from "./api/runtime-config.ts";
 import type { PublishSkuConfigurationOptions } from "./api/sku-configuration-types.ts";
 import type { SetCompanyMembershipOptions } from "./api/membership.ts";
 import type { FinancialSourceSelection } from "./api/financial-source.ts";
+import type { AdInvoiceLinesRequest } from "./api/raw-data.ts";
 import type { FetchPayoutHistoryOptions, FetchPayoutVersionOptions } from "./api/payout-history.ts";
 import type {
   AppAccount,
@@ -40,6 +41,8 @@ export type {
   MarketplaceCurrencyTotal,
   DatasetFilters,
   DatasetKey,
+  RawDatasetKey,
+  RawReportKey,
   TableDatasetKey,
   Session,
   SkuAssignment,
@@ -95,6 +98,11 @@ export const fetchFinancialSourceRecord = (
   selection: FinancialSourceSelection,
   signal?: AbortSignal,
 ) => getDefaultClient().fetchFinancialSourceRecord(accessToken, selection, signal);
+export const fetchAdInvoiceLines = (
+  accessToken: string,
+  request: AdInvoiceLinesRequest,
+  signal?: AbortSignal,
+) => getDefaultClient().fetchAdInvoiceLines(accessToken, request, signal);
 export const fetchFinancialSourceTransactions = (
   accessToken: string,
   transactionId: string,
@@ -173,15 +181,18 @@ export const fetchPayoutTypeTotals = (
   signal?: AbortSignal,
 ) => getDefaultClient().fetchPayoutTypeTotals(accessToken, reportId, currency, signal);
 
-export const fetchOutcomeMonths = (
-  ...args: Parameters<ReturnType<typeof createApiClient>["fetchOutcomeMonths"]>
-) => getDefaultClient().fetchOutcomeMonths(...args);
+export const fetchReviewMonths = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchReviewMonths"]>
+) => getDefaultClient().fetchReviewMonths(...args);
 export const fetchFinancialOutcomes = (
   ...args: Parameters<ReturnType<typeof createApiClient>["fetchFinancialOutcomes"]>
 ) => getDefaultClient().fetchFinancialOutcomes(...args);
-export const fetchAssignmentStatus = (
-  ...args: Parameters<ReturnType<typeof createApiClient>["fetchAssignmentStatus"]>
-) => getDefaultClient().fetchAssignmentStatus(...args);
+export const fetchReferenceAssignments = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchReferenceAssignments"]>
+) => getDefaultClient().fetchReferenceAssignments(...args);
+export const fetchAssignmentHistory = (
+  ...args: Parameters<ReturnType<typeof createApiClient>["fetchAssignmentHistory"]>
+) => getDefaultClient().fetchAssignmentHistory(...args);
 export const setReferenceAssignment = (
   ...args: Parameters<ReturnType<typeof createApiClient>["setReferenceAssignment"]>
 ) => getDefaultClient().setReferenceAssignment(...args);

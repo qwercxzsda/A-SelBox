@@ -14,20 +14,6 @@ export const SESSION = {
   user: { id: "user-1", email: "member@example.invalid" },
 };
 
-export function workspaceRevisionReply(url) {
-  if (!new URL(url).pathname.endsWith("/workspace_revisions")) return null;
-  return Response.json({
-    account: { user_id: "user-1", access_role: "member", company_id: "company-1" },
-    revisions: {
-      finances: "one",
-      references: "one",
-      fees: "one",
-      inventory: "one",
-      payouts: "one",
-    },
-  });
-}
-
 export function responseJson(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -39,7 +25,11 @@ export function datasetRecord(dataset, overrides = {}) {
   return Object.assign(
     Object.fromEntries(DATASET_CONFIG[dataset].selectColumns.map((column) => [column, column])),
     dataset === "payouts" ? { marketplace_name: "Amazon.com" } : {},
-    ["live", "finances"].includes(dataset) ? { activity_at: "2026-11-06T07:59:59.999999Z" } : {},
+    // A SelBox group is one of SelBox's codes or null; a SKU-routed record has none.
+    ["live", "finances"].includes(dataset)
+      ? { activity_at: "2026-11-06T07:59:59.999999Z", selbox_group: null }
+      : {},
+    dataset === "accounts" ? { email_confirmed: "t", created_at: "2026-09-01 00:00:00+00" } : {},
     overrides,
   );
 }

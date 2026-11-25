@@ -1,5 +1,7 @@
 import type { SkuConfigurationPeriod } from "./api/sku-configuration-types.ts";
 import { isFeeRate } from "./api/sku-configuration-codec.ts";
+import { FEE_DATE_ERROR } from "./fee-period-labels.ts";
+import { FEE_RATE_ERROR } from "./sku-configuration-form.ts";
 import { isCalendarDate, isMarketplace } from "./sku-fee-coverage.ts";
 
 export interface FeeRateChangeDraft {
@@ -27,16 +29,15 @@ export function planFeeRateChange(
     (period.valid_to !== null &&
       (!isCalendarDate(period.valid_to) || period.valid_to <= period.valid_from))
   )
-    errors.period = "Complete the existing marketplace and date range before changing its rate.";
-  if (!isCalendarDate(draft.effectiveDate)) errors.effectiveDate = "Choose a valid effective date.";
+    errors.period = "Complete this period's marketplace and dates first.";
+  if (!isCalendarDate(draft.effectiveDate)) errors.effectiveDate = FEE_DATE_ERROR;
   else if (
     period &&
     (draft.effectiveDate < period.valid_from ||
       (period.valid_to !== null && draft.effectiveDate >= period.valid_to))
   )
-    errors.effectiveDate = "Choose a date within this period. Its end date is exclusive.";
-  if (!isFeeRate(draft.feeRatePercent))
-    errors.feeRatePercent = "Enter a fee from 0 to 100 with up to 6 decimal places.";
+    errors.effectiveDate = "Choose a date inside this period.";
+  if (!isFeeRate(draft.feeRatePercent)) errors.feeRatePercent = FEE_RATE_ERROR;
   if (!period || Object.keys(errors).length) return { errors, plan: null };
   const replacement = [
     ...(draft.effectiveDate > period.valid_from

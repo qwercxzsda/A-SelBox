@@ -22,7 +22,7 @@ test("period definitions use the day before the latest data date and need transa
   assert.deepEqual(summaryPeriods(null), { day: null, month: null });
   const periods = summaryPeriods("2026-09-13");
   assert.deepEqual(periods.day, {
-    label: "Sep 12, 2026",
+    label: "2026-09-12",
     range: { from: "2026-09-12", to: "2026-09-12" },
   });
   assert.deepEqual(periods.month, {
@@ -47,10 +47,10 @@ test("last day crosses UTC month, year, and leap-day boundaries", () => {
 test("selected dates require a bound and preserve inclusive, single-day, and open ranges", () => {
   assert.equal(selectedPeriod({ from: "", to: "" }), null);
   for (const [from, to, label] of [
-    ["2026-02-01", "2026-02-28", "Feb 1, 2026 – Feb 28, 2026"],
-    ["2026-03-01", "", "From Mar 1, 2026"],
-    ["", "2026-02-28", "Through Feb 28, 2026"],
-    ["2026-03-01", "2026-03-01", "Mar 1, 2026"],
+    ["2026-02-01", "2026-02-28", "2026-02-01 – 2026-02-28"],
+    ["2026-03-01", "", "From 2026-03-01"],
+    ["", "2026-02-28", "Through 2026-02-28"],
+    ["2026-03-01", "2026-03-01", "2026-03-01"],
   ]) {
     assert.deepEqual(selectedPeriod({ from, to }), { label, range: { from, to } });
   }

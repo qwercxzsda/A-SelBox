@@ -126,8 +126,8 @@ test("SKU selection uses exact values, intersects other filters, and restores ac
   await page.getByRole("button", { name: "Remove Company: Alpha Company", exact: true }).click();
   await expect(summaryRows(page)).toHaveCount(2);
   await page.getByLabel("Search SKUs", { exact: true }).fill("absent");
-  await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Clear search and filters", exact: true }).click();
+  await expect(page.getByText("No matching SKUs", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Reset search and filters", exact: true }).click();
   await expect(summaryRows(page)).toHaveCount(25);
   await expect(page.getByRole("button", { name: /^Remove SKU:/ })).toHaveCount(0);
   await expect(feePeriods(page, "S1")).toHaveCount(1);
@@ -251,7 +251,7 @@ for (const width of [1440, 390]) {
     await expect(feeDetails(page)).toBeVisible();
     const drawer = await feeDetails(page).elementHandle();
     await feeDetails(page).getByRole("button", { name: "Edit S1", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Edit S1", exact: true })).toBeVisible();
+    await expect(editor(page).locator(".detail-drawer-context")).toHaveText(/^S1 · /);
     expect(await editor(page).evaluate((element, previous) => element === previous, drawer)).toBe(
       true,
     );
@@ -260,7 +260,7 @@ for (const width of [1440, 390]) {
     await expect(feeGroup(page, "S2").locator('tr[aria-selected="true"]')).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(1);
     await page.reload();
-    await expect(page.getByRole("dialog", { name: "Edit S1", exact: true })).toBeVisible();
+    await expect(editor(page).locator(".detail-drawer-context")).toHaveText(/^S1 · /);
     await expect(feePeriods(page, "S1")).toHaveCount(3);
     await page.keyboard.press("Escape");
     await expect(editor(page)).toBeHidden();

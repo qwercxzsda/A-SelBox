@@ -1,5 +1,10 @@
-export type TableDatasetKey = "live" | "finances" | "payouts" | "accounts";
-export type DatasetKey = TableDatasetKey | "fees";
+/** Amazon reports SelBox keeps, read as their current versions. */
+export type RawReportKey = "ad_invoices" | "storage" | "aged_storage" | "removal_orders";
+/** The Raw data sub-tabs: Finances (every version) and the four reports. */
+export type RawDatasetKey = "finances" | RawReportKey;
+export type TableDatasetKey = "live" | "payouts" | "accounts" | RawDatasetKey;
+/** Top-level workspace tabs backed by one dataset. */
+export type DatasetKey = Exclude<TableDatasetKey, RawDatasetKey> | "fees";
 type SortDirection = "asc" | "desc";
 type DecimalString = string;
 

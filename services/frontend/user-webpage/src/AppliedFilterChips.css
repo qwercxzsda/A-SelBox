@@ -1,27 +1,44 @@
-.applied-filter-chip {
-  height: auto;
+/* One chip line inside the table status row: the first filter or "Clear filters" never moves the table. */
+.applied-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   max-width: 100%;
-  padding-block: 4px;
+  height: 100%;
+}
+
+.applied-filters-summary,
+.applied-filters-clear {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Room around the chips keeps their focus rings inside the sideways scroll area. */
+.applied-filters-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.applied-filters-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.applied-filter-chip {
+  flex: none;
+  max-width: min(24rem, 85%);
 }
 
 .applied-filter-chip .mantine-Button-label {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.applied-table-filters {
   min-width: 0;
 }
 
-.applied-table-filter {
-  max-width: min(24rem, 100%);
-}
-
-.applied-table-filter .mantine-Button-label {
-  min-width: 0;
-}
-
-.applied-table-filter-text {
+.applied-filter-text {
   min-width: 0;
   line-height: 1.4;
   overflow: hidden;

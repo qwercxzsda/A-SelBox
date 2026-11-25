@@ -1,0 +1,22 @@
+.raw-data-tabs > .ui-tabs-list > .ui-tabs-tab {
+  /* Keep tab widths stable across selection, as in the workspace tab bar. */
+  font-weight: 500;
+}
+
+/* One scrollable row of sources on narrow screens. */
+@media (max-width: 720px) {
+  .raw-data-tabs > .ui-tabs-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .raw-data-tabs > .ui-tabs-list > .ui-tabs-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* The scroller clips outside outlines; draw the focus ring inside the tab. */
+  .raw-data-tabs > .ui-tabs-list > .ui-tabs-tab:focus-visible {
+    outline-offset: -2px;
+  }
+}

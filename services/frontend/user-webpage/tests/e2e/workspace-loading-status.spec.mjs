@@ -1,10 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { financesRow } from "./api-fixtures.mjs";
+import { openRawData, storageRow } from "./raw-data-fixtures.mjs";
 
+/** The count's own Retry, beside (and described by) "Count unavailable". */
+const retryCount = (page) =>
+  page
+    .getByText("Count unavailable", { exact: true })
+    .locator("xpath=following-sibling::button[1]");
+
+// Raw data sources report their status to the one Raw data title.
 const CASES = [
   { tab: "Transactions", dataset: "live", revision: "finances" },
-  { tab: "Finances", dataset: "finances", revision: "finances" },
+  { tab: "Raw data", source: "Finances", dataset: "finances", revision: "finances" },
+  { tab: "Raw data", source: "Monthly storage report", dataset: "storage", revision: "references" },
   { tab: "Payout reports", dataset: "payouts", revision: "payouts" },
   { tab: "User access", dataset: "accounts", revision: null },
 ];
@@ -30,6 +39,7 @@ function matchesRows(request, dataset) {
       path === "/rest/v1/rpc/source_transaction_page" &&
       request.postDataJSON().p_dataset === dataset
     );
+  if (dataset === "storage") return path === "/rest/v1/current_storage_rows";
   return (
     path ===
     (dataset === "payouts"
@@ -42,7 +52,7 @@ async function setup(page) {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.financesRows = [financesRow(1)];
-
+  fixture.rawRows = { storage: [storageRow(1)] };
   fixture.payoutRows = [
     {
       id: "0198b50b-701a-7000-8000-000000000002",
@@ -66,10 +76,10 @@ async function expectSameHeading(page, previous) {
   expect(current.height).toBeCloseTo(previous.height, 0);
 }
 
-for (const { tab, dataset, revision, width } of CASES.flatMap((entry) =>
+for (const { tab, source, dataset, revision, width } of CASES.flatMap((entry) =>
   (entry.dataset === "accounts" ? [1440, 360] : [1440]).map((width) => ({ ...entry, width })),
 )) {
-  test(`${tab} keeps initial loading and background updating beside its title at ${width}px`, async ({
+  test(`${source ?? tab} keeps initial loading and background updating beside its title at ${width}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -88,7 +98,9 @@ for (const { tab, dataset, revision, width } of CASES.flatMap((entry) =>
       await signIn(page);
       const tabs = page.getByRole("tablist", { name: "Workspace data", exact: true });
       await expect(tabs).toBeVisible({ timeout: 30_000 });
-      if (tab !== "Transactions") await tabs.getByRole("tab", { name: tab, exact: true }).click();
+      if (source) await openRawData(page, source);
+      else if (tab !== "Transactions")
+        await tabs.getByRole("tab", { name: tab, exact: true }).click();
       await gate.started.promise;
       await expect(heading(page).getByRole("heading", { name: tab, exact: true })).toBeVisible();
       await expect(status(page)).toHaveText("Loading…");
@@ -143,7 +155,7 @@ test("a pending count and its failed retry use the title without hiding usable t
     await expect(status(page)).toHaveText("Updating…");
     await expect(page.getByText("Counting rows…", { exact: true })).toHaveCount(0);
     release.resolve();
-    const retry = page.getByRole("button", { name: "Retry count", exact: true });
+    const retry = retryCount(page);
     await expect(retry).toBeVisible();
     await expect(status(page)).toHaveText("");
     const rowReads = fixture.requests.length;
@@ -182,7 +194,7 @@ test("a paused source page keeps its offline explanation and resumes with title 
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await context.setOffline(true);
   try {
-    await page.getByRole("tab", { name: "Finances", exact: true }).click();
+    await openRawData(page);
     const waiting = page.getByText("Waiting for a connection to load rows…", { exact: true });
     await expect(waiting).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "Offline" })).toBeVisible();

@@ -1,17 +1,3 @@
 .table-disclosure {
   margin-left: -6px;
 }
-
-.table-disclosure-chevron {
-  transition: transform 120ms ease;
-}
-
-.table-disclosure-chevron[data-expanded="true"] {
-  transform: rotate(90deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .table-disclosure-chevron {
-    transition: none;
-  }
-}

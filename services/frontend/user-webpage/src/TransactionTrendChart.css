@@ -4,10 +4,6 @@
   min-width: 0;
   padding: 12px 16px 16px;
 }
-.transaction-trend-warning {
-  color: #9b4c0b;
-  margin-bottom: 6px;
-}
 .transaction-trend-viewport {
   display: flex;
   align-items: flex-start;
@@ -313,7 +309,7 @@
 .transaction-trend-known-amount {
   display: block;
   margin-top: 2px;
-  color: #9b4c0b;
+  color: var(--ui-status-warning-text);
   font-size: var(--ui-font-caption);
   font-weight: 400;
 }

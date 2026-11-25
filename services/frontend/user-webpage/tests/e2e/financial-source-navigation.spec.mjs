@@ -36,14 +36,14 @@ test("long exact transaction identifiers remain contained on a phone", async ({
   const nativeId = "N".repeat(512);
   const { lookup } = await openSourceLookup(page, { nativeId });
   await expect(
-    lookup.getByRole("button", { name: "Close transaction lookup", exact: true }),
+    lookup.getByRole("button", { name: "Close find transaction", exact: true }),
   ).toBeInViewport();
   await expect(
     lookup.getByRole("button", { name: "Find transaction", exact: true }),
   ).toBeInViewport();
   expect(await lookup.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-  const summary = page.getByText(`Showing ${nativeId}.`, { exact: false });
-  await expect(summary).toBeVisible();
+  const summary = lookup.locator(".detail-drawer-context");
+  await expect(summary).toContainText(nativeId);
   expect(
     await page.evaluate(() => globalThis.document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(320);
@@ -65,7 +65,7 @@ test("a long SKU stays inside its source detail panel", async ({ page }, testInf
   });
   await opener.click();
   const drawer = sourceDetail(page);
-  await expect(drawer.getByRole("heading", { name: sku, exact: true })).toBeVisible();
+  await expect(drawer.locator(".detail-drawer-context")).toContainText(sku);
   expect(await drawer.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({
     path: testInfo.outputPath("source-detail-long-sku-phone.png"),

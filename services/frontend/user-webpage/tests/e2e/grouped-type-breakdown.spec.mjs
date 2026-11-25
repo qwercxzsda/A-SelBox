@@ -81,7 +81,16 @@ for (const width of [1280, 320, 390]) {
     await expect(summaryAmount(total, "Reported amount")).toHaveText("109.00 USD");
     await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
     await expect(total).toContainText("8 records across 7 types");
-    await expect(total).toContainText("3 transactions have uncalculated amounts.");
+    // Same short label as Current totals; the explanation sits in the Total help.
+    const missing = total.getByRole("note");
+    await expect(missing).toHaveText("3 missing fee rates");
+    await expect(missing).toHaveCSS("color", "rgb(138, 59, 12)");
+    await total.getByRole("button", { name: "Total help", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Total help", exact: true })).toContainText(
+      "Company amount leaves out records without a fee rate; add the rates in Current fees.",
+    );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
     await testInfo.attach(`grouped-breakdown-collapsed-${width}px`, {
       body: await page.screenshot({ animations: "disabled", fullPage: true }),
       contentType: "image/png",
@@ -122,7 +131,11 @@ for (const width of [1280, 320, 390]) {
     const sales = dialog.getByRole("region", { name: "Sales & refunds subtotal", exact: true });
     await expect(summaryAmount(sales, "Reported amount")).toHaveText("5.00 USD");
     await expect(summaryAmount(sales, "Known company amount")).toHaveText("0.00 USD");
-    await expect(sales).toContainText("2 uncalculated");
+    // The same note and warning tone as Current totals and the Total card.
+    const salesMissing = sales.getByRole("note");
+    await expect(salesMissing).toHaveText("2 missing fee rates");
+    await expect(salesMissing).toHaveCSS("color", "rgb(138, 59, 12)");
+    await expect(salesMissing).toHaveCSS("font-weight", "500");
     const referral = dialog.getByRole("region", { name: "Selling fees subtotal", exact: true });
     await expect(summaryAmount(referral, "Company amount")).toHaveText("100.00 USD");
     const unknown = dialog.getByRole("region", {
@@ -163,7 +176,7 @@ for (const width of [1280, 320, 390]) {
       dialog.getByRole(childRole, { name: "Product sales amounts", exact: true }),
     ).toHaveCount(0);
     await expect(summaryAmount(total, "Known company amount")).toHaveText("97.00 USD");
-    await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+    await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
 
     await page
       .getByRole("button", { name: "View Last day for Amazon.com in EUR by type", exact: false })

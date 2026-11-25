@@ -12,8 +12,10 @@ import { createSkuConfigurationApi } from "./sku-configuration.ts";
 import { createSkuConfigurationHistoryApi } from "./sku-configuration-history.ts";
 import { createInventoryApi } from "./inventory.ts";
 
-import { createAllocationApi } from "./allocations.ts";
+import { createFinancialReviewApi } from "./financial-review.ts";
+import { createAssignmentApi } from "./assignments.ts";
 import { createFinancialSourceApi } from "./financial-source.ts";
+import { createRawDataApi } from "./raw-data.ts";
 import type { ApiClientConfig } from "./client-config.ts";
 export { ApiError } from "./transport.ts";
 
@@ -36,8 +38,10 @@ export function createApiClient(
     ...createSkuConfigurationApi(transport),
     ...createSkuConfigurationHistoryApi(transport),
     ...createInventoryApi(transport),
-    ...createAllocationApi(transport),
+    ...createFinancialReviewApi(transport),
+    ...createAssignmentApi(transport),
     ...createFinancialSourceApi(transport),
+    ...createRawDataApi(transport),
     ...createSummaryApi(transport, (options) => datasets.fetchDatasetPage(options)),
   };
 }

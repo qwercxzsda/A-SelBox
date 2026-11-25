@@ -76,8 +76,7 @@ export function transactionTrendPoints(
   const duration =
     (new Date(`${to}T00:00:00Z`).getTime() - new Date(`${first}T00:00:00Z`).getTime()) / 86_400_000;
   const periodCount = Math.floor(duration / step) + 1;
-  if (periodCount > 5000)
-    throw new Error("Select a shorter date range to display trends (up to 5,000 periods).");
+  if (periodCount > 5000) throw new Error("Choose a shorter date range (up to 5,000 periods).");
   const groups = new Set(rows.map((row) => transactionTypeGroup(row.type).id));
   const groupIds = TRANSACTION_TYPE_GROUPS.filter((group) => groups.has(group.id)).map(
     (group) => group.id,
@@ -203,33 +202,14 @@ export function projectTransactionTrend(points: readonly TransactionTrendPoint[]
   }
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-const shortFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
-
+/** A trend period's days, YYYY-MM-DD like every other day value. */
 export function transactionTrendDateLabel(
-  point: Pick<TransactionTrendPoint, "from" | "to">,
-): string {
-  const from = dateFormatter.format(new Date(`${point.from}T00:00:00Z`));
-  return point.from === point.to
-    ? from
-    : `${from} – ${dateFormatter.format(new Date(`${point.to}T00:00:00Z`))}`;
-}
-
-export function compactTransactionTrendDateLabel(
   point: Pick<TransactionTrendPoint, "from" | "to">,
 ): string {
   return summaryDateLabel(point);
 }
 
+/** Axis ticks show MM-DD, the visible part of the period's YYYY-MM-DD name. */
 export function transactionTrendShortLabel(date: string): string {
-  return shortFormatter.format(new Date(`${date}T00:00:00Z`));
+  return date.slice(5);
 }

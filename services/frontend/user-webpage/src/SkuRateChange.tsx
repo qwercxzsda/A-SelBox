@@ -3,6 +3,7 @@ import { Alert, Button, Group, Paper, Stack, Text, TextInput, Title } from "@man
 import type { SkuConfigurationPeriod } from "./api";
 import { planFeeRateChange, type FeeRateChangeDraft } from "./sku-rate-change";
 import { SkuFeePeriods } from "./SkuFeePeriods";
+import { RATE_CHANGE_FROM_LABEL } from "./fee-period-labels";
 
 export function SkuRateChange({
   sku,
@@ -41,14 +42,13 @@ export function SkuRateChange({
           Change rate from date
         </Title>
         <Text size="sm" c="dimmed">
-          {periods[draft.periodIndex].marketplace_name}. Preview the date boundary before adding it
-          to your draft. Other periods stay unchanged.
+          {periods[draft.periodIndex].marketplace_name}
         </Text>
         <div className="sku-rate-change-fields">
           <TextInput
             ref={dateInput}
             data-autofocus
-            label="New rate effective date"
+            label={RATE_CHANGE_FROM_LABEL}
             type="date"
             value={draft.effectiveDate}
             onChange={(event) => {
@@ -78,12 +78,6 @@ export function SkuRateChange({
               Proposed periods
             </Text>
             <SkuFeePeriods item={{ sku, periods: plan.replacement }} />
-            <Text size="sm">
-              {plan.replacement.length === 2
-                ? "The previous rate ends exclusively on the new rate's inclusive start date."
-                : "The new rate replaces this period from its existing start date."}{" "}
-              Nothing is saved yet.
-            </Text>
           </>
         ) : null}
         <Group justify="space-between">

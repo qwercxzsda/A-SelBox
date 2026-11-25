@@ -63,7 +63,7 @@ for (const role of ["administrator", "member"]) {
     const oldSkuMenu = await openColumn(page, "SKU");
     await oldSkuMenu.getByRole("checkbox", { name: "S1", exact: true }).check();
     await oldSkuMenu.getByRole("button", { name: "Close options", exact: true }).click();
-    await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
 
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await record.press("Enter");
@@ -115,7 +115,7 @@ for (const role of ["administrator", "member"]) {
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     await expect(record).toHaveAttribute("aria-selected", "false");
     if (role === "administrator") {
-      await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
+      await expect(page.getByText("Unsaved changes: 1 SKU draft", { exact: true })).toBeVisible();
       await feeRow(page, "S1").press("Enter");
       await expect(
         feeDetails(page).getByRole("table", { name: "Marketplace fees for S1", exact: true }),

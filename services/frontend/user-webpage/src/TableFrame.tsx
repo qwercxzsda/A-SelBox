@@ -2,49 +2,54 @@ import { useId, useRef, type ReactNode } from "react";
 import { Group, Paper } from "@mantine/core";
 import { FloatingTableHeader } from "./FloatingTableHeader";
 import { TableScrollControls } from "./TableScrollControls";
+import { useScrollReserve } from "./scroll-reserve";
 import "./TableFrame.css";
 
 /** Shared frame and navigation; each table retains its own headers, rows, and data model. */
 export function TableFrame({
   label,
   children,
-  heading,
+  appliedFilters,
   status,
-  isBusy,
+  isBusy = false,
+  isPlaceholderData = false,
   dataset,
   className,
   scrollClassName,
 }: {
   label: string;
   children: ReactNode;
-  heading?: ReactNode;
+  /** Applied-filter chips; their row keeps one chip line whether or not filters exist. */
+  appliedFilters?: ReactNode;
   status?: ReactNode;
   isBusy?: boolean;
+  /** The previous result stays visible, dimmed and inactive, until the next one arrives. */
+  isPlaceholderData?: boolean;
   dataset?: string;
   className?: string;
   scrollClassName?: string;
 }) {
+  const card = useRef<HTMLDivElement>(null);
   const scrollTarget = useRef<HTMLDivElement>(null);
   const scrollId = useId();
+  useScrollReserve(card);
   return (
     <>
       <FloatingTableHeader target={scrollTarget} />
-      <Group
-        className={heading ? "detail-section-header" : undefined}
-        justify={heading ? "space-between" : "flex-end"}
-        gap="xs"
-        mb={heading ? "sm" : "xs"}
-        mih={heading ? undefined : 22}
-      >
-        {heading}
-        <TableScrollControls target={scrollTarget} targetId={scrollId} />
-        {status}
-      </Group>
+      <div className="table-status-row">
+        <div className="table-status-filters">{appliedFilters}</div>
+        <Group className="table-status-actions" gap="xs" wrap="nowrap">
+          <TableScrollControls target={scrollTarget} targetId={scrollId} />
+          {status}
+        </Group>
+      </div>
       <Paper
+        ref={card}
         withBorder
         className={["table-card", className].filter(Boolean).join(" ")}
         data-dataset={dataset}
-        aria-busy={isBusy}
+        data-placeholder={isPlaceholderData || undefined}
+        aria-busy={isBusy || isPlaceholderData}
       >
         <div
           id={scrollId}

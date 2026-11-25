@@ -32,10 +32,7 @@ export function readAuthCallback(hash: string): AuthCallback | null {
   if (!hasAuthCallback(params)) return null;
   const recovery = params.get("type") === "recovery";
   if (["error", "error_code", "error_description"].some((key) => params.has(key)))
-    throw new AuthCallbackError(
-      "This account link is invalid or has expired. Request a new password recovery link or sign in.",
-      recovery,
-    );
+    throw new AuthCallbackError("Link invalid or expired. Request a new one.", recovery);
   const kind = params.get("type");
   const accessToken = params.get("access_token");
   const refreshToken = params.get("refresh_token");
@@ -53,10 +50,7 @@ export function readAuthCallback(hash: string): AuthCallback | null {
     expiresIn <= 0 ||
     (expiresAt !== undefined && (!Number.isFinite(expiresAt) || expiresAt <= 0))
   )
-    throw new AuthCallbackError(
-      "This account link could not be verified. Request a new password recovery link or sign in.",
-      recovery,
-    );
+    throw new AuthCallbackError("Link could not be verified. Request a new one.", recovery);
   return {
     kind,
     tokens: {

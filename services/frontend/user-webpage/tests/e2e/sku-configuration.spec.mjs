@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
 import {
   feeRow,
+  feeDetails,
   COMPANY,
   OTHER_COMPANY,
   version,
@@ -13,6 +14,7 @@ import {
   openEditor,
   stageRate,
   openReview,
+  expectSavedSettingsAlert,
 } from "./sku-configuration-fixtures.mjs";
 
 test("administrators stage multiple SKUs and validate each changed SKU before saving", async ({
@@ -37,9 +39,9 @@ test("administrators stage multiple SKUs and validate each changed SKU before sa
   ).toBeDisabled();
   await review(page).getByRole("button", { name: "Complete S2", exact: true }).click();
   await expect(editor(page).getByLabel("Fee rate 2 (%)", { exact: true })).toHaveValue("");
-  await expect(editor(page).getByLabel("Start date 2 (inclusive)", { exact: true })).toHaveValue(
-    "2026-09-02",
-  );
+  await expect(
+    editor(page).getByLabel("Effective from 2 (inclusive)", { exact: true }),
+  ).toHaveValue("2026-09-02");
   await editor(page).getByLabel("Company", { exact: true }).selectOption(COMPANY);
   await editor(page).getByLabel("Fee rate 2 (%)", { exact: true }).fill("7.123456");
   await page.screenshot({
@@ -54,12 +56,16 @@ test("administrators stage multiple SKUs and validate each changed SKU before sa
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
-  await expect(page.getByText("2 SKU drafts · not saved yet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unsaved changes: 2 SKU drafts", { exact: true })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(0);
   await openReview(page);
   await review(page).getByLabel("Reason for changes (optional)").fill("Complete September fees");
-  await expect(review(page).getByRole("cell", { name: "6.123456%", exact: true })).toBeVisible();
-  await expect(review(page).getByRole("cell", { name: "7.123456%", exact: true })).toBeVisible();
+  for (const rate of ["6.123456%", "7.123456%"])
+    await expect(
+      review(page)
+        .getByRole("table", { name: /^Marketplace fees for / })
+        .getByRole("cell", { name: rate, exact: true }),
+    ).toBeVisible();
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.screenshot({
     path: testInfo.outputPath("desktop-review.png"),
@@ -75,7 +81,9 @@ test("administrators stage multiple SKUs and validate each changed SKU before sa
     animations: "disabled",
   });
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "2 SKU changes saved." })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+, [^,]+$/ }),
+  ).toBeVisible();
   await expect(page.getByRole("region", { name: "Fee changes", exact: true })).toHaveCount(0);
   expect(fixture.configurationSaves).toHaveLength(1);
   expect(fixture.configurationSaves[0].p_changes.map((change) => change.sku)).toEqual(["S1", "S2"]);
@@ -94,7 +102,7 @@ test("members see only their assigned settings and have no edit or save controls
   ]);
   await expect(feeRow(page, "S2")).toHaveCount(0);
   await feeRow(page, "S1").press("Enter");
-  await expect(page.getByRole("cell", { name: "5%", exact: true })).toBeVisible();
+  await expect(feeDetails(page).getByRole("cell", { name: "5%", exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Add SKU|Edit S1|Review changes|Save all changes/ }),
   ).toHaveCount(0);
@@ -114,17 +122,22 @@ test("invalid draft fields are kept with inline errors and block the staged batc
   await expect(editor(page).getByLabel("Fee rate 1 (%)", { exact: true })).toHaveValue(
     "100.000001",
   );
-  await expect(
-    editor(page).getByText("Enter a fee from 0 to 100 with up to 6 decimal places.", {
-      exact: true,
+  const rateError = editor(page).getByText("Enter 0–100, up to 6 decimals.", { exact: true });
+  await expect(rateError).toBeVisible();
+  // The short message fits on one line under the narrow rate field.
+  expect(
+    await rateError.evaluate((element) => {
+      const range = globalThis.document.createRange();
+      range.selectNodeContents(element);
+      return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
     }),
-  ).toBeVisible();
+  ).toBe(1);
   const invalidRate = editor(page).getByLabel("Fee rate 1 (%)", { exact: true });
   const errorBorder = await invalidRate.evaluate(
     (element) => globalThis.getComputedStyle(element).borderTopColor,
   );
   const ordinaryBorder = await editor(page)
-    .getByLabel("Start date 1 (inclusive)", { exact: true })
+    .getByLabel("Effective from 1 (inclusive)", { exact: true })
     .evaluate((element) => globalThis.getComputedStyle(element).borderTopColor);
   expect(errorBorder).not.toBe(ordinaryBorder);
   await invalidRate.focus();
@@ -145,9 +158,11 @@ test("conflicts keep drafts and require explicit review of the latest saved sett
   };
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "A SKU changed while you were editing" }),
-  ).toBeVisible();
+  await expectSavedSettingsAlert(
+    page,
+    "Could not save the fees",
+    "A SKU changed elsewhere. Refresh saved settings first.",
+  );
   fixture.skuConfigurationItems[0] = item("S1", {
     terms_version_id: version(21),
     periods: [period("9")],
@@ -164,7 +179,7 @@ test("conflicts keep drafts and require explicit review of the latest saved sett
   fixture.configurationSaveStatus = 200;
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(2);
   expect(fixture.configurationSaves[1].p_changes[0].expected_current_version_id).toBe(version(21));
 });
@@ -177,9 +192,12 @@ test("an unconfirmed save blocks re-saving across tab navigation until saved dat
   fixture.configurationSaveStatus = 503;
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "We could not confirm the save" }),
-  ).toBeVisible();
+  // The save failure is titled like every other failure, with the cause beneath it.
+  await expectSavedSettingsAlert(
+    page,
+    "Could not save the fees",
+    "Result unknown. Refresh saved settings first.",
+  );
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await openReview(page);
@@ -225,9 +243,14 @@ test("newly imported fee requirements for a changed SKU preserve its draft and b
   };
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "No changes were saved." })).toBeVisible();
+  // A failed save leads with the change it names, like every other failed save.
+  await expectSavedSettingsAlert(
+    page,
+    "Could not save the fees",
+    "Some SKUs need setup. Nothing saved.",
+  );
   await expect(feeRow(page, "S1")).toBeVisible();
-  await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unsaved changes: 1 SKU draft", { exact: true })).toBeVisible();
   await openReview(page);
   await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
@@ -244,12 +267,11 @@ test("a confirmed save remains successful when refreshing the displayed configur
   };
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   await expect(
-    page.getByText("Your changes were saved, but the displayed settings could not be refreshed.", {
-      exact: false,
-    }),
+    page.getByText("Saved, but the list could not refresh", { exact: true }),
   ).toBeVisible({ timeout: 15000 });
+  await expectSavedSettingsAlert(page, "Saved, but the list could not refresh");
   expect(fixture.configurationSaves).toHaveLength(1);
 });
 
@@ -264,7 +286,7 @@ test("administrators can prepare a new exact SKU with company ownership before i
   expect(fixture.configurationSaves).toHaveLength(0);
   await openReview(page);
   await review(page).getByRole("button", { name: "Save all changes", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   expect(fixture.configurationSaves[0].p_changes[0].sku).toBe(" New SKU ");
   expect(fixture.configurationSaves[0].p_changes[0].periods).toEqual([]);
 });
@@ -291,10 +313,10 @@ test("a pending save remains exclusive after the fee screen unmounts and remount
   await expect(review(page).getByRole("button", { name: "Edit S1", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Add SKU", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: /^Review changes/ })).toBeDisabled();
-  await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unsaved changes: 1 SKU draft", { exact: true })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(1);
   pending.resolve();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   await expect(page.getByRole("region", { name: "Fee changes", exact: true })).toHaveCount(0);
   await feeRow(page, "S1").press("Enter");
   await expect(page.getByRole("button", { name: "Edit S1", exact: true })).toBeEnabled();
@@ -318,6 +340,6 @@ test("discarding an accidental new SKU in review preserves other drafts without 
   await expect(review(page).getByRole("cell", { name: "6.123456%", exact: true })).toBeVisible();
   await review(page).getByRole("button", { name: "Back to editing", exact: true }).click();
   await expect(feeRow(page, "TYPO-SKU")).toHaveCount(0);
-  await expect(page.getByText("1 SKU draft · not saved yet", { exact: true })).toBeVisible();
+  await expect(page.getByText("Unsaved changes: 1 SKU draft", { exact: true })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(0);
 });

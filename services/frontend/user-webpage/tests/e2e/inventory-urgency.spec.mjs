@@ -107,12 +107,19 @@ for (const width of [1440, 390]) {
     await detail.getByRole("button", { name: "Close inventory details", exact: true }).click();
     await region.getByRole("button", { name: "Recommendation", exact: true }).click();
     const menu = page.getByRole("dialog", { name: "Recommendation options", exact: true });
-    await expect(menu.getByRole("checkbox")).toHaveCount(10);
+    // The ten source actions (database CHECK and preprocessing vocabulary) plus Unavailable.
+    await expect(menu.getByRole("checkbox")).toHaveCount(11);
     await expect(menu.getByRole("checkbox", { name: "Send to FBA", exact: true })).toBeVisible();
+    await expect(
+      menu.getByRole("checkbox", { name: "Create Outlet deal", exact: true }),
+    ).toBeVisible();
     await menu.getByRole("checkbox", { name: "Resolve stranded inventory", exact: true }).check();
     await page.keyboard.press("Escape");
     await expect(region.locator(".inventory-sku")).toHaveText(["STRANDED"]);
-    await page.getByRole("button", { name: "Clear inventory filters", exact: true }).click();
+    await page
+      .getByRole("group", { name: "Applied inventory filters", exact: true })
+      .getByRole("button", { name: "Clear filters", exact: true })
+      .click();
     await page.getByRole("searchbox", { name: "Search", exact: true }).fill("shipping plan");
     await expect(region.locator(".inventory-sku")).toHaveText(["PLAN"]);
     expect(inventory.requests).toHaveLength(1);

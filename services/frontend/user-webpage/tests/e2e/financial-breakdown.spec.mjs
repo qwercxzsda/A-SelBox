@@ -114,7 +114,7 @@ for (const width of [834, 390]) {
     ).toBeFocused();
     await summary.getByRole("button", { name: "Back to amounts", exact: true }).click();
     await expect(
-      summary.getByRole("heading", { name: "Amounts by type", exact: true, level: 4 }),
+      summary.getByRole("heading", { name: "Amounts by type", exact: true, level: 3 }),
     ).toBeInViewport();
     await expect(summary.getByRole("button", { name: "Previous records" })).toBeDisabled();
     expect(fixture.summaryRecordRequests.at(-1).args.p_currency).toBe("USD");
@@ -122,7 +122,7 @@ for (const width of [834, 390]) {
     await summary.getByRole("button", { name: "Show all records", exact: true }).click();
     await expect(records.getByRole("row")).toHaveCount(51);
     await captureResponsiveReview(page, testInfo, "summary-month-records");
-    await summary.getByRole("button", { name: "Close breakdown" }).click();
+    await summary.getByRole("button", { name: "Close transaction totals" }).click();
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await page.getByRole("cell", { name: "95.12 USD", exact: true }).click();
     const report = page.getByRole("dialog", { name: "Payout report details", exact: true });

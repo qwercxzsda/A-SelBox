@@ -1,9 +1,12 @@
-import { DATASET_CONFIG } from "./api/config";
+import { DATASET_CONFIG, type DateFilterConfig } from "./api/config";
 import type { DatasetFilterField, DatasetFilters, TableDatasetKey, DatasetSort } from "./api/types";
 import { ColumnMenu, type ColumnMenuSort } from "./ColumnMenu";
+import type { ColumnMenuFilter } from "./ColumnFilters";
 import { filterOptions, localFilterValues } from "./filter-options";
 import type { Identity } from "./auth-session";
-import { companyLabel, type ColumnDefinition } from "./view-model";
+import { isAmountKind, type ColumnDefinition } from "./table-columns";
+import { companyLabel, DATASET_PRESENTATION } from "./view-model";
+import { countLabel } from "./pagination";
 import { MAX_AMOUNT_ORDER_ROWS } from "./api/amount-ordering";
 import { isTransactionDataset } from "./api/transaction-page";
 
@@ -23,6 +26,32 @@ interface FinanceColumnHeaderProps {
   sort: DatasetSort;
   onSortChange: (sort: DatasetSort) => void;
   totalCount: number | null;
+}
+
+/** A month filter selects one month start; a range filter selects days. */
+function dateColumnFilter(
+  dateFilter: DateFilterConfig,
+  filters: DatasetFilters,
+  onFiltersChange: (patch: Partial<DatasetFilters>) => void,
+): ColumnMenuFilter {
+  return dateFilter.kind === "month"
+    ? {
+        kind: "month",
+        label: dateFilter.label,
+        value: filters.dateFrom.slice(0, 7),
+        onChange: (month) => {
+          const date = month ? `${month}-01` : "";
+          onFiltersChange({ dateFrom: date, dateTo: date });
+        },
+      }
+    : {
+        kind: "date",
+        from: filters.dateFrom,
+        to: filters.dateTo,
+        onChange: (dateFrom, dateTo) => {
+          onFiltersChange({ dateFrom, dateTo });
+        },
+      };
 }
 
 function SelectionColumnHeader({
@@ -105,11 +134,12 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
   const field = fields.find((value) => value === column.key);
   if (field) return <SelectionColumnHeader {...props} field={field} />;
 
-  const dateFilter = dataset !== "payouts" && config.dateColumn === column.key;
-  const monthFilter = dataset === "payouts" && column.key === "start_date";
-  if (!dateFilter && !monthFilter && !column.sortable) return column.label;
+  const dateFilter: DateFilterConfig | null =
+    config.dateFilter?.column === column.key ? config.dateFilter : null;
+  if (!dateFilter && !column.sortable) return column.label;
   const date = column.kind === "date" || column.kind === "month";
-  const numeric = column.kind === "money" || column.kind === "percent" || column.kind === "number";
+  const numeric =
+    isAmountKind(column.kind) || column.kind === "percent" || column.kind === "number";
   const ordering: ColumnMenuSort | undefined = column.sortable
     ? {
         direction: sort.column === column.key ? sort.direction : false,
@@ -120,37 +150,17 @@ export function FinanceColumnHeader(props: FinanceColumnHeaderProps) {
         descendingLabel: date ? "Newest first" : numeric ? "Highest first" : "Descending",
         disabledReason:
           isTransactionDataset(dataset) &&
-          column.kind === "money" &&
+          isAmountKind(column.kind) &&
           totalCount !== null &&
           totalCount > MAX_AMOUNT_ORDER_ROWS
-            ? `${totalCount.toLocaleString("en-US")} matching rows. Narrow your filters to ${MAX_AMOUNT_ORDER_ROWS.toLocaleString("en-US")} or fewer to order by amount, or order by Date.`
+            ? `${countLabel(totalCount, DATASET_PRESENTATION[dataset].items)} match. Amount order needs ${MAX_AMOUNT_ORDER_ROWS.toLocaleString("en-US")} or fewer.`
             : undefined,
       }
     : undefined;
   return (
     <ColumnMenu
       label={column.label}
-      filter={
-        monthFilter
-          ? {
-              kind: "month",
-              value: filters.dateFrom.slice(0, 7),
-              onChange: (month) => {
-                const date = month ? `${month}-01` : "";
-                onFiltersChange({ dateFrom: date, dateTo: date });
-              },
-            }
-          : dateFilter
-            ? {
-                kind: "date",
-                from: filters.dateFrom,
-                to: filters.dateTo,
-                onChange: (dateFrom, dateTo) => {
-                  onFiltersChange({ dateFrom, dateTo });
-                },
-              }
-            : undefined
-      }
+      filter={dateFilter ? dateColumnFilter(dateFilter, filters, onFiltersChange) : undefined}
       sort={ordering}
     />
   );

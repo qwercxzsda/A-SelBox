@@ -9,6 +9,7 @@ import type {
   WorkspaceRevisions,
 } from "./types.ts";
 import { isJsonObject, requiredJsonString } from "./validation.ts";
+import { parseCompanyRow } from "./companies.ts";
 
 export function parseAppAccount(value: Record<string, unknown>, userId: string): AppAccount {
   const user_id = requiredJsonString(value, "user_id");
@@ -104,11 +105,7 @@ export function createWorkspaceApi(transport: ApiTransport) {
         "name.asc,id.asc",
         "Company details",
       );
-      return rows.map((row) => ({
-        id: requiredJsonString(row, "id"),
-        name: requiredJsonString(row, "name"),
-        created_at: requiredJsonString(row, "created_at"),
-      }));
+      return rows.map(parseCompanyRow);
     },
 
     async fetchSkuAssignments(accessToken: string): Promise<SkuAssignment[]> {

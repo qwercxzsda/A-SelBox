@@ -5,7 +5,7 @@ import { selectedPeriod, type DateRange, type PeriodDefinition } from "./summary
 import { CurrentTotals } from "./CurrentTotals";
 import { TypeBreakdown } from "./TypeBreakdown";
 import type { Identity } from "./auth-session";
-import { getErrorMessage } from "./view-model";
+import { loadErrorDetail } from "./load-error";
 import { useTransactionSummaries } from "./use-transaction-summaries";
 import { SummaryRecords } from "./SummaryRecords";
 import { useWorkspacePreference } from "./use-workspace-preference";
@@ -188,7 +188,7 @@ export function TransactionSummaries({
         currency={breakdown?.currency ?? ""}
         totals={breakdownQuery.data}
         loading={breakdownQuery.isFetching}
-        error={breakdownQuery.error ? getErrorMessage(breakdownQuery.error) : null}
+        error={breakdownQuery.error ? loadErrorDetail(breakdownQuery.error) : null}
         onRetry={() => {
           void breakdownQuery.refetch();
         }}

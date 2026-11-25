@@ -24,6 +24,12 @@ test("company creation returns keyboard focus to failure and success feedback", 
   await form.getByLabel("Company name", { exact: true }).fill("Recovery Company");
   await form.getByLabel("Company name", { exact: true }).press("Enter");
   await expect(form.getByRole("alert")).toBeFocused();
+  await expect(form.getByRole("alert").locator(".mantine-Alert-title")).toHaveText(
+    "Could not add the company",
+  );
+  await expect(form.getByRole("alert").locator(".mantine-Alert-message")).toHaveText(
+    "Could not confirm the company. Retry with the same name.",
+  );
   await expect(form.getByLabel("Company name", { exact: true })).toHaveValue("Recovery Company");
   fixture.companyCreationStatus = 200;
   await form.getByRole("button", { name: "Create company", exact: true }).click();
@@ -62,9 +68,8 @@ test("pending company creation cannot dismiss its modal or lose its result feedb
     await close.click();
     await expect(dialog).toBeHidden();
     await expect(companyPanel(page, "Background Company")).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Close company details", exact: true }),
-    ).toBeFocused();
+    // Like Edit in Fee details, the header's record action is the drawer's first control.
+    await expect(page.getByRole("button", { name: "View members", exact: true })).toBeFocused();
     expect(fixture.companyCreationRequests).toHaveLength(1);
   } finally {
     response.resolve();
@@ -82,7 +87,9 @@ test("a blocked company deletion focuses its explanation and can be cancelled by
   await details.getByRole("button", { name: "Delete company", exact: true }).click();
   const confirmation = page.getByRole("region", { name: "Delete Unused Company", exact: true });
   await confirmation.getByRole("button", { name: "Delete permanently", exact: true }).click();
-  await expect(confirmation.getByRole("alert")).toContainText("Members: 2");
+  await expect(
+    confirmation.getByRole("alert").getByRole("row", { name: "Members 2", exact: true }),
+  ).toBeVisible();
   await expect(confirmation.getByRole("alert")).toBeFocused();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");

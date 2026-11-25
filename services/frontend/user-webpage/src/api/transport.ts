@@ -12,6 +12,7 @@ import {
 /** A null status identifies a transport failure; server response bodies stay private. */
 export class ApiError extends Error {
   readonly status: number | null;
+  readonly timedOut: boolean;
 
   constructor(operation: string, status: number | null, timedOut = false) {
     super(
@@ -23,6 +24,7 @@ export class ApiError extends Error {
     );
     this.name = "ApiError";
     this.status = status;
+    this.timedOut = timedOut;
   }
 }
 

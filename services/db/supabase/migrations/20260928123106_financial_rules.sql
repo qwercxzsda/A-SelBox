@@ -33,6 +33,7 @@ select
     k.seller_namespace,
     k.amazon_scope,
     k.native_id as native_key,
+    k.id as key_id,
     v.id,
     v.company_id,
     v.origin as assignment_origin,
@@ -42,6 +43,39 @@ select
 from public.assignment_keys as k
 inner join public.assignment_versions as v on k.current_version_id = v.id
 where k.kind <> 'SKU';
+
+-- The marketplace of an assignable ID. A campaign or promotion has Amazon's own record,
+-- which names one. A shipment record names none, so it takes the marketplaces of the
+-- current Finances charges that name it.
+create view private.reference_marketplaces with (security_invoker = true) as
+select
+    'CAMPAIGN'::text as kind,
+    seller_namespace,
+    amazon_scope,
+    campaign_id as native_key,
+    array[marketplace_name::text] as marketplace_names
+from private.campaigns
+where marketplace_name is not null
+union all
+select
+    'PROMOTION' as kind,
+    seller_namespace,
+    amazon_scope,
+    promotion_id as native_key,
+    array[marketplace_name::text] as marketplace_names
+from private.promotions
+where marketplace_name is not null
+union all
+select
+    source as kind,
+    seller_namespace,
+    amazon_scope,
+    native_key,
+    array_agg(distinct marketplace_name collate "C" order by marketplace_name collate "C")
+        as marketplace_names
+from private.reference_charges
+where source = 'SHIPMENT'
+group by source, seller_namespace, amazon_scope, native_key;
 
 -- Scope every Amazon identifier by regional account. SKU ownership is global.
 create view private.assignment_candidates with (security_invoker = true) as
@@ -118,6 +152,7 @@ select
     c.*,
     a.company_id,
     a.assignment_origin,
+    a.key_id,
     a.id as current_version_id,
     case
         when a.company_id is null then 'NO_ASSIGNMENT'
@@ -212,18 +247,51 @@ begin
     return applied;
 end;
 $$;
-create view public.assignment_status with (security_invoker = true) as
-select
-    kind,
-    seller_namespace,
-    amazon_scope,
-    native_key,
-    skus,
-    products,
-    suggested_company_id,
-    company_id,
-    assignment_origin,
-    current_version_id,
-    warning
-from private.assignment_candidates
-where private.is_administrator();
+
+-- Return the complete list in one scalar JSON value, unaffected by REST row limits.
+-- Administrators read every known ID with its origin, warning, suggestion and products.
+-- Members read only their company's current assignments. The review fields come from
+-- administrator-only sources and reveal other companies' SKU ownership, so member
+-- items omit them and that branch never reads products or SKU terms.
+create function private.read_reference_assignments() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare administrator boolean := private.is_administrator();
+begin
+    if not administrator and not private.is_member() then
+        raise exception 'Application account access required' using errcode = '42501';
+    end if;
+    return (
+        with visible as (
+            select c.kind, c.seller_namespace, c.amazon_scope, c.native_key, c.company_id,
+                c.key_id, c.current_version_id, jsonb_build_object(
+                    'assignment_origin', c.assignment_origin, 'warning', c.warning,
+                    'suggested_company_id', c.suggested_company_id, 'products', c.products
+                ) as review
+            from private.assignment_candidates as c
+            where administrator
+            union all
+            select a.kind, a.seller_namespace, a.amazon_scope, a.native_key, a.company_id,
+                a.key_id, a.id, '{}'::jsonb
+            from private.current_reference_assignments as a
+            join private.current_owned_assignments() as o on o.version_id = a.id
+            where not administrator
+        )
+        select jsonb_build_object('items', coalesce(jsonb_agg(jsonb_build_object(
+            'kind', v.kind, 'seller_namespace', v.seller_namespace,
+            'amazon_scope', v.amazon_scope, 'native_key', v.native_key,
+            'marketplace_names', coalesce(m.marketplace_names, '{}'::text[]),
+            'company_id', v.company_id, 'key_id', v.key_id,
+            'current_version_id', v.current_version_id
+        ) || v.review order by v.native_key collate "C", v.kind, v.seller_namespace,
+            v.amazon_scope), '[]'::jsonb))
+        from visible as v
+        left join private.reference_marketplaces as m
+            using (kind, seller_namespace, amazon_scope, native_key)
+    );
+end;
+$$;
+
+create function public.reference_assignments() returns jsonb
+language sql stable security invoker set search_path = '' as $$
+    select private.read_reference_assignments();
+$$;

@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useForm } from "@mantine/form";
 import type { SkuConfigurationChange } from "./api";
 import type { FeeEditorState } from "./workspace-view-state";
-import { sameFeePeriods } from "./sku-configuration-form";
+import { movePeriodPaths, sameFeePeriods } from "./sku-configuration-form";
 
 export function useSkuEditorForm(
   editing: FeeEditorState,
@@ -32,9 +32,32 @@ export function useSkuEditorForm(
     onEditingChange((current) => ({ ...current, rateChange }));
   }
 
-  function replaceDraft(draft: SkuConfigurationChange) {
-    setRateChange(null);
+  /** Starts over from a draft: no rate change and no visited fields. */
+  function loadDraft(draft: SkuConfigurationChange) {
+    onEditingChange((current) => ({ ...current, rateChange: null, visited: [] }));
     form.setValues(draft);
+  }
+
+  /** Applies a rate change that split or replaced period `periodIndex`. */
+  function applyRateChange(periodIndex: number, periods: SkuConfigurationChange["periods"]) {
+    onEditingChange((current) => ({
+      ...current,
+      rateChange: null,
+      visited: movePeriodPaths(
+        current.visited,
+        periodIndex + 1,
+        periods.length - current.form.periods.length,
+      ),
+    }));
+    form.setValues({ ...form.getValues(), periods });
+  }
+
+  function visit(path: string) {
+    onEditingChange((current) =>
+      current.visited.includes(path)
+        ? current
+        : { ...current, visited: [...current.visited, path] },
+    );
   }
 
   function startRateChange(periodIndex: number) {
@@ -55,11 +78,11 @@ export function useSkuEditorForm(
   function removePeriod(index: number) {
     onEditingChange((current) => {
       const rateChange = current.rateChange;
-      if (!rateChange) return current;
       return {
         ...current,
+        visited: movePeriodPaths(current.visited, index, -1),
         rateChange:
-          index === rateChange.periodIndex
+          !rateChange || index === rateChange.periodIndex
             ? null
             : {
                 ...rateChange,
@@ -73,5 +96,13 @@ export function useSkuEditorForm(
     form.removeListItem("periods", index);
   }
 
-  return { form, replaceDraft, startRateChange, setRateChange, removePeriod };
+  return {
+    form,
+    loadDraft,
+    applyRateChange,
+    visit,
+    startRateChange,
+    setRateChange,
+    removePeriod,
+  };
 }

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Button, Drawer, Group, Text } from "@mantine/core";
+import { Button, Drawer, Group } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFinancialSourceTransactions } from "./api";
 import {
@@ -8,9 +8,11 @@ import {
 } from "./api/financial-source";
 import type { Identity } from "./auth-session";
 import { DetailData } from "./DetailData";
+import { DetailDrawer } from "./DetailDrawer";
 import { DetailTable } from "./DetailTable";
 import { decodeDetailOpen, decodeDetailPage } from "./detail-view-state";
 import { FinancialSourceRecord } from "./FinancialSourceRecord";
+import { HelpPopover } from "./HelpPopover";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { LookupPagination } from "./LookupPagination";
@@ -57,16 +59,17 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
     staleTime: Infinity,
   });
   const rows = query.data?.rows ?? [];
-  function changePage(nextPage: number) {
+  /** Paging keeps focus on the results; only the pager below them scrolls to their start. */
+  function changePage(nextPage: number, fromBottom: boolean) {
+    if (fromBottom) revealSection(resultsRef.current);
+    else resultsRef.current?.focus({ preventScroll: true });
     setPageIndex(nextPage);
-    revealSection(resultsRef.current);
   }
   const pagination = {
     label: "matches",
     pageIndex,
     hasNext: query.data?.hasNext ?? false,
     disabled: query.isFetching,
-    onPageChange: changePage,
   };
   if (identity.account.access_role !== "administrator") return null;
   return (
@@ -84,18 +87,16 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
         Find by transaction ID…
       </Button>
       <Drawer.Stack>
-        <Drawer
+        <DetailDrawer
           stackId="financial-source-lookup"
           opened={opened}
           onClose={() => {
             setOpened(false);
           }}
           onExitTransitionEnd={lookupFocus.restoreFocus}
-          position="right"
-          size="min(1000px, 100vw)"
-          padding="lg"
-          title="Find Amazon transaction"
-          closeButtonProps={{ "aria-label": "Close transaction lookup" }}
+          width="wide"
+          title="Find transaction"
+          context={transactionId ? `${transactionId} · Finances` : "Finances"}
         >
           <form
             onSubmit={(event) => {
@@ -116,9 +117,15 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                 style={{ flex: 1, minWidth: 220 }}
                 onChange={setInput}
               />
-              <Button type="submit" disabled={!input.trim()}>
-                Find transaction
-              </Button>
+              <Group gap={6} wrap="nowrap">
+                <Button type="submit" disabled={!input.trim()}>
+                  Find transaction
+                </Button>
+                <HelpPopover label="Transaction lookup help">
+                  Each row is one amount. Current and Retained are separate captures; do not add
+                  them.
+                </HelpPopover>
+              </Group>
             </Group>
           </form>
           {transactionId ? (
@@ -128,21 +135,23 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
               className="detail-data"
               aria-label="Amazon transaction results"
             >
-              <Text size="xs" c="dimmed" mb="sm" style={{ overflowWrap: "anywhere" }}>
-                Showing {transactionId}. Each row is one amount component. Current and retained
-                captures are separate observations; do not add them together.
-              </Text>
               <DetailData
                 query={query}
                 label="Amazon transaction"
                 rowCount={rows.length}
                 emptyMessage={
-                  pageIndex > 0
-                    ? "No matches on this page. Return to the previous page to see earlier matches."
-                    : "No retained source record has this exact Amazon transaction ID."
+                  pageIndex > 0 ? "No matches on this page" : "No transaction with this ID"
                 }
               >
-                {query.data || pageIndex > 0 ? <LookupPagination {...pagination} mb="sm" /> : null}
+                {query.data || pageIndex > 0 ? (
+                  <LookupPagination
+                    {...pagination}
+                    onPageChange={(nextPage) => {
+                      changePage(nextPage, false);
+                    }}
+                    mb="sm"
+                  />
+                ) : null}
                 {rows.length ? (
                   <DetailTable
                     label="Amazon transaction matches"
@@ -173,11 +182,19 @@ export function FinancialSourceLookup({ identity }: { identity: Identity }) {
                     }}
                   />
                 ) : null}
-                {rows.length > 10 ? <LookupPagination {...pagination} bottom /> : null}
+                {rows.length > 10 ? (
+                  <LookupPagination
+                    {...pagination}
+                    onPageChange={(nextPage) => {
+                      changePage(nextPage, true);
+                    }}
+                    bottom
+                  />
+                ) : null}
               </DetailData>
             </section>
           ) : null}
-        </Drawer>
+        </DetailDrawer>
         <FinancialSourceRecord
           identity={identity}
           selection={opened ? selection : null}

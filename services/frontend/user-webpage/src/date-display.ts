@@ -26,7 +26,7 @@ export function parseRecordTimestamp(value: string): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-/** Keep calendar dates intact; omit the UTC suffix when the surrounding label supplies it. */
+/** Keep calendar dates intact. Tables and field labels carry "(UTC)", so cells omit the suffix. */
 export function formatRecordDate(
   value: string,
   { includeTimeZone = true }: { includeTimeZone?: boolean } = {},
@@ -35,4 +35,9 @@ export function formatRecordDate(
   if (!parsed) return value;
   const timestamp = parsed.toISOString().slice(0, 19).replace("T", " ");
   return includeTimeZone ? `${timestamp} UTC` : timestamp;
+}
+
+/** The UTC calendar day (YYYY-MM-DD) of a timestamp; calendar dates stay as they are. */
+export function formatRecordDay(value: string): string {
+  return parseRecordTimestamp(value)?.toISOString().slice(0, 10) ?? value;
 }

@@ -68,8 +68,29 @@ test("desktop fee review makes changed rates, removed periods, and company reass
   const changes = review(page).getByRole("region", { name: "Changes for S1", exact: true });
   await expect(changes).toContainText("Alpha Company → Beta Company");
   await expect(changes).toContainText("5% → 6.123456%");
-  await expect(changes).toContainText("Period removed");
-  await expect(changes).toContainText("2026-02-01 (inclusive) → 2026-03-01 (exclusive)");
+  const removed = changes
+    .getByRole("table", { name: "Fee period changes for S1", exact: true })
+    .getByRole("row")
+    .filter({ hasText: "Period removed" });
+  await expect(removed.getByRole("cell")).toHaveText([
+    "Period removed",
+    "Amazon.com",
+    "5%",
+    "2026-02-01",
+    "2026-03-01",
+  ]);
+  // Both review tables name the dates like the Current fees list.
+  for (const name of ["Fee period changes for S1", "Marketplace fees for S1"])
+    await expect(
+      review(page).getByRole("table", { name, exact: true }).getByRole("columnheader"),
+    ).toHaveText([
+      ...(name.startsWith("Fee period changes") ? ["Change"] : []),
+      "Marketplace",
+      "Fee rate",
+      "Effective from (inclusive)",
+      "Effective until (exclusive)",
+    ]);
+  await expect(review(page)).not.toContainText("SKU change to save");
   for (const badge of await changes.locator(".mantine-Badge-root").all())
     expect(await badge.evaluate(contrastOnWhite)).toBeGreaterThanOrEqual(4.5);
   const save = review(page).getByRole("button", { name: "Save all changes", exact: true });
@@ -87,7 +108,7 @@ test("desktop fee review makes changed rates, removed periods, and company reass
   );
   expect(fixture.configurationSaves).toHaveLength(0);
   await save.click();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   expect(fixture.configurationSaves).toHaveLength(1);
   expect(fixture.configurationSaves[0].p_changes[0].periods).toHaveLength(11);
   expect(fixture.configurationSaves[0].p_changes[0].periods[0].fee_rate_percent).toBe("6.123456");
@@ -105,11 +126,32 @@ test("a blocked review explains the disabled save and jumps directly to required
   await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
   ).toBeDisabled();
-  const issues = review(page).getByRole("button", { name: "Show setup issues (1)", exact: true });
+  const issues = review(page).getByRole("button", {
+    name: "Show SKUs that need setup",
+    exact: true,
+  });
   await expect(issues).toBeInViewport();
   await issues.click();
+  // The count lives only in the footer beside the disabled save; the alert is titled "Needs setup".
+  await expect(review(page).getByText("1 SKU needs setup", { exact: true })).toHaveCount(1);
+  const setupAlert = review(page).getByRole("alert").filter({ hasText: "Needs setup" });
+  await expect(setupAlert.getByText("Needs setup", { exact: true })).toBeVisible();
+  await expect(setupAlert).not.toContainText("1 SKU");
   const complete = review(page).getByRole("button", { name: "Complete S2", exact: true });
   await expect(complete).toBeInViewport();
+  // The same compact subtle action as the page's "Complete next SKU".
+  await expect(complete).toHaveAttribute("data-size", "compact-sm");
+  await expect(complete).toHaveAttribute("data-variant", "subtle");
+  await page.keyboard.press("Escape");
+  const pageAction = page.getByRole("button", { name: "Complete next SKU", exact: true });
+  await expect(pageAction).toHaveAttribute("data-size", "compact-sm");
+  await expect(pageAction).toHaveAttribute("data-variant", "subtle");
+  await openReview(page);
+  await review(page)
+    .getByRole("button", { name: "Show SKUs that need setup", exact: true })
+    .click();
   await complete.click();
-  await expect(page.getByRole("dialog", { name: "Edit S2", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Fee editor", exact: true }).locator(".detail-drawer-context"),
+  ).toHaveText(/^S2 · /);
 });

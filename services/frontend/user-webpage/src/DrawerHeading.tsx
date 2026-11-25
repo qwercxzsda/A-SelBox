@@ -1,8 +1,16 @@
 import "./DrawerHeading.css";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type Ref } from "react";
 
-/** The full scope is also present in the drawer body for assistive technology. */
-export function DrawerHeading({ title, context }: { title: string; context: string }) {
+/** Title plus "identity · scope". DetailDrawer repeats the scope in its body for assistive technology. */
+export function DrawerHeading({
+  title,
+  context,
+  titleRef,
+}: {
+  title: string;
+  context: string;
+  titleRef?: Ref<HTMLSpanElement>;
+}) {
   const heading = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const header = heading.current?.closest<HTMLElement>(".ui-drawer-header");
@@ -25,10 +33,15 @@ export function DrawerHeading({ title, context }: { title: string; context: stri
   }, []);
   return (
     <span ref={heading} className="detail-drawer-heading">
-      <span>{title}</span>
-      <span className="detail-drawer-context" aria-hidden="true">
-        {context}
+      {/* Focus recovery lands on the title when the focused drawer content is replaced. */}
+      <span ref={titleRef} tabIndex={-1} className="detail-drawer-title">
+        {title}
       </span>
+      {context ? (
+        <span className="detail-drawer-context" aria-hidden="true">
+          {context}
+        </span>
+      ) : null}
     </span>
   );
 }

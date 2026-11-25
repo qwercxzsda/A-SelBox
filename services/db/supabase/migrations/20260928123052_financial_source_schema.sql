@@ -231,7 +231,8 @@ create table private.ad_invoices (
     invoice_id private.nonblank not null,
     profile_id private.nonblank not null,
     marketplace_name public.marketplace_name not null,
-    invoice_status private.nonblank not null,
+    -- The statuses observed in Amazon Ads invoices; preprocessing rejects others.
+    invoice_status text not null check (invoice_status in ('PAID_IN_FULL')),
     invoice_date date not null,
     from_date date not null,
     to_date date not null check (to_date >= from_date),
@@ -292,6 +293,23 @@ create table private.storage_rows (
     fulfillment_center text,
     fnsku private.nonblank not null,
     asin private.nonblank not null,
+    -- Amazon's figures behind the fee, with Amazon's column names. A report states
+    -- either one storage_rate or a base_rate with a utilization_surcharge_rate.
+    average_quantity_on_hand private.exact_numeric not null check (average_quantity_on_hand >= 0),
+    product_size_tier private.nonblank not null,
+    estimated_total_item_volume private.exact_numeric not null check (
+        estimated_total_item_volume >= 0
+    ),
+    volume_units text not null check (volume_units in ('cubic feet', 'cubic meters')),
+    storage_rate private.exact_numeric check (storage_rate >= 0),
+    base_rate private.exact_numeric check (base_rate >= 0),
+    utilization_surcharge_rate private.exact_numeric check (utilization_surcharge_rate >= 0),
+    -- A two-rate report also states the storage utilization ratio in weeks (a decimal, or '>52')
+    -- and splits the fee: the volume the surcharge applies to, the base fee and the surcharge.
+    storage_utilization_ratio text check (storage_utilization_ratio ~ '^(>52|[0-9]+(\.[0-9]+)?)$'),
+    est_vol_for_sus private.exact_numeric check (est_vol_for_sus >= 0),
+    est_base_msf private.exact_numeric check (est_base_msf >= 0),
+    est_sus private.exact_numeric check (est_sus >= 0),
     currency text not null references private.currencies (code),
     fee_amount private.exact_numeric not null,
     marketplace_name public.marketplace_name not null,
@@ -301,7 +319,14 @@ create table private.storage_rows (
     ledger_last_month private.month_start not null check (ledger_last_month >= ledger_first_month),
     created_at timestamptz not null default now(),
     unique (version_id, row_number),
-    foreign key (version_id, source) references private.source_unit_versions (id, source)
+    foreign key (version_id, source) references private.source_unit_versions (id, source),
+    check ((base_rate is null) = (utilization_surcharge_rate is null)),
+    check ((storage_rate is null) = (base_rate is not null)),
+    check (
+        num_nulls(storage_utilization_ratio, est_vol_for_sus, est_base_msf, est_sus)
+        = case when base_rate is null then 4 else 0 end
+    ),
+    check (abs(est_base_msf + est_sus - fee_amount) <= 0.0001)
 );
 
 create table private.aged_storage_rows (
@@ -360,6 +385,12 @@ create table private.removal_order_rows (
     unique (version_id, row_number),
     foreign key (version_id, source) references private.source_unit_versions (id, source),
     check (last_updated_at >= requested_at),
+    -- Amazon fills disposed_quantity for a Disposal and shipped_quantity for a Return or a
+    -- Liquidations order, and leaves the other blank.
+    check (
+        (order_type = 'Disposal') = (disposed_quantity is not null)
+        and (order_type = 'Disposal') = (shipped_quantity is null)
+    ),
     check (
         coalesce(fee_amount, 0) = 0
         or (currency is not null and base_amount is not null and tax_amount is not null)
@@ -563,44 +594,56 @@ select
     null::text as asin
 from private.shipments as h inner join private.shipment_items as p on h.id = p.shipment_row_id;
 
-create view private.reference_id_requests with (security_invoker = true) as
-with requested as (
-    select
-        f.route as source, -- noqa: RF04
-        f.seller_namespace,
-        f.amazon_scope,
-        f.marketplace_name,
-        f.reference_id as native_key,
-        b.created_at as last_referenced_at,
-        null::text as profile_id,
-        null::text as campaign_aid,
-        null::text as ad_type
-    from private.finances_component_details as f
-    inner join private.source_preprocess_batches as b on f.current_batch_id = b.id
-    where
-        f.is_current and f.activity_eligible and f.reference_id is not null
-        and f.route in ('PROMOTION', 'AD_INVOICE', 'SHIPMENT')
-    union all
-    select
-        'CAMPAIGN' as source, -- noqa: RF04
-        u.seller_namespace,
-        u.amazon_scope,
-        i.marketplace_name,
-        l.campaign_id,
-        b.created_at,
-        i.profile_id,
-        l.campaign_aid,
-        l.ad_program
-    from private.source_units as u
-    inner join private.ad_invoices as i on u.current_version_id = i.version_id
-    inner join private.ad_invoice_lines as l on i.version_id = l.version_id
-    inner join private.source_preprocess_batches as b on u.current_batch_id = b.id
-    where l.ad_program is not null
-),
+-- Every current charge that names an Amazon ID: Finances charges for promotions,
+-- shipments and ad invoices, and the campaign lines of current ad invoices.
+-- Marketplace is not part of the identity, so one ID can have charges in several.
+create view private.reference_charges with (security_invoker = true) as
+select
+    f.route as source, -- noqa: RF04
+    f.seller_namespace,
+    f.amazon_scope,
+    f.marketplace_name,
+    f.reference_id as native_key,
+    b.created_at as last_referenced_at,
+    null::text as profile_id,
+    null::text as campaign_aid,
+    null::text as ad_type
+from private.finances_component_details as f
+inner join private.source_preprocess_batches as b on f.current_batch_id = b.id
+where
+    f.is_current and f.activity_eligible and f.reference_id is not null
+    and f.route in ('PROMOTION', 'AD_INVOICE', 'SHIPMENT')
+union all
+select
+    'CAMPAIGN' as source, -- noqa: RF04
+    u.seller_namespace,
+    u.amazon_scope,
+    i.marketplace_name,
+    l.campaign_id,
+    b.created_at,
+    i.profile_id,
+    l.campaign_aid,
+    l.ad_program
+from private.source_units as u
+inner join private.ad_invoices as i on u.current_version_id = i.version_id
+inner join private.ad_invoice_lines as l on i.version_id = l.version_id
+inner join private.source_preprocess_batches as b on u.current_batch_id = b.id
+where l.ad_program is not null;
 
-latest as (
-    select distinct on (source, seller_namespace, amazon_scope, native_key) *
-    from requested
+-- Request each named ID once, in the context of its latest charge.
+create view private.reference_id_requests with (security_invoker = true) as
+with latest as (
+    select distinct on (source, seller_namespace, amazon_scope, native_key)
+        source, -- noqa: RF04
+        seller_namespace,
+        amazon_scope,
+        marketplace_name,
+        native_key,
+        last_referenced_at,
+        profile_id,
+        campaign_aid,
+        ad_type
+    from private.reference_charges
     order by
         source asc,
         seller_namespace asc,

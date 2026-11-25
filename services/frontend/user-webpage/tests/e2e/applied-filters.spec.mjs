@@ -11,6 +11,10 @@ const appliedFilters = (page) => page.getByRole("group", { name: "Applied table 
 
 async function expectCenteredChip(chip) {
   await expect(chip).toBeVisible();
+  // Chips stay on one line; a chip beyond the row's width scrolls into view sideways.
+  await chip.evaluate((button) => {
+    button.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+  });
   const geometry = await chip.evaluate((button) => {
     const textBoxes = [];
     const walker = globalThis.document.createTreeWalker(button, globalThis.NodeFilter.SHOW_TEXT);
@@ -40,6 +44,50 @@ async function expectCenteredChip(chip) {
   }
   expect(geometry.left).toBeGreaterThanOrEqual(0);
   expect(geometry.right).toBeLessThanOrEqual(chip.page().viewportSize().width);
+}
+
+for (const width of [1440, 390]) {
+  test(`the first chip and removing the last chip keep the table in place at ${String(width)}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const fixture = await mockSupabase(page);
+    fixture.roles["member-a"] = "administrator";
+    fixture.payoutRows = ["2026-05-01", "2026-06-01", "2026-07-01"].map((start, index) => ({
+      id: `0198b50b-701a-7000-8000-00000000070${String(index)}`,
+      company_id: "company-member-a",
+      marketplace_name: index === 1 ? "Amazon.com" : "Amazon.de",
+      currency: "USD",
+      start_date: start,
+      end_date: `${start.slice(0, 8)}28`,
+      created_at: "2026-09-27T00:00:00Z",
+      source_amount: "100",
+      fee_amount: "-5",
+      company_amount: "95",
+    }));
+    await signIn(page);
+    await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
+    const table = page.getByRole("table", { name: "Financial records", exact: true });
+    await expect(table.locator("tbody tr").first()).toBeVisible();
+    // Keep every control used below on screen, so no click needs to scroll the page.
+    await table.evaluate((element) => {
+      globalThis.scrollTo({
+        top: globalThis.scrollY + element.getBoundingClientRect().top - 200,
+        behavior: "instant",
+      });
+    });
+    const top = async () => (await table.boundingBox()).y;
+    const start = await top();
+    await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
+    await expect(appliedFilters(page)).toBeVisible();
+    expect(Math.abs((await top()) - start)).toBeLessThanOrEqual(1);
+    await applyReportMonth(page, "2026-06");
+    await expect(appliedFilters(page)).toContainText("2 filters applied");
+    expect(Math.abs((await top()) - start)).toBeLessThanOrEqual(1);
+    await appliedFilters(page).getByRole("button", { name: "Clear filters", exact: true }).click();
+    await expect(appliedFilters(page)).toHaveCount(0);
+    expect(Math.abs((await top()) - start)).toBeLessThanOrEqual(1);
+  });
 }
 
 test("clearing payout column filters stays cleared after F5", async ({ page }) => {

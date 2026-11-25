@@ -1,25 +1,32 @@
 import { expect, test } from "@playwright/test";
 import { financesRow, liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
+
+// Transactions rounds to cents; Raw data never hides sub-cent values.
+const EXAMPLES = [
+  ["0", "0.00 JPY", "0 JPY"],
+  ["-0.004", "0.00 JPY", "-0.004 JPY"],
+  ["1.005", "1.01 JPY", "1.005 JPY"],
+  ["-1.005", "-1.01 JPY", "-1.005 JPY"],
+  ["9007199254740993.995", "9,007,199,254,740,994.00 JPY", "9,007,199,254,740,993.995 JPY"],
+  ["1.005e+2", "100.50 JPY", "100.5 JPY"],
+  ["5e-3", "0.01 JPY", "0.005 JPY"],
+];
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
   ["finances", "Finances"],
 ]) {
-  test(`${tab} rounds money to two decimals including JPY while preserving quantities and source values`, async ({
+  test(`${tab} formats JPY money while preserving quantities and source values`, async ({
     page,
   }) => {
     const fixture = await mockSupabase(page);
     fixture.roles["member-a"] = "administrator";
-    const examples = [
-      ["0", "0.00 JPY"],
-      ["-0.004", "0.00 JPY"],
-      ["1.005", "1.01 JPY"],
-      ["-1.005", "-1.01 JPY"],
-      ["9007199254740993.995", "9,007,199,254,740,994.00 JPY"],
-      ["1.005e+2", "100.50 JPY"],
-      ["5e-3", "0.01 JPY"],
-    ];
+    const examples = EXAMPLES.map(([amount, rounded, exact]) => [
+      amount,
+      dataset === "live" ? rounded : exact,
+    ]);
     const rows = examples.map(([amount], index) => ({
       ...(dataset === "live"
         ? { ...liveRow("MONEY", index), source_amount: amount }
@@ -34,7 +41,7 @@ for (const [dataset, tab] of [
     else fixture.financesRows = rows;
 
     await signIn(page);
-    if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+    if (dataset !== "live") await openRawData(page);
     for (const [index, [, displayed]] of examples.entries()) {
       const row = rowWithSku(page, `MONEY-${index}`);
       const column = dataset === "live" ? "source_amount" : "amount";
@@ -54,7 +61,7 @@ for (const [dataset, tab] of [
       name: dataset === "live" ? "Transaction details" : `${tab} record details`,
       exact: true,
     });
-    await expect(drawer.getByText("1.01 JPY", { exact: true })).toBeVisible();
+    await expect(drawer.getByText(examples[2][1], { exact: true })).toBeVisible();
     if (dataset === "live") {
       await expect(drawer.locator(".field-label").filter({ hasText: /^Quantity$/ })).toHaveCount(1);
       await expect(drawer.locator(".field-label").filter({ hasText: /^Fee rate$/ })).toHaveCount(1);
@@ -70,7 +77,9 @@ for (const [dataset, tab] of [
     const feeBase = metadata
       .getByRole("row")
       .filter({ has: page.getByRole("cell", { name: "Fee base", exact: true }) });
-    await expect(feeBase.getByRole("cell").last()).toHaveText("123.46");
+    await expect(feeBase.getByRole("cell").last()).toHaveText(
+      dataset === "live" ? "123.46 JPY" : "123.456789 JPY",
+    );
     expect(rows.map((row) => row[dataset === "live" ? "source_amount" : "amount"])).toEqual(
       examples.map(([amount]) => amount),
     );

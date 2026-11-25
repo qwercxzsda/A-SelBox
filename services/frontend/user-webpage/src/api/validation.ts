@@ -71,3 +71,14 @@ export function parseSingleObjectRow(value: unknown, operation: string): Record<
   if (rows.length !== 1) throw new Error(`${operation} returned an invalid result`);
   return rows[0];
 }
+
+/** Reject a code the workspace does not define rather than display an unexplained value. */
+export function knownCode<T extends string>(
+  values: readonly T[],
+  value: unknown,
+  label: string,
+): T {
+  const known = values.find((candidate) => candidate === value);
+  if (!known) throw new Error(`Unknown ${label}: ${String(value)}`);
+  return known;
+}

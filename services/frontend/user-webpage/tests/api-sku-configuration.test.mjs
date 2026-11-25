@@ -222,7 +222,7 @@ test("uncertain writes require reconciliation and never retry automatically", as
       (error) =>
         error instanceof SkuConfigurationError &&
         error.kind === "unconfirmed" &&
-        /Reload/.test(error.message) &&
+        /Refresh saved settings/.test(error.message) &&
         !/private/.test(error.message),
     );
     assert.equal(calls, 1);

@@ -2,13 +2,15 @@ type WorkspaceSearch = Record<string, string | string[]>;
 
 export const WORKSPACE_SEARCH_PARAMETERS = {
   tab: "single",
+  raw: "single",
   from: "single",
   to: "single",
   company: "multiple",
   sku: "multiple",
   currency: "single",
-  month: "single",
-  outcome: "single",
+  year: "single",
+  reason: "single",
+  group: "single",
   report: "single",
   reportCompany: "single",
   reportFrom: "single",
@@ -27,6 +29,7 @@ export const WORKSPACE_SEARCH_PARAMETERS = {
   row: "single",
   health: "multiple",
   recommendation: "multiple",
+  status: "multiple",
 } as const;
 
 /** Validate URL shapes here; account access and domain values remain in the workspace codecs. */

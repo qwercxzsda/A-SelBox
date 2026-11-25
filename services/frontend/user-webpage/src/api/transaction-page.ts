@@ -59,7 +59,7 @@ export function transactionPageArguments(
     p_offset: options.pageIndex * options.pageSize,
     p_direction: options.sort.direction,
     p_order_by:
-      options.sort.column === DATASET_CONFIG[options.dataset].dateColumn ? "date" : "amount",
+      options.sort.column === DATASET_CONFIG[options.dataset].dateFilter.column ? "date" : "amount",
     p_include_count: options.includeCount ?? true,
   };
 }

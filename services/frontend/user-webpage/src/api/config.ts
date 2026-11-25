@@ -1,4 +1,10 @@
 import type { DatasetFilterField, DatasetSort, TableDatasetKey } from "./types.ts";
+import {
+  AD_INVOICE_COLUMNS,
+  AGED_STORAGE_COLUMNS,
+  REMOVAL_ORDER_COLUMNS,
+  STORAGE_COLUMNS,
+} from "./raw-columns.ts";
 
 interface RowConfig {
   label: string;
@@ -7,13 +13,25 @@ interface RowConfig {
   idColumns: readonly string[];
 }
 
+export interface DateFilterConfig {
+  column: string;
+  /** "month" selects one month start (dateFrom = dateTo = YYYY-MM-01); "range" selects days. */
+  kind: "month" | "range";
+  /** Names the filter field and its applied chip. */
+  label: string;
+}
+
 export interface DatasetConfig extends RowConfig {
   searchColumns: readonly string[];
   sortColumns: readonly string[];
   defaultSort: DatasetSort;
-  dateColumn: string | null;
+  /** Orders rows that tie on the sort column, before the identifier tiebreak. */
+  tiebreakOrder?: readonly string[];
+  dateFilter: DateFilterConfig | null;
   filterColumns: readonly DatasetFilterField[];
 }
+
+const UTC_DATE_FILTER = { column: "activity_at", kind: "range", label: "Date (UTC)" } as const;
 
 const LIVE_COLUMNS = [
   "source",
@@ -124,7 +142,7 @@ export const DATASET_CONFIG = {
     sortColumns: ["activity_at", "source_amount"],
     defaultSort: { column: "activity_at", direction: "desc" },
     idColumns: ["source", "source_row_id"],
-    dateColumn: "activity_at",
+    dateFilter: UTC_DATE_FILTER,
     filterColumns: ["sku", "marketplace_name", "source", "component_type"],
   },
   finances: {
@@ -134,7 +152,7 @@ export const DATASET_CONFIG = {
     sortColumns: ["activity_at", "amount"],
     defaultSort: { column: "activity_at", direction: "desc" },
     idColumns: ["id"],
-    dateColumn: "activity_at",
+    dateFilter: UTC_DATE_FILTER,
     filterColumns: ["sku", "marketplace_name", "component_type"],
   },
   payouts: {
@@ -144,8 +162,9 @@ export const DATASET_CONFIG = {
     searchColumns: ["marketplace_name", "currency"],
     sortColumns: ["start_date"],
     defaultSort: { column: "start_date", direction: "desc" },
+    tiebreakOrder: ["company_id.asc", "marketplace_name.asc.nullslast", "currency.asc"],
     idColumns: ["id"],
-    dateColumn: "start_date",
+    dateFilter: { column: "start_date", kind: "month", label: "Report month" },
     filterColumns: ["marketplace_name"],
   },
   accounts: {
@@ -153,10 +172,59 @@ export const DATASET_CONFIG = {
     endpoint: "rpc/account_directory",
     selectColumns: ACCOUNT_COLUMNS,
     searchColumns: ["email"],
-    sortColumns: ["email", "user_id", "access_role", "created_at"],
+    sortColumns: ["email", "email_confirmed", "user_id", "access_role", "created_at"],
     defaultSort: { column: "created_at", direction: "desc" },
     idColumns: ["user_id"],
-    dateColumn: null,
+    dateFilter: null,
+    filterColumns: [],
+  },
+  ad_invoices: {
+    label: "Advertising invoice",
+    endpoint: "current_ad_invoices",
+    selectColumns: AD_INVOICE_COLUMNS,
+    searchColumns: ["invoice_id"],
+    sortColumns: ["invoice_date", "amount_due"],
+    defaultSort: { column: "invoice_date", direction: "desc" },
+    tiebreakOrder: ["invoice_id.asc"],
+    idColumns: ["id"],
+    dateFilter: { column: "invoice_date", kind: "range", label: "Invoice date" },
+    filterColumns: ["marketplace_name"],
+  },
+  storage: {
+    label: "Monthly storage report",
+    endpoint: "current_storage_rows",
+    selectColumns: STORAGE_COLUMNS,
+    searchColumns: ["fnsku", "asin"],
+    sortColumns: ["month_of_charge", "fee_amount"],
+    defaultSort: { column: "month_of_charge", direction: "desc" },
+    tiebreakOrder: ["marketplace_name.asc", "fnsku.asc", "fulfillment_center.asc.nullslast"],
+    idColumns: ["id"],
+    dateFilter: { column: "month_of_charge", kind: "month", label: "Month of charge" },
+    filterColumns: ["marketplace_name"],
+  },
+  aged_storage: {
+    label: "Aged storage report",
+    endpoint: "current_aged_storage_rows",
+    selectColumns: AGED_STORAGE_COLUMNS,
+    searchColumns: ["fnsku", "asin", "sku_printed"],
+    sortColumns: ["snapshot_month", "fee_amount"],
+    defaultSort: { column: "snapshot_month", direction: "desc" },
+    tiebreakOrder: ["marketplace_name.asc", "fnsku.asc"],
+    idColumns: ["id"],
+    dateFilter: { column: "snapshot_month", kind: "month", label: "Snapshot month" },
+    filterColumns: ["marketplace_name"],
+  },
+  // Amazon gives no marketplace for a removal order, so it has no marketplace filter.
+  removal_orders: {
+    label: "Removal order report",
+    endpoint: "current_removal_order_rows",
+    selectColumns: REMOVAL_ORDER_COLUMNS,
+    searchColumns: ["removal_order_id", "fnsku", "sku_printed"],
+    sortColumns: ["request_date", "fee_amount"],
+    defaultSort: { column: "request_date", direction: "desc" },
+    tiebreakOrder: ["removal_order_id.asc", "fnsku.asc", "disposition.asc.nullslast"],
+    idColumns: ["id"],
+    dateFilter: { column: "request_date", kind: "range", label: "Request date (UTC)" },
     filterColumns: [],
   },
 } as const satisfies Record<TableDatasetKey, DatasetConfig>;

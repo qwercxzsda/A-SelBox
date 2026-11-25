@@ -4,7 +4,7 @@ import {
   transactionTrendPoints,
   projectTransactionTrend,
   transactionTrendDateLabel,
-  compactTransactionTrendDateLabel,
+  transactionTrendShortLabel,
 } from "../src/transaction-trend-chart.ts";
 
 const row = (periodStart, type, companyAmount, overrides = {}) => ({
@@ -88,8 +88,7 @@ test("weekly charts use Monday buckets, span years, and clip labels to actual se
       ["2026-01-12", "2026-01-12", "2026-01-14", "25"],
     ],
   );
-  assert.equal(transactionTrendDateLabel(points[0]), "Jan 1, 2026 – Jan 4, 2026");
-  assert.equal(compactTransactionTrendDateLabel(points[0]), "Jan 1–4, 2026");
+  assert.equal(transactionTrendDateLabel(points[0]), "2026-01-01 – 2026-01-04");
   assert.equal(projectTransactionTrend(points).points[2].amount, "25");
 });
 
@@ -233,18 +232,16 @@ test("known reported amounts survive missing fees while fee and company totals s
   assert.equal(projectTransactionTrend(points).points[0].lineY, null);
 });
 
-test("compact weekly labels preserve month and year boundaries", () => {
+test("trend period labels keep both YYYY-MM-DD boundaries across months and years", () => {
+  assert.equal(transactionTrendShortLabel("2026-11-13"), "11-13");
+  assert.equal(transactionTrendDateLabel({ from: "2026-11-13", to: "2026-11-13" }), "2026-11-13");
   assert.equal(
-    compactTransactionTrendDateLabel({ from: "2026-11-13", to: "2026-11-13" }),
-    "Nov 13, 2026",
+    transactionTrendDateLabel({ from: "2026-10-26", to: "2026-11-01" }),
+    "2026-10-26 – 2026-11-01",
   );
   assert.equal(
-    compactTransactionTrendDateLabel({ from: "2026-10-26", to: "2026-11-01" }),
-    "Oct 26 – Nov 1, 2026",
-  );
-  assert.equal(
-    compactTransactionTrendDateLabel({ from: "2025-12-29", to: "2026-01-04" }),
-    "Dec 29, 2025 – Jan 4, 2026",
+    transactionTrendDateLabel({ from: "2025-12-29", to: "2026-01-04" }),
+    "2025-12-29 – 2026-01-04",
   );
 });
 

@@ -1,0 +1,89 @@
+/*
+ * A drawer that swaps a record's details for its editor (Fee details, Assignment details): the
+ * details scroll in the body, the editor scrolls above a footer pinned to the drawer bottom.
+ */
+.editing-drawer-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+.editing-drawer-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+/* The header sits outside this scroller, so sticky table headings stick to its top edge. */
+.editing-drawer-details {
+  --ui-drawer-content-header-height: calc(-1 * var(--ui-drawer-padding));
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--ui-drawer-padding);
+}
+
+.editing-drawer-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.editing-drawer-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--ui-drawer-padding);
+  scroll-padding-block: var(--ui-drawer-padding);
+  background: var(--ui-surface-subtle);
+}
+
+.editing-drawer-scroll > * {
+  flex-shrink: 0;
+}
+
+.editing-drawer-actions {
+  flex-shrink: 0;
+  padding: var(--mantine-spacing-sm) var(--ui-drawer-padding);
+  border-top: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.drawer-panel-enter {
+  animation: drawer-panel-enter 160ms ease-out;
+}
+
+@keyframes drawer-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-panel-enter {
+    animation: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .editing-drawer-body {
+    overflow: auto;
+  }
+
+  .editing-drawer-layout {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .editing-drawer-scroll {
+    flex: none;
+    overflow: visible;
+  }
+}

@@ -21,7 +21,7 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
   ]);
   await openEditor(page, sku);
   await page.setViewportSize({ width: 390, height: 1000 });
-  await expect(editor(page).getByRole("button", { name: "Close SKU editor" })).toBeInViewport();
+  await expect(editor(page).getByRole("button", { name: "Close fee editor" })).toBeInViewport();
   await expect
     .poll(() => editor(page).evaluate((element) => element.scrollWidth <= element.clientWidth))
     .toBe(true);
@@ -32,7 +32,7 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
     await page.setViewportSize({ width, height: 1000 });
     expect(
       await review(page)
-        .locator(".sku-configuration-drawer-scroll")
+        .locator(".editing-drawer-scroll")
         .evaluate((element) => element.scrollWidth <= element.clientWidth),
     ).toBe(true);
     await expect(review(page).getByRole("button", { name: `Edit ${sku}`, exact: true })).toHaveText(
@@ -53,7 +53,9 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
   await openEditor(page, incompleteSku);
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
-  await review(page).getByRole("button", { name: "Show setup issues (1)", exact: true }).click();
+  await review(page)
+    .getByRole("button", { name: "Show SKUs that need setup", exact: true })
+    .click();
   const complete = review(page).getByRole("button", {
     name: `Complete ${incompleteSku}`,
     exact: true,
@@ -62,7 +64,9 @@ test("fee review remains usable with long SKU identifiers", async ({ page }, tes
   const bounds = await complete.boundingBox();
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
   await complete.click();
-  await expect(editor(page)).toHaveAccessibleName(`Edit ${incompleteSku}`);
+  await expect(editor(page).locator(".detail-drawer-context")).toHaveText(
+    new RegExp(`^${incompleteSku} · `),
+  );
 });
 
 for (const role of ["administrator", "member"]) {

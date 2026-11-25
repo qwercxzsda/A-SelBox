@@ -19,6 +19,23 @@
   --ui-font-section: 16px;
   --ui-drawer-header-height: 64px;
   --ui-drawer-padding: 20px;
+  /* Drawer widths: one record, a wide working view, or the full report. */
+  --ui-drawer-width-record: min(720px, 100vw);
+  --ui-drawer-width-wide: min(1000px, 100vw);
+  --ui-drawer-width-full: min(1440px, 100vw);
+  /* Status tones keep at least 4.5:1 text contrast on their own background and on white. */
+  --ui-status-success-bg: #e6f4ea;
+  --ui-status-success-text: #1b6b34;
+  --ui-status-warning-bg: #fff0df;
+  --ui-status-warning-text: #8a3b0c;
+  --ui-status-danger-bg: #fdeceb;
+  --ui-status-danger-text: #a3201c;
+  --ui-status-info-bg: #e6f0fa;
+  --ui-status-info-text: #19558f;
+  --ui-status-neutral-bg: #eef2f5;
+  --ui-status-neutral-text: #45566a;
+  /* WCAG 2.2 minimum target size for compact controls on touch screens. */
+  --ui-touch-target-min: 24px;
 }
 
 html {
@@ -26,9 +43,12 @@ html {
 }
 
 /* Explicit content lifecycle tracking avoids a stale :has() scroll lock in Safari.
-   Keep the document still without intercepting touch/wheel browser gestures. */
+   Keep the document still without intercepting touch/wheel browser gestures.
+   Overlays cover the released scrollbar gutter; padding of its width keeps the page still. */
 html[data-drawer-scroll-lock] {
   overflow: hidden;
+  scrollbar-gutter: auto;
+  padding-inline-end: var(--ui-scrollbar-gutter, 0px);
 }
 
 body {
@@ -70,6 +90,11 @@ body {
   border-color: var(--ui-border);
 }
 
+/* One rule for every list: single-line values line up with the first line of stacked ones. */
+.ui-table > :is(tbody, tfoot) > tr > :is(td, th) {
+  vertical-align: top;
+}
+
 /* Keep the same color while a last row's separator changes from hidden to visible. */
 .ui-table .inspectable-row {
   border-bottom-color: var(--ui-border);
@@ -79,7 +104,8 @@ body {
   font-weight: 500;
 }
 
-.ui-alert-title {
+.ui-alert-title,
+.ui-alert-message:not([data-variant="filled"]) {
   color: var(--ui-text);
 }
 
@@ -134,8 +160,58 @@ body {
   line-height: 1.4;
 }
 
+/* Record actions (such as Edit) share the header row, left of the close button. */
+.detail-drawer-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
+}
+
+.detail-drawer-actions + .ui-close-button {
+  margin-inline-start: 8px;
+}
+
 .ui-drawer-body {
   padding: var(--ui-drawer-padding);
+}
+
+/* A status never shrinks to an ellipsis inside a narrow column. */
+.ui-status-badge {
+  min-width: max-content;
+  height: 20px;
+  line-height: 18px;
+  font-size: var(--ui-font-caption);
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ui-status-badge[data-tone="success"] {
+  background: var(--ui-status-success-bg);
+  color: var(--ui-status-success-text);
+}
+
+.ui-status-badge[data-tone="warning"] {
+  background: var(--ui-status-warning-bg);
+  color: var(--ui-status-warning-text);
+}
+
+.ui-status-badge[data-tone="danger"] {
+  background: var(--ui-status-danger-bg);
+  color: var(--ui-status-danger-text);
+}
+
+.ui-status-badge[data-tone="info"] {
+  background: var(--ui-status-info-bg);
+  color: var(--ui-status-info-text);
+}
+
+.ui-status-badge[data-tone="neutral"] {
+  background: var(--ui-status-neutral-bg);
+  color: var(--ui-status-neutral-text);
 }
 
 .ui-tabs-list {
@@ -222,6 +298,13 @@ body {
 @media (max-width: 720px), (pointer: coarse) {
   :root {
     --ui-font-control: max(16px, 1rem);
+  }
+}
+
+/* Compact buttons (disclosures, chips, scroll controls) remain reachable by touch. */
+@media (pointer: coarse) {
+  .ui-button[data-size="compact-xs"] {
+    min-height: var(--ui-touch-target-min);
   }
 }
 

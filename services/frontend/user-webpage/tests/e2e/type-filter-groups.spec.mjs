@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import registry from "../../src/generated/transaction-types.json" with { type: "json" };
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn, columnTrigger } from "./table-actions.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 const STORAGE = "Storage & inventory";
 const EPR_TYPES = registry.filter(({ type }) => type === "EPR_FEES").map(({ type }) => type);
@@ -48,7 +49,7 @@ for (const role of ["member", "administrator"]) {
     await menu.getByRole("button", { name: "Done", exact: true }).click();
 
     if (role === "administrator") {
-      await page.getByRole("tab", { name: "Finances", exact: true }).click();
+      await openRawData(page);
       const sourceMenu = await openColumn(page, "Type");
       await checkbox(sourceMenu, `${STORAGE} group`).check();
       const expectedType = "STORAGE_FEES";
@@ -126,7 +127,7 @@ test("search and batch actions select only matching exact types and preserve unr
   await expect(checkbox(menu, "Storage fees")).not.toBeChecked();
   await expect(menu.getByText("1 type selected", { exact: true })).toBeVisible();
   await search(menu).fill("NO SUCH TYPE");
-  await expect(menu.getByText("No matching types.", { exact: true })).toBeVisible();
+  await expect(menu.getByText("No matching types", { exact: true })).toBeVisible();
   await expect(menu.getByRole("button", { name: "Select matches", exact: true })).toHaveCount(0);
   await menu.getByRole("button", { name: "Done", exact: true }).click();
   await page.reload();

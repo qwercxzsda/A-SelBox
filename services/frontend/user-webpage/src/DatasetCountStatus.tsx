@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Button, Text } from "@mantine/core";
 import { LoadingStatus } from "./LoadingStatus";
 
@@ -5,21 +6,21 @@ import { LoadingStatus } from "./LoadingStatus";
 export function DatasetCountStatus({
   isError,
   isFetching,
-  items,
   onRetry,
 }: {
   isError: boolean;
   isFetching: boolean;
-  items: "rows" | "reports";
   onRetry: () => void;
 }) {
+  const messageId = useId();
   return isError ? (
     <>
-      <Text size="xs" c="red" role="status">
-        {items === "reports" ? "Report" : "Row"} count unavailable.
+      <Text id={messageId} size="xs" c="red" role="status">
+        Count unavailable
       </Text>
-      <Button size="compact-xs" variant="subtle" onClick={onRetry}>
-        Retry count
+      {/* The same Retry as ErrorAlert's; the failure it retries is its description. */}
+      <Button size="compact-sm" variant="subtle" aria-describedby={messageId} onClick={onRetry}>
+        Retry
       </Button>
     </>
   ) : (

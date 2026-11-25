@@ -86,7 +86,7 @@ test("signup prevents duplicate submission and shows safe errors while allowing 
   ).toBeDisabled();
   pending.resolve();
   await expect(page.getByRole("alert")).toContainText(
-    "Could not create an account with these details",
+    "Could not create the account. Try signing in.",
   );
   await expect(page.getByRole("alert")).not.toContainText("private account details");
   expect(calls).toBe(1);
@@ -126,7 +126,9 @@ test("expired confirmation displays a safe recovery message and removes error pa
 }) => {
   await mockSupabase(page);
   await page.goto("/#error=access_denied&error_description=private-details");
-  await expect(page.getByRole("alert")).toContainText("invalid or has expired");
+  await expect(page.getByRole("alert")).toContainText(
+    "Link invalid or expired. Request a new one.",
+  );
   await expect(page.getByRole("alert")).not.toContainText("private-details");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");

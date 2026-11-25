@@ -5,7 +5,7 @@ import type { TransactionSummaryScope, TransactionTrendGranularity } from "./api
 import type { DateRange } from "./summary-periods";
 import { transactionTrendPeriod } from "./transaction-trend-periods";
 import { resolveTransactionSearch } from "./transaction-search";
-import { getErrorMessage } from "./view-model";
+import { loadErrorDetail } from "./load-error";
 
 export function useTransactionTrends(
   identity: Identity,
@@ -54,6 +54,6 @@ export function useTransactionTrends(
     rows: query.data ?? [],
     pending: definition !== null && query.isPending,
     loading: query.isFetching,
-    error: query.error ? getErrorMessage(query.error) : null,
+    error: query.error ? loadErrorDetail(query.error) : null,
   };
 }

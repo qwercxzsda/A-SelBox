@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { deferred } from "./fixtures.mjs";
 import { openSourceLookup, sourceDetail, sourceLookup } from "./financial-source-fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 async function secondPage(page) {
   const lookup = await openSourceLookup(page, {
@@ -23,7 +24,7 @@ test("source lookup preserves its submitted ID and page across closing, tabs and
   const submittedId = await lookup
     .getByRole("textbox", { name: "Search Amazon transaction ID", exact: true })
     .inputValue();
-  await lookup.getByRole("button", { name: "Close transaction lookup", exact: true }).click();
+  await lookup.getByRole("button", { name: "Close find transaction", exact: true }).click();
   await expect(lookup).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
@@ -31,7 +32,7 @@ test("source lookup preserves its submitted ID and page across closing, tabs and
   await page.keyboard.press("Escape");
   await expect(lookup).toBeHidden();
   await page.getByRole("tab", { name: "Transactions", exact: true }).click();
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   await expect(lookup).toBeHidden();
   await trigger.click();
   await expect(
@@ -80,7 +81,9 @@ test("closing a restored source record keeps the original lookup page", async ({
   await expect(sourceDetail(page)).toBeVisible();
   await page.reload();
   await expect(sourceDetail(page)).toBeVisible();
-  await sourceDetail(page).getByRole("button", { name: "Close row details", exact: true }).click();
+  await sourceDetail(page)
+    .getByRole("button", { name: "Close finances record details", exact: true })
+    .click();
   await expect(sourceLookup(page)).toBeVisible();
   await expect(table.locator("tbody tr").first()).toContainText("26.00");
 });
@@ -91,11 +94,7 @@ test("an empty restored later lookup page explains its scope and keeps Previous"
   const { state, table } = await secondPage(page);
   state.rows = state.rows.slice(0, 10);
   await page.reload();
-  await expect(
-    page.getByText("No matches on this page. Return to the previous page to see earlier matches.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByText("No matches on this page", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Previous matches", exact: true }).click();
   await expect(table.locator("tbody tr")).toHaveCount(10);
   await expect(table.locator("tbody tr").first()).toContainText("1.00");
@@ -108,10 +107,10 @@ test("retrying an unavailable source record moves focus to the recovered record"
   state.status = 403;
   await opener.click();
   const drawer = sourceDetail(page);
-  await expect(drawer.getByRole("alert")).toContainText("Could not load source record.");
+  await expect(drawer.getByRole("alert")).toContainText("Could not load source record");
   state.status = 200;
-  await drawer.getByRole("button", { name: "Retry source record", exact: true }).press("Enter");
-  await expect(drawer.getByRole("heading", { name: "RETAINED-00", exact: true })).toBeFocused();
+  await drawer.getByRole("button", { name: "Retry", exact: true }).press("Enter");
+  await expect(drawer.locator(".detail-drawer-title")).toBeFocused();
 });
 
 test("an open source record exposes a failed background refresh and allows retry", async ({
@@ -121,15 +120,15 @@ test("an open source record exposes a failed background refresh and allows retry
   const { fixture, state, opener } = await openSourceLookup(page);
   await opener.click();
   const drawer = sourceDetail(page);
-  await expect(drawer.getByRole("heading", { name: "RETAINED-00", exact: true })).toBeVisible();
+  await expect(drawer.locator(".detail-drawer-context")).toContainText("RETAINED-00");
   state.status = 503;
   fixture.revisions.finances = "next-source";
   await page.clock.fastForward(60_000);
   await expect.poll(() => state.requests.filter((args) => args.p_row_id).length).toBeGreaterThan(1);
-  await expect(drawer.getByRole("alert")).toContainText("Could not load source record.");
-  await expect(drawer.getByRole("heading", { name: "RETAINED-00", exact: true })).toBeVisible();
+  await expect(drawer.getByRole("alert")).toContainText("Could not load source record");
+  await expect(drawer.locator(".detail-drawer-context")).toContainText("RETAINED-00");
   state.status = 200;
-  await drawer.getByRole("button", { name: "Retry source record", exact: true }).click();
+  await drawer.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(drawer.getByRole("alert")).toBeHidden();
   await expect(drawer.getByRole("group", { name: "source record", exact: true })).toBeFocused();
 });
@@ -172,11 +171,14 @@ test("source recovery does not steal focus after the user moves to Close", async
   state.wait = response.promise;
   state.status = 200;
   try {
-    await drawer.getByRole("button", { name: "Retry source record", exact: true }).press("Enter");
-    const close = drawer.getByRole("button", { name: "Close row details", exact: true });
+    await drawer.getByRole("button", { name: "Retry", exact: true }).press("Enter");
+    const close = drawer.getByRole("button", {
+      name: "Close finances record details",
+      exact: true,
+    });
     await close.focus();
     response.resolve();
-    await expect(drawer.getByRole("heading", { name: "RETAINED-00", exact: true })).toBeVisible();
+    await expect(drawer.locator(".detail-drawer-context")).toContainText("RETAINED-00");
     await expect(close).toBeFocused();
   } finally {
     response.resolve();
@@ -190,22 +192,22 @@ test("a source record removed during refresh keeps keyboard navigation in its dr
   const { fixture, state, opener } = await openSourceLookup(page);
   await opener.click();
   const drawer = sourceDetail(page);
-  await expect(drawer.getByRole("heading", { name: "RETAINED-00", exact: true })).toBeVisible();
+  await expect(drawer.locator(".detail-drawer-context")).toContainText("RETAINED-00");
   state.status = 503;
   fixture.revisions.finances = "removed-source";
   await page.clock.fastForward(60_000);
   await expect(drawer.getByRole("alert")).toBeVisible();
   state.status = 200;
   state.missing = true;
-  await drawer.getByRole("button", { name: "Retry source record", exact: true }).press("Enter");
+  await drawer.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect(drawer.getByRole("status")).toContainText(
-    "This exact source row/version is no longer available.",
+    "This record version is no longer available",
   );
   await expect(
-    drawer.getByRole("button", { name: "Close row details", exact: true }),
+    drawer.getByRole("button", { name: "Close finances record details", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
-    drawer.getByRole("button", { name: "Close row details", exact: true }),
+    drawer.getByRole("button", { name: "Close finances record details", exact: true }),
   ).toBeFocused();
 });

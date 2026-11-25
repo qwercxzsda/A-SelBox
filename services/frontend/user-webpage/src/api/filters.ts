@@ -77,7 +77,7 @@ export function datasetFilterValues(dataset: TableDatasetKey, filters?: DatasetF
   )
     throw new Error("Company filtering is unavailable for this view");
   requireDateRange(dateFrom, dateTo);
-  if ((dateFrom || dateTo) && DATASET_CONFIG[dataset].dateColumn === null)
+  if ((dateFrom || dateTo) && DATASET_CONFIG[dataset].dateFilter === null)
     throw new Error("Date filtering is unavailable for this view");
   for (const field of Object.keys(selections) as DatasetFilterField[]) {
     if (selections[field].length > 0) requireFilterField(dataset, field);

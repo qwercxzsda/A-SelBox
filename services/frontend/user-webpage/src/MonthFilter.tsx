@@ -32,7 +32,7 @@ export function MonthFilter({
       <Stack gap="sm">
         <TextInput
           ref={monthInput}
-          label="Report month"
+          label={filter.label}
           type="month"
           name="month"
           defaultValue={filter.value}

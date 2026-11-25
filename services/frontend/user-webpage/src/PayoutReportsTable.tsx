@@ -10,7 +10,9 @@ import { usePayoutReportHistories } from "./use-payout-report-histories";
 import { MonthGroupCell } from "./MonthGroupCell";
 import { TableFrame } from "./TableFrame";
 import { formatRecordMonth } from "./date-display";
-import { companyLabel, displayColumns, rowId } from "./view-model";
+import { displayColumns } from "./table-columns";
+import { companyLabel, DATASET_PRESENTATION, rowId } from "./view-model";
+import { countLabel } from "./pagination";
 import { groupPayoutReports, type PayoutHistoryState } from "./payout-report-view";
 import { payoutMarketplaceLabel, payoutScopeKey } from "./payout-report-scope";
 
@@ -24,6 +26,8 @@ export function PayoutReportsTable({
   onSortChange,
   totalCount,
   isBusy,
+  isPlaceholderData,
+  appliedFilters,
   history,
   onToggleHistory,
   onHistoryPageChange,
@@ -42,6 +46,8 @@ export function PayoutReportsTable({
   onSortChange: (sort: DatasetSort) => void;
   totalCount: number | null;
   isBusy: boolean;
+  isPlaceholderData: boolean;
+  appliedFilters: ReactNode;
   history: PayoutHistoryState;
   onToggleHistory: (key: string) => void;
   onHistoryPageChange: (key: string, page: number) => void;
@@ -58,9 +64,15 @@ export function PayoutReportsTable({
   );
   const histories = usePayoutReportHistories(identity, rows, history, onHistoryPageChange);
   return (
-    <TableFrame label="Financial table" isBusy={isBusy} status={status}>
+    <TableFrame
+      label="Financial table"
+      isBusy={isBusy}
+      isPlaceholderData={isPlaceholderData}
+      appliedFilters={appliedFilters}
+      status={status}
+    >
       <Table
-        className="payout-reports-table month-grouped-table"
+        className="payout-reports-table grouped-table"
         data-company-column={identity.account.access_role === "administrator" || undefined}
         aria-label="Financial records"
         highlightOnHover
@@ -137,7 +149,10 @@ export function PayoutReportsTable({
                         <MonthGroupCell
                           month={month}
                           rowSpan={rowSpan}
-                          description={`${String(reports.length)} latest ${reports.length === 1 ? "report" : "reports"}`}
+                          description={countLabel(
+                            reports.length,
+                            DATASET_PRESENTATION.payouts.items,
+                          )}
                         />
                       ) : null}
                     </PayoutReportRow>

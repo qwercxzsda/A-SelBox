@@ -177,7 +177,7 @@ test("member totals, type breakdowns and records intersect every selected filter
   fixture.liveRows.push({ ...liveRow("SKU", 100, COMPANY_A), ...refund });
   await signIn(page);
   await totals(page).summaries.waitFor();
-  await expectAnchors(page, "May 10, 2026", "April 2026");
+  await expectAnchors(page, "2026-05-10", "April 2026");
   await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "700.00 USD");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "300.00 USD");
   await applyDates(page, "2026-01-01", "2026-02-28");
@@ -250,14 +250,14 @@ test("member totals, type breakdowns and records intersect every selected filter
   await dialog.getByRole("button", { name: "Show all records", exact: true }).click();
   await expect(records.locator("tbody tr")).toHaveCount(1);
   expect(recordRequest().args).toMatchObject(detailScope);
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
 
   await page.getByLabel("Search", { exact: true }).fill("NO MATCH");
-  await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+  await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
   await expectEmpty(page, "Selected dates");
   await expectEmpty(page, "Last day");
   await expectEmpty(page, "Last month");
-  await expectAnchors(page, "May 10, 2026", "April 2026");
+  await expectAnchors(page, "2026-05-10", "April 2026");
   expectUnfilteredDiscovery(fixture);
 });
 
@@ -266,7 +266,7 @@ test("administrator company, SKU, marketplace and date filters intersect without
 }, testInfo) => {
   const fixture = await skuFixture(page, "administrator");
   await signIn(page);
-  await expectAnchors(page, "Jun 15, 2026", "May 2026");
+  await expectAnchors(page, "2026-06-15", "May 2026");
   await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "1,000.00 USD");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "750.00 USD");
   await selectValues(page, "SKU", ["ALPHA"]);
@@ -277,7 +277,7 @@ test("administrator company, SKU, marketplace and date filters intersect without
   await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "100.12 USD");
   await selectValues(page, "Marketplace", ["Amazon.com"], MARKETPLACES);
   await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "15.00 USD");
-  await expectAnchors(page, "Jun 15, 2026", "May 2026");
+  await expectAnchors(page, "2026-06-15", "May 2026");
   const dialog = await openSelectedBreakdown(page, "15.00 USD");
   for (const { params } of [fixture.aggregateRequests.at(-1), fixture.breakdownRequests.at(-1)]) {
     expect(params.get("sku")).toBe(skuScope("ALPHA"));
@@ -287,7 +287,7 @@ test("administrator company, SKU, marketplace and date filters intersect without
   const drawerFilters = dialog.getByRole("region", { name: "Applied filters", exact: true });
   for (const value of ["Company A", "ALPHA", "Amazon.com"])
     await expect(drawerFilters).toContainText(value);
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await applyDates(page, "2026-02-01", "2026-02-28");
   await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "10.00 USD");
   await selectValues(page, "SKU", []);
@@ -297,7 +297,7 @@ test("administrator company, SKU, marketplace and date filters intersect without
   await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "1,000.00 USD");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "50.00 USD");
   await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "40.00 USD");
-  await expectAnchors(page, "Jun 15, 2026", "May 2026");
+  await expectAnchors(page, "2026-06-15", "May 2026");
   expectUnfilteredDiscovery(fixture);
   await totals(page).summaries.screenshot({
     path: testInfo.outputPath("administrator-shared-periods.png"),
@@ -317,7 +317,7 @@ test("marketplace selections keep one fixed UTC period while selected totals and
   await expectEmpty(page, "Last month");
   await selectValues(page, "Marketplace", MARKETPLACES, MARKETPLACES);
   await expectEmpty(page, "Last day", "Amazon.co.jp");
-  await expectAnchors(page, "May 10, 2026", "April 2026");
+  await expectAnchors(page, "2026-05-10", "April 2026");
   await applyDates(page, "2026-01-01", "2026-02-28");
   await expectTotal(page, "Selected dates", "Amazon.com", "Reported amount", "15.00 USD");
   await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "100.12 USD");
@@ -327,10 +327,10 @@ test("marketplace selections keep one fixed UTC period while selected totals and
     p_marketplaces: ["Amazon.co.jp"],
     p_company_ids: [],
   });
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await selectValues(page, "Marketplace", [], MARKETPLACES);
   await expectTotal(page, "Selected dates", "Amazon.co.jp", "Reported amount", "100.12 USD");
-  await expectAnchors(page, "May 10, 2026", "April 2026");
+  await expectAnchors(page, "2026-05-10", "April 2026");
   expectUnfilteredDiscovery(fixture);
   await totals(page).summaries.screenshot({
     path: testInfo.outputPath("mobile-shared-periods.png"),
@@ -386,12 +386,12 @@ test("signing into another member changes the access-scoped anchor and clears UI
 }) => {
   const fixture = await skuFixture(page);
   await signIn(page);
-  await expectAnchors(page, "May 10, 2026", "April 2026");
+  await expectAnchors(page, "2026-05-10", "April 2026");
   await selectValues(page, "SKU", ["ALPHA"]);
   await selectValues(page, "Marketplace", ["Amazon.com"], MARKETPLACES);
   await applyDates(page, "2026-01-01", "2026-02-28");
   const dialog = await openSelectedBreakdown(page, "15.00 USD");
-  await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   fixture.liveRows = fixture.aggregateRowsByUser["member-b"].map((row, index) => ({
     ...liveRow("BRAVO", index + 1, COMPANY_B),
@@ -403,7 +403,7 @@ test("signing into another member changes the access-scoped anchor and clears UI
     company_id: COMPANY_B,
   }));
   await signIn(page, "member-b");
-  await expectAnchors(page, "Jun 15, 2026", "May 2026");
+  await expectAnchors(page, "2026-06-15", "May 2026");
   await expectTotal(page, "Last day", "Amazon.com", "Reported amount", "1,000.00 USD");
   await expectTotal(page, "Last month", "Amazon.com", "Reported amount", "50.00 USD");
   await expect(totals(page).selected).toContainText("Choose dates");

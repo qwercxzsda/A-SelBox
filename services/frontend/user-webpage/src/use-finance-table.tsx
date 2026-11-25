@@ -13,11 +13,12 @@ import type { CanonicalRow, TableDatasetKey } from "./api";
 import type { DatasetFilters } from "./api/types";
 import { TableCellValue } from "./Cell";
 import { lastPageIndex } from "./pagination";
-import { displayColumns, rowId } from "./view-model";
+import { displayColumns } from "./table-columns";
+import { rowId } from "./view-model";
 import { useDatasetQuery } from "./use-dataset-query";
 import type { Identity } from "./auth-session";
-import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
-import { normalizeDatasetFilters } from "./dataset-filters";
+import type { CorrectableViewStateProps, DatasetViewState } from "./workspace-view-state";
+import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 
 const columnMeta: { align?: "right" } = {};
 const features = tableFeatures({
@@ -32,7 +33,10 @@ export function useFinanceTable(
   identity: Identity,
   dataset: TableDatasetKey,
   viewState: DatasetViewState,
-  onViewStateChange: ViewStateProps<DatasetViewState>["onViewStateChange"],
+  {
+    onViewStateChange,
+    onViewStateCorrect,
+  }: Pick<CorrectableViewStateProps<DatasetViewState>, "onViewStateChange" | "onViewStateCorrect">,
   currency?: string,
 ) {
   const { pagination, sorting, search } = viewState;
@@ -113,8 +117,13 @@ export function useFinanceTable(
   });
   // Synchronize server-side shrinkage (including HTTP 416) after the query updates.
   useEffect(() => {
-    if (finalPage !== null && pagination.pageIndex > finalPage) table.setPageIndex(finalPage);
-  }, [finalPage, pagination.pageIndex, table]);
+    if (finalPage !== null && pagination.pageIndex > finalPage)
+      onViewStateCorrect((current) => ({
+        ...current,
+        pagination: { ...current.pagination, pageIndex: finalPage },
+        selectedRowId: null,
+      }));
+  }, [finalPage, pagination.pageIndex, onViewStateCorrect]);
 
   function changeSearch(value: string) {
     updateView((current) => ({
@@ -130,6 +139,14 @@ export function useFinanceTable(
       pagination: { ...current.pagination, pageIndex: 0 },
     }));
   }
+  function resetSearchAndFilters() {
+    updateView((current) => ({
+      ...current,
+      search: "",
+      filters: normalizeDatasetFilters(),
+      pagination: { ...current.pagination, pageIndex: 0 },
+    }));
+  }
   return {
     table,
     query,
@@ -139,6 +156,9 @@ export function useFinanceTable(
     changeSearch,
     filters,
     changeFilters,
+    /** A search or filter can be hiding rows. */
+    hasRefinements: activeFilterCount(filters) > 0 || search.trim().length > 0,
+    resetSearchAndFilters,
     companies,
   };
 }

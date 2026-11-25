@@ -1,0 +1,262 @@
+.financial-review-panel {
+  min-width: 0;
+}
+
+.financial-review-scope {
+  margin-bottom: 16px;
+  outline: none;
+}
+
+.financial-review-marketplace-field {
+  width: 200px;
+}
+
+.financial-review-year-field {
+  width: 110px;
+}
+
+/* Finances and the three outcomes it splits into; labels and values follow the field cards. */
+.financial-review-totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.financial-review-total {
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+}
+
+.financial-review-total[data-measure="difference"] {
+  background: var(--ui-surface-subtle);
+}
+
+.financial-review-total dt {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+  font-weight: 600;
+}
+
+.financial-review-total dd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.financial-review-total-value {
+  font-size: var(--ui-font-section);
+  font-weight: 600;
+}
+
+.financial-review-total-tax {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+}
+
+.ui-drawer-body .financial-review-totals {
+  margin: 0;
+}
+
+/* The previous scope stays in place while the next one loads; it cannot be opened. */
+.financial-review-totals[data-placeholder],
+.financial-review-chart[data-placeholder] .financial-review-chart-body,
+.financial-review-records[data-placeholder] {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 120ms ease 150ms;
+}
+
+.financial-review-chart {
+  margin-bottom: 20px;
+}
+
+.financial-review-chart-keys {
+  color: var(--ui-text-muted);
+  font-size: var(--ui-font-caption);
+}
+
+/* Present without a chart too, so the header keeps its height. */
+.financial-review-chart-keys[data-hidden] {
+  visibility: hidden;
+}
+
+.financial-review-chart-keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.financial-review-bar-key {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(var(--ui-text-muted) 50%, var(--ui-border) 50%);
+}
+
+.financial-review-running-key {
+  width: 18px;
+  height: 3px;
+  background: var(--ui-text);
+}
+
+.financial-review-chart-body {
+  container: review-chart / inline-size;
+}
+
+/* An empty or loading year keeps the plot's frame (its height and margins). */
+.financial-review-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-inline: 0;
+}
+
+/* Hovered or focused months are shaded; the keyboard target alone is not. */
+.financial-review-chart .amount-trend-period[data-inspected]:not(:hover, :focus-visible) {
+  background: transparent;
+}
+
+.financial-review-chart
+  .amount-trend-period[data-inspected]:not(:hover, :focus-visible)
+  .amount-trend-period-label {
+  color: inherit;
+  font-weight: inherit;
+}
+
+/*
+ * One aligned key per reason. The legend reserves the rows of three reasons at every width, so
+ * an empty year and a typical one share the card height; a year with more reasons grows it.
+ */
+.financial-review-legend {
+  --legend-line: 18px;
+  --legend-gap: 6px;
+  --legend-rows: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--legend-gap) 18px;
+  min-height: calc(
+    var(--legend-rows) * var(--legend-line) + (var(--legend-rows) - 1) * var(--legend-gap)
+  );
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ui-font-caption);
+  line-height: var(--legend-line);
+}
+
+/* Two columns: 20rem each plus the gap fit from 658px; three from 996px. */
+@container review-chart (max-width: 995.98px) {
+  .financial-review-legend {
+    --legend-rows: 2;
+  }
+}
+
+@container review-chart (max-width: 657.98px) {
+  .financial-review-legend {
+    --legend-rows: 3;
+  }
+}
+
+.financial-review-legend li,
+.financial-review-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.financial-review-legend li {
+  white-space: nowrap;
+}
+
+.financial-review-legend-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.financial-review-legend-total {
+  flex-shrink: 0;
+  color: var(--ui-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.financial-review-swatch {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.financial-review-reason-help {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+/* The title shares the table's status row (beside its scroll controls) instead of a blank line. */
+.financial-review-months-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.financial-review-months-title,
+.financial-review-months-section > .table-status-row {
+  grid-area: 1 / 1;
+}
+
+.financial-review-months-title {
+  z-index: 1;
+  align-self: start;
+  justify-self: start;
+  line-height: 32px;
+}
+
+/* Row headers are shaded like the other lists'. */
+.financial-review-months th[scope="row"] {
+  background: var(--ui-surface-subtle);
+  font-weight: 500;
+}
+
+/* Differences are what the review is for, as Company amount is for Transactions. */
+.financial-review-months td[data-column="difference"] > .stacked-cell-value > span:first-child,
+.financial-review-months td[data-column="running_difference"] {
+  font-weight: 700;
+}
+
+/* One chip line, present with or without a selection, so the records never move. */
+.financial-review-breakdown-filters {
+  height: 32px;
+  margin-block: 4px;
+}
+
+/* The shared 85% cap resolves against the chip's own shrink-wrapped row and clips one chip. */
+.financial-review-breakdown-filters .applied-filter-chip {
+  max-width: 24rem;
+}
+
+@media (max-width: 720px) {
+  .financial-review-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+/* Narrow drawer headers keep the month title readable: the steps show their arrows only. */
+@media (max-width: 600px) {
+  .financial-review-month-step {
+    padding-inline: 8px;
+  }
+  .financial-review-month-step .mantine-Button-section {
+    margin: 0;
+  }
+  .financial-review-month-step-label {
+    display: none;
+  }
+}

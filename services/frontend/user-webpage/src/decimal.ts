@@ -1,130 +1,7 @@
+import { formatParts, parseDecimal, type DecimalParts } from "./decimal-parse.ts";
+
 const EM_DASH = "—";
-// PostgreSQL numeric supports up to 131,072 digits before and 16,383 digits
-// after the decimal point. Keep the entire exact database output representable.
-const MAX_EXPANDED_DIGITS = 131_072 + 16_383;
-const DECIMAL_TEXT_PATTERN = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?)(\d+))?$/;
 const ISO_CURRENCY_PATTERN = /^[A-Z]{3}$/;
-
-interface DecimalParts {
-  fraction: string;
-  integer: string;
-  negative: boolean;
-}
-
-function parseExponentShift(sign: string | undefined, digits: string | undefined): number | null {
-  if (digits === undefined) {
-    return 0;
-  }
-
-  let magnitude = 0;
-  for (const digit of digits) {
-    magnitude = magnitude * 10 + digit.charCodeAt(0) - 48;
-    if (magnitude > MAX_EXPANDED_DIGITS) {
-      return null;
-    }
-  }
-
-  return sign === "-" ? -magnitude : magnitude;
-}
-
-function trimLeadingIntegerZeros(value: string): string {
-  return value.replace(/^0+/, "") || "0";
-}
-
-function trimTrailingFractionZeros(value: string): string {
-  return value.replace(/0+$/, "");
-}
-
-function expandDecimal(
-  integerDigits: string,
-  fractionDigits: string,
-  shift: number,
-): Pick<DecimalParts, "fraction" | "integer"> | null {
-  const digits = `${integerDigits}${fractionDigits}`;
-  if (digits.length > MAX_EXPANDED_DIGITS) {
-    return null;
-  }
-
-  const decimalIndex = integerDigits.length + shift;
-  let integer: string;
-  let fraction: string;
-
-  if (decimalIndex <= 0) {
-    const leadingFractionZeros = -decimalIndex;
-    if (leadingFractionZeros + digits.length > MAX_EXPANDED_DIGITS) {
-      return null;
-    }
-    integer = "0";
-    fraction = `${"0".repeat(leadingFractionZeros)}${digits}`;
-  } else if (decimalIndex >= digits.length) {
-    if (decimalIndex > MAX_EXPANDED_DIGITS) {
-      return null;
-    }
-    integer = `${digits}${"0".repeat(decimalIndex - digits.length)}`;
-    fraction = "";
-  } else {
-    integer = digits.slice(0, decimalIndex);
-    fraction = digits.slice(decimalIndex);
-  }
-
-  return {
-    fraction: trimTrailingFractionZeros(fraction),
-    integer: trimLeadingIntegerZeros(integer),
-  };
-}
-
-function parseDecimal(value: string | null): DecimalParts | null {
-  if (value === null) {
-    return null;
-  }
-
-  const match = DECIMAL_TEXT_PATTERN.exec(value);
-  if (match === null) {
-    return null;
-  }
-
-  const sign = match.at(1);
-  const whole = match.at(2);
-  const fractionAfterWhole = match.at(3);
-  const fractionWithoutWhole = match.at(4);
-  const exponentSign = match.at(5);
-  const exponentDigits = match.at(6);
-  const integerDigits = whole ?? "0";
-  const fractionDigits = fractionAfterWhole ?? fractionWithoutWhole ?? "";
-  const coefficientDigits = `${integerDigits}${fractionDigits}`;
-
-  if (!/[1-9]/.test(coefficientDigits)) {
-    return { fraction: "", integer: "0", negative: false };
-  }
-
-  const shift = parseExponentShift(exponentSign, exponentDigits);
-  if (shift === null) {
-    return null;
-  }
-
-  const expanded = expandDecimal(integerDigits, fractionDigits, shift);
-  return expanded === null
-    ? null
-    : {
-        ...expanded,
-        negative: sign === "-",
-      };
-}
-
-function groupIntegerDigits(value: string): string {
-  const firstGroupLength = value.length % 3 || 3;
-  const groups = [value.slice(0, firstGroupLength)];
-  for (let index = firstGroupLength; index < value.length; index += 3) {
-    groups.push(value.slice(index, index + 3));
-  }
-  return groups.join(",");
-}
-
-function formatParts(parts: DecimalParts): string {
-  const groupedInteger = groupIntegerDigits(parts.integer);
-  const unsigned = parts.fraction ? `${groupedInteger}.${parts.fraction}` : groupedInteger;
-  return parts.negative ? `-${unsigned}` : unsigned;
-}
 
 function normalizeCurrency(currency: string | null): string | null {
   if (currency === null) {
@@ -133,6 +10,11 @@ function normalizeCurrency(currency: string | null): string | null {
 
   const code = currency.trim().toUpperCase();
   return ISO_CURRENCY_PATTERN.test(code) ? code : null;
+}
+
+/** Exact decimal text, as PostgreSQL numeric or Amazon's reports print it. */
+export function isDecimal(value: string): boolean {
+  return parseDecimal(value) !== null;
 }
 
 export function formatExactDecimal(value: string | null): string {
@@ -183,14 +65,51 @@ export function formatAmount(value: string | null): string {
   return parts === null ? EM_DASH : formatParts(roundAmount(parts));
 }
 
+/** A zero needs no currency: Amazon prints some zero fees, such as a removal fee, without one. */
+const isZero = (parts: DecimalParts) => parts.integer === "0" && parts.fraction === "";
+
 export function formatMoney(value: string | null, currency: string | null): string {
   const parts = parseDecimal(value);
-  if (parts !== null && currency === null && parts.integer === "0" && parts.fraction === "")
-    return "0.00";
+  if (parts !== null && currency === null && isZero(parts)) return "0.00";
   const currencyCode = normalizeCurrency(currency);
   return parts === null || currencyCode === null
     ? EM_DASH
     : `${formatParts(roundAmount(parts))} ${currencyCode}`;
+}
+
+const minorUnitsByCurrency = new Map<string, number>();
+
+/** ISO 4217 minor units, e.g. 2 for USD and 0 for JPY. */
+function currencyMinorUnits(code: string): number {
+  const known = minorUnitsByCurrency.get(code);
+  if (known !== undefined) return known;
+  const { maximumFractionDigits } = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: code,
+  }).resolvedOptions();
+  if (maximumFractionDigits === undefined) throw new Error(`No minor units for ${code}`);
+  minorUnitsByCurrency.set(code, maximumFractionDigits);
+  return maximumFractionDigits;
+}
+
+/**
+ * The exact amount, padded to the currency's minor units and never rounded, so sub-cent
+ * values stay visible ("-1,000.50", "-0.0002"). Financial review and Raw data use it. A zero
+ * without a currency is "0"; any other amount without a valid currency is unknown ("—").
+ */
+export function formatExactAmount(value: string | null, currency: string | null): string {
+  const parts = parseDecimal(value);
+  if (parts === null) return EM_DASH;
+  const code = normalizeCurrency(currency);
+  if (code === null) return currency === null && isZero(parts) ? "0" : EM_DASH;
+  return formatParts({ ...parts, fraction: parts.fraction.padEnd(currencyMinorUnits(code), "0") });
+}
+
+/** formatExactAmount followed by the currency code, for rows that do not share one currency. */
+export function formatExactMoney(value: string | null, currency: string | null): string {
+  const amount = formatExactAmount(value, currency);
+  const code = normalizeCurrency(currency);
+  return amount === EM_DASH || code === null ? amount : `${amount} ${code}`;
 }
 
 /** Add known decimal values without converting financial amounts to Number. */

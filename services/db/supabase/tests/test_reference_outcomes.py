@@ -63,7 +63,8 @@ class ReferenceOutcomeTests(ReferenceFixture):
             "requested_at": "2026-01-01",
             "last_updated_at": "2026-01-10",
             "order_type": "Disposal",
-            "order_status": "Complete",
+            "order_status": "Completed",
+            "disposed_quantity": "1",
             "tax_amount": "0.3",
             "fnsku": "X000000001",
             "ledger_first_month": "2026-01-01",
@@ -347,7 +348,8 @@ class ReferenceOutcomeTests(ReferenceFixture):
             ),
             "9.00",
         )
-        self.assertEqual(self.one("select count(*) from public.assignment_status"), 0)
+        # The company owns no campaign, promotion or shipment, so its member lists none.
+        self.assertEqual(self.one("select public.reference_assignments()"), {"items": []})
         with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.connection.transaction():
             self.connection.execute(
                 "select public.set_reference_assignment('seller','NA','CAMPAIGN','id',%s,null,"
@@ -490,7 +492,8 @@ class ReferenceOutcomeTests(ReferenceFixture):
             {"ROUNDING": Decimal("-0.005"), "TOTALS_DIFFER": Decimal("-0.19")},
         )
         totals = self.connection.execute(
-            "select finances_base,company_base+selbox_base+difference_base from "
-            "private.monthly_financial_totals"
+            "select sum(base_amount) filter (where measure='FINANCES'),"
+            "sum(base_amount) filter (where measure<>'FINANCES') "
+            "from private.monthly_outcomes(null,null,null)"
         ).fetchone()
         self.assertEqual(totals, (Decimal("-1.20"), Decimal("-1.20")))

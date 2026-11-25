@@ -20,7 +20,7 @@ export function FinancialSourceRecord({
   stacked?: boolean;
 }) {
   // Subscribe before the drawer's transition mounts its feedback content.
-  const { data, isPending, isFetching, isError, isSuccess, refetch } = useQuery({
+  const { data, isPending, isFetching, isError, isSuccess, error, refetch } = useQuery({
     queryKey: ["financial-source-record", identity.session.user.id, selection],
     queryFn: ({ signal }) => {
       if (!selection) throw new Error("Choose a source record");
@@ -30,7 +30,7 @@ export function FinancialSourceRecord({
     staleTime: Infinity,
   });
   if (identity.account.access_role !== "administrator") return null;
-  const feedback = { isPending, isFetching, isError, isSuccess, refetch };
+  const feedback = { isPending, isFetching, isError, isSuccess, error, refetch };
   return (
     <RowDetail
       companies={new Map(identity.companies.map((company) => [company.id, company.name]))}
@@ -46,7 +46,7 @@ export function FinancialSourceRecord({
           <DetailData query={feedback} label="source record" rowCount={1} emptyMessage="">
             {isError ? (
               <Text size="sm" c="dimmed" mb="sm">
-                Showing the last loaded record. Retry to check for updates.
+                Showing the last loaded record.
               </Text>
             ) : null}
           </DetailData>
@@ -58,7 +58,7 @@ export function FinancialSourceRecord({
             query={feedback}
             label="source record"
             rowCount={0}
-            emptyMessage="This exact source row/version is no longer available. It has not been replaced with another capture."
+            emptyMessage="This record version is no longer available"
           />
         ) : null
       }

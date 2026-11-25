@@ -1,10 +1,15 @@
 import "./Cell.css";
 import type { CanonicalRow } from "./api";
+import { invoiceStatusLabel, regionLabel } from "./amazon-codes";
 import { humanizeCode } from "./categories";
 import { TransactionTypeValue } from "./TransactionTypeValue";
-import { formatExactDecimal, formatMoney } from "./decimal";
-import { formatRecordDate, formatRecordMonth } from "./date-display";
-import { companyLabel, type ColumnDefinition } from "./view-model";
+import { formatExactDecimal, formatExactMoney, formatMoney } from "./decimal";
+import { formatRecordMonth } from "./date-display";
+import { parseCsvBoolean } from "./api/csv-boolean";
+import { ListRowName } from "./ListRowName";
+import { RecordTimestamp } from "./RecordTimestamp";
+import type { ColumnDefinition } from "./table-columns";
+import { companyLabel } from "./view-model";
 import { TransactionTime } from "./TransactionTime";
 
 function codeLabel(key: string, value: string): string {
@@ -19,16 +24,21 @@ interface TableCellValueProps {
 }
 
 export function TableCellValue(props: TableCellValueProps) {
-  const secondary = props.column.secondary;
-  if (!secondary) return <SingleCellValue {...props} />;
+  const { secondary, note } = props.column;
+  const beneath = secondary ? (
+    <>
+      {secondary.label}: <SingleCellValue {...props} column={secondary} />
+    </>
+  ) : (
+    (note?.(props.row) ?? null)
+  );
+  if (beneath === null) return <SingleCellValue {...props} />;
   return (
     <div className="stacked-cell-value">
       <span className="stacked-cell-primary">
         <SingleCellValue {...props} />
       </span>
-      <span className="stacked-cell-secondary">
-        {secondary.label}: <SingleCellValue {...props} column={secondary} />
-      </span>
+      <span className="stacked-cell-secondary">{beneath}</span>
     </div>
   );
 }
@@ -61,17 +71,25 @@ function SingleCellValue({ column, companies, row }: TableCellValueProps) {
     case "company":
       return companyLabel(value, companies);
     case "date":
-      return value ? (
-        <time dateTime={value} title={value}>
-          {formatRecordDate(value)}
-        </time>
-      ) : (
-        "—"
-      );
+      return value ? <RecordTimestamp value={value} /> : "—";
+    case "name":
+      return <ListRowName>{value}</ListRowName>;
+    case "yes-no":
+      return parseCsvBoolean(value, column.key) ? "Yes" : "No";
     case "month":
       return <time dateTime={value.slice(0, 7)}>{formatRecordMonth(value)}</time>;
     case "money":
       return formatMoney(value, row.currency ?? null);
+    case "exact-money":
+      return formatExactMoney(value, row.currency ?? null);
+    case "region":
+      return regionLabel(value);
+    case "invoice-status":
+      return invoiceStatusLabel(value);
+    case "period": {
+      const end = column.endKey ? row[column.endKey] : null;
+      return end ? `${value} – ${end}` : value;
+    }
     case "percent":
       return `${formatExactDecimal(value)}%`;
     case "number":

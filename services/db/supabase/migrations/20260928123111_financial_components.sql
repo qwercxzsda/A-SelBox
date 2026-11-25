@@ -164,6 +164,17 @@ returns table (
     where p_versions is not null and v.id = any(p_versions);
 $$;
 
+-- Every reason a difference can carry; the outcome functions below produce no other.
+-- Financial review rejects any other code instead of reading nothing.
+create function private.difference_reasons() returns text[]
+language sql immutable parallel safe as $$
+    select array[
+        'NO_ASSIGNMENT', 'REFERENCE_NOT_FOUND', 'ROUNDING', 'TOTALS_DIFFER',
+        'CHARGED_IN_ANOTHER_MONTH', 'SPLIT_OWNERSHIP', 'LEDGER_MONTH_NOT_LOADED',
+        'NOT_IN_LEDGER', 'NO_ID_ON_CHARGE'
+    ];
+$$;
+
 -- Only direct SKU and account amounts have an outcome without a reference lookup.
 create function private.direct_outcome(route private.finances_route, has_owner boolean)
 returns text language sql immutable parallel safe as $$
@@ -429,15 +440,16 @@ select
     company_id
 from private.read_financial_outcomes();
 
--- The native control includes every selected Finances amount independently of its outcome.
--- Group each transaction's amounts by route and SKU before joining monthly scopes. All
--- amounts in that group share a posting date and direct ownership, including unowned SKUs.
-create function private.monthly_amounts(p_month date, p_marketplace text)
+-- Review measures in long form at the seller account and region grain. FINANCES is the
+-- native control: every selected activity amount, independent of its outcome. COMPANY,
+-- SELBOX (by group) and DIFFERENCE (by reason) count one per financial outcome row.
+-- Group each transaction's amounts by route, SKU and SelBox group before joining monthly
+-- scopes. All amounts in that group share a posting date and direct ownership.
+create function private.monthly_outcomes(p_from date, p_until date, p_marketplace text)
 returns table (
     seller_namespace text, amazon_scope text, marketplace_name text, currency text,
-    month date, finances_base numeric, finances_tax numeric, -- noqa: RF04
-    company_base numeric, company_tax numeric, selbox_base numeric, selbox_tax numeric,
-    difference_base numeric, difference_tax numeric
+    month date, measure text, reason text, selbox_group text, -- noqa: RF04
+    base_amount numeric, tax_amount numeric, amount_count bigint
 ) language sql stable as $$
 with contributions as (
     select
@@ -446,24 +458,39 @@ with contributions as (
         h.marketplace_name,
         h.currency,
         date_trunc('month', h.posted_date::timestamp)::date as month,
-        true as native,
-        private.direct_outcome(a.route, a.sku in (
-            select sku from private.current_sku_terms where company_id is not null
-        )) as outcome,
-        a.base_amount, a.tax_amount
+        m.measure,
+        m.reason,
+        m.selbox_group,
+        a.base_amount,
+        a.tax_amount,
+        a.amount_count
     from private.selected_finance_headers(null) as h
     cross join lateral (
-        select a.route, a.sku,
-            sum(a.amount) filter (where a.amount_part <> 'TAX') as base_amount,
-            sum(a.amount) filter (where a.amount_part = 'TAX') as tax_amount
-        from private.finances_amounts a
+        select a.route, a.sku, a.selbox_group::text as selbox_group,
+            coalesce(sum(a.amount) filter (where a.amount_part <> 'TAX'), 0) as base_amount,
+            coalesce(sum(a.amount) filter (where a.amount_part = 'TAX'), 0) as tax_amount,
+            count(*) as amount_count
+        from private.finances_amounts as a
         where a.version_id = h.version_id
-        group by a.route, a.sku
-    ) a
-    where h.is_activity
-        and (p_month is null or (
-            h.posted_date >= p_month and h.posted_date < (p_month + interval '1 month')::date
-        ))
+        group by a.route, a.sku, a.selbox_group
+    ) as a
+    cross join lateral (
+        select private.direct_outcome(a.route, a.sku in (
+            select sku from private.current_sku_terms where company_id is not null
+        )) as outcome
+    ) as direct
+    -- A direct SKU or account amount is also its own outcome. Indirect routes follow below.
+    cross join lateral (values
+        ('FINANCES', null, null),
+        (
+            direct.outcome,
+            case when direct.outcome = 'DIFFERENCE' then 'NO_ASSIGNMENT' end,
+            case when direct.outcome = 'SELBOX' then a.selbox_group end
+        )
+    ) as m (measure, reason, selbox_group)
+    where h.is_activity and m.measure is not null
+        and (p_from is null or h.posted_date >= p_from)
+        and (p_until is null or h.posted_date < p_until)
         and (p_marketplace is null or h.marketplace_name = p_marketplace)
     union all
     select
@@ -471,12 +498,14 @@ with contributions as (
         amazon_scope,
         marketplace_name,
         currency,
-        date_trunc('month', posted_date)::date as month,
-        false as native,
-        outcome,
+        date_trunc('month', posted_date::timestamp)::date as month,
+        outcome as measure,
+        case when outcome = 'DIFFERENCE' then reason end as reason,
+        case when outcome = 'SELBOX' then selbox_group end as selbox_group,
         base_amount,
-        tax_amount
-    from private.indirect_financial_amounts(null, null, p_month, (p_month + interval '1 month')::date, p_marketplace)
+        tax_amount,
+        1 as amount_count
+    from private.indirect_financial_amounts(null, null, p_from, p_until, p_marketplace)
 )
 
 select
@@ -485,31 +514,15 @@ select
     marketplace_name,
     currency,
     month,
-    coalesce(sum(base_amount) filter (where native), 0) as finances_base,
-    coalesce(sum(tax_amount) filter (where native), 0) as finances_tax,
-    coalesce(sum(base_amount) filter (where outcome = 'COMPANY'), 0) as company_base,
-    coalesce(sum(tax_amount) filter (where outcome = 'COMPANY'), 0) as company_tax,
-    coalesce(sum(base_amount) filter (where outcome = 'SELBOX'), 0) as selbox_base,
-    coalesce(sum(tax_amount) filter (where outcome = 'SELBOX'), 0) as selbox_tax,
-    coalesce(sum(base_amount) filter (where outcome = 'DIFFERENCE'), 0) as difference_base,
-    coalesce(sum(tax_amount) filter (where outcome = 'DIFFERENCE'), 0) as difference_tax
+    measure,
+    reason,
+    selbox_group,
+    sum(base_amount) as base_amount,
+    sum(tax_amount) as tax_amount,
+    sum(amount_count)::bigint as amount_count
 from contributions
-group by 1, 2, 3, 4, 5;
+group by 1, 2, 3, 4, 5, 6, 7, 8;
 $$;
-
-create view private.monthly_financial_totals with (security_invoker = true) as
-select * from private.monthly_amounts(null, null); -- noqa: AM04
-
-create function private.read_monthly_financial_totals()
-returns setof private.monthly_financial_totals
-language plpgsql stable security definer set search_path = '' as $$
-begin
-    if not private.is_administrator() then raise insufficient_privilege; end if;
-    return query select * from private.monthly_financial_totals;
-end;
-$$;
-create view public.financial_review_monthly with (security_invoker = true) as
-select * from private.read_monthly_financial_totals(); -- noqa: AM04
 
 create view private.company_components with (security_invoker = true) as
 select

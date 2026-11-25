@@ -4,6 +4,7 @@ import { financesRow } from "./api-fixtures.mjs";
 import { summaryBucket, summaryPeriods, summaryAmount } from "./summary-fixtures.mjs";
 
 import { columnTrigger } from "./table-actions.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 test("marketplace totals remain explicit through filtering and reload, with a date entry point", async ({
   page,
@@ -63,9 +64,9 @@ test("offline status distinguishes cached information from a paused new view and
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
   await context.setOffline(true);
   await expect(page.getByRole("status").filter({ hasText: "Offline" })).toContainText(
-    "previously loaded",
+    "Showing data from",
   );
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   await expect(
     page.getByText("Waiting for a connection to load rows…", { exact: true }),
   ).toBeVisible();
@@ -93,7 +94,7 @@ test("desktop company amount and column context stay visible, with navigation be
   await expect(page.locator(".floating-table-header")).toContainText("Company amount");
   const footer = page.getByRole("navigation", { name: "Record navigation at bottom", exact: true });
   await footer.scrollIntoViewIfNeeded();
-  await footer.getByRole("button", { name: "Next records", exact: true }).click();
+  await footer.getByRole("button", { name: "Next transactions", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-101")).toBeVisible();
 });
 
@@ -107,8 +108,8 @@ test("workspace URLs restore filters and support Back and Forward without storin
   await page.getByRole("searchbox", { name: "Search", exact: true }).fill("ALPHA");
   await page.getByLabel("Rows", { exact: true }).selectOption("100");
   await expect(page).toHaveURL(/tab=live/);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
-  await expect(page).toHaveURL(/tab=finances/);
+  await openRawData(page);
+  await expect(page).toHaveURL(/tab=raw-data&raw=finances/);
   await page.goBack();
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",

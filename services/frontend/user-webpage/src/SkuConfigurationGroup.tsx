@@ -1,28 +1,53 @@
 import { useId } from "react";
-import { Badge, Group, Table, Title } from "@mantine/core";
-import type { SkuConfigurationItem } from "./api";
+import { Group, Table, Title } from "@mantine/core";
+import { StatusBadge } from "./StatusBadge";
+import type { SkuConfigurationItem, SkuConfigurationPeriod } from "./api";
 import { inspectableRowProps } from "./inspectable-row";
-import { FEE_STATUS_LABELS, type FeeStatus } from "./fee-status";
-import { formatExactDecimal } from "./decimal";
+import { FEE_STATUS_LABELS, FEE_STATUS_TONES, type FeeStatus } from "./fee-status";
+import { FeePeriodDateCells } from "./SkuFeePeriods";
 import { TableDisclosure } from "./TableDisclosure";
-import "./MonthGroupedTable.css";
-
-const STATUS_COLORS: Record<FeeStatus, { color: string; c?: string }> = {
-  saved: { color: "teal", c: "#065f46" },
-  draft: { color: "blue" },
-  unfinished: { color: "violet" },
-  "needs-setup": { color: "orange", c: "#9a3412" },
-};
+import { currentFeePeriods, feeRateLabel, utcToday } from "./fee-rate-summary";
+import "./GroupedTable.css";
 
 function FeeStatusLabels({ statuses }: { statuses: readonly FeeStatus[] }) {
   return (
     <Group gap={6}>
       {statuses.map((status) => (
-        <Badge key={status} size="xs" variant="light" {...STATUS_COLORS[status]}>
+        <StatusBadge key={status} tone={FEE_STATUS_TONES[status]}>
           {FEE_STATUS_LABELS[status]}
-        </Badge>
+        </StatusBadge>
       ))}
     </Group>
+  );
+}
+
+function FeePeriodCells({ period }: { period: SkuConfigurationPeriod }) {
+  return (
+    <>
+      <Table.Td data-column="fee-rate" className="numeric">
+        {feeRateLabel(period.fee_rate_percent)}
+      </Table.Td>
+      <FeePeriodDateCells period={period} />
+    </>
+  );
+}
+
+/** A collapsed SKU shows its one current rate, or how many rates apply today. */
+function CurrentRateCells({ periods }: { periods: readonly SkuConfigurationPeriod[] }) {
+  const current = currentFeePeriods(periods, utcToday());
+  if (current.length === 1) return <FeePeriodCells period={current[0]} />;
+  return (
+    <>
+      <Table.Td data-column="fee-rate" className="numeric fee-period-folded">
+        {periods.length === 0
+          ? "—"
+          : current.length === 0
+            ? "No current rate"
+            : `${String(current.length)} rates`}
+      </Table.Td>
+      <Table.Td data-column="valid-from" className="fee-period-folded" />
+      <Table.Td data-column="valid-to" className="fee-period-folded" />
+    </>
   );
 }
 
@@ -118,7 +143,7 @@ export function SkuConfigurationGroup({
               <Table.Th
                 scope="rowgroup"
                 rowSpan={visiblePeriods.length}
-                className="month-group-cell fee-sku-group-cell"
+                className="group-header-cell fee-sku-group-cell"
               >
                 <Title order={3} className="fee-sku-label">
                   {item.sku}
@@ -145,41 +170,7 @@ export function SkuConfigurationGroup({
           <Table.Td data-column="marketplace" title={period ? undefined : marketplaces.join(", ")}>
             {period ? period.marketplace_name || "Not set" : marketplaceSummary}
           </Table.Td>
-          {period ? (
-            <>
-              <Table.Td data-column="fee-rate" className="numeric">
-                {period.fee_rate_percent
-                  ? `${formatExactDecimal(period.fee_rate_percent)}%`
-                  : "Not set"}
-              </Table.Td>
-              <Table.Td data-column="valid-from">
-                {period.valid_from ? (
-                  <time dateTime={period.valid_from}>{period.valid_from}</time>
-                ) : (
-                  "Not set"
-                )}
-              </Table.Td>
-              <Table.Td data-column="valid-to">
-                {period.valid_to ? (
-                  <time dateTime={period.valid_to}>{period.valid_to}</time>
-                ) : (
-                  "No end date"
-                )}
-              </Table.Td>
-            </>
-          ) : (
-            <>
-              <Table.Td data-column="fee-rate" className="numeric fee-period-folded">
-                —
-              </Table.Td>
-              <Table.Td data-column="valid-from" className="fee-period-folded">
-                —
-              </Table.Td>
-              <Table.Td data-column="valid-to" className="fee-period-folded">
-                —
-              </Table.Td>
-            </>
-          )}
+          {period ? <FeePeriodCells period={period} /> : <CurrentRateCells periods={periods} />}
           {index === 0 ? (
             <Table.Td rowSpan={visiblePeriods.length} className="fee-sku-status">
               <FeeStatusLabels statuses={statuses} />

@@ -5,7 +5,7 @@ import { decodeDatasetView, decodeInventoryView } from "./workspace-view-codec.t
 import type { DatasetViewState, InventoryViewState } from "./workspace-view-state.ts";
 import { PAGE_SIZES } from "./view-model.ts";
 
-export function locationDate(value: string | null): string {
+function locationDate(value: string | null): string {
   if (!value) return "";
   try {
     requireCalendarDate(value);
@@ -43,7 +43,8 @@ export function readDatasetLocation(params: URLSearchParams, dataset: TableDatas
   return view;
 }
 
-function writeListPosition(
+/** Search, page, page size and open row, shared by every list's URL. */
+export function writeListPosition(
   params: URLSearchParams,
   view: Pick<InventoryViewState, "search" | "pageIndex" | "pageSize" | "selectedRowId">,
 ) {
@@ -73,7 +74,8 @@ export function writeDatasetLocation(params: URLSearchParams, view: DatasetViewS
     if (locationDate(value)) params.set(key, value);
 }
 
-function nullableValues(params: URLSearchParams, key: string): (string | null)[] {
+/** Values that may be null (Unassigned), each written as JSON. */
+export function nullableValues(params: URLSearchParams, key: string): (string | null)[] {
   return params.getAll(key).flatMap((value) => {
     try {
       const decoded: unknown = JSON.parse(value);

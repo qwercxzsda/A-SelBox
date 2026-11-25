@@ -1,7 +1,9 @@
 import type { RefObject } from "react";
-import type { DatasetFilters, TableDatasetKey } from "./api";
+import { DATASET_CONFIG, type DatasetFilters, type TableDatasetKey } from "./api";
+import type { DatasetConfig } from "./api/config";
 import { humanizeCode, sourceCodeLabel } from "./categories";
 import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
+import { formatRecordMonth } from "./date-display";
 import { companyLabel } from "./view-model";
 import { AppliedFilterChips } from "./AppliedFilterChips";
 
@@ -27,13 +29,16 @@ export function AppliedTableFilters({
   onChange: (filters: Partial<DatasetFilters>) => void;
   focusTarget?: RefObject<HTMLElement | null>;
 }) {
-  const count = activeFilterCount(filters);
-  if (count === 0) return null;
-  const dateLabel = filters.dateFrom
-    ? filters.dateTo
-      ? `${filters.dateFrom} – ${filters.dateTo}`
-      : `From ${filters.dateFrom}`
-    : `Through ${filters.dateTo}`;
+  if (activeFilterCount(filters) === 0) return null;
+  const { dateFilter }: DatasetConfig = DATASET_CONFIG[dataset];
+  const dateLabel =
+    dateFilter?.kind === "month"
+      ? formatRecordMonth(filters.dateFrom)
+      : filters.dateFrom
+        ? filters.dateTo
+          ? `${filters.dateFrom} – ${filters.dateTo}`
+          : `From ${filters.dateFrom}`
+        : `Through ${filters.dateTo}`;
   const applied: AppliedFilter[] = [
     {
       label: "Company",
@@ -41,11 +46,8 @@ export function AppliedTableFilters({
       clear: { companyIds: [] },
     },
     {
-      label: dataset === "payouts" ? "Report month" : "Date (UTC)",
-      values:
-        filters.dateFrom || filters.dateTo
-          ? [dataset === "payouts" ? filters.dateFrom.slice(0, 7) : dateLabel]
-          : [],
+      label: dateFilter?.label ?? "Date",
+      values: filters.dateFrom || filters.dateTo ? [dateLabel] : [],
       clear: { dateFrom: "", dateTo: "" },
     },
     { label: "SKU", values: filters.skus, clear: { skus: [] } },
@@ -85,8 +87,6 @@ export function AppliedTableFilters({
     <AppliedFilterChips
       label="Applied table filters"
       chips={chips}
-      summarized
-      summary={`${String(count)} ${count === 1 ? "filter" : "filters"} applied`}
       onChange={onChange}
       focusTarget={focusTarget}
       onClearAll={() => {

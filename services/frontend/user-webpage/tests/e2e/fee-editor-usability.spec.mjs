@@ -37,7 +37,9 @@ test("Add SKU suggests literal case-insensitive prefixes and opens existing draf
     editor(page).getByRole("button", { name: "Keep draft", exact: true }),
   ).toBeDisabled();
   await editor(page).getByRole("button", { name: "Edit existing SKU", exact: true }).click();
-  await expect(editor(page)).toHaveAccessibleName("Edit literal SKU");
+  await expect(editor(page).locator(".detail-drawer-context")).toHaveText(
+    "literal SKU · Alpha Company",
+  );
   await editor(page).getByRole("button", { name: "Discard edits", exact: true }).click();
   await page.getByRole("button", { name: "Add SKU", exact: true }).click();
   await editor(page).getByRole("combobox", { name: "SKU", exact: true }).fill("s");
@@ -83,9 +85,12 @@ test("period editing keeps desktop actions visible, focuses added periods, and s
   const keep = editor(page).getByRole("button", { name: "Keep draft", exact: true });
   await expect(keep).toBeInViewport();
   const firstFields = await Promise.all(
-    ["Marketplace 1", "Fee rate 1 (%)", "Start date 1 (inclusive)", "End date 1 (exclusive)"].map(
-      (label) => editor(page).getByLabel(label, { exact: true }).boundingBox(),
-    ),
+    [
+      "Marketplace 1",
+      "Fee rate 1 (%)",
+      "Effective from 1 (inclusive)",
+      "Effective until 1 (exclusive)",
+    ].map((label) => editor(page).getByLabel(label, { exact: true }).boundingBox()),
   );
   expect(new Set(firstFields.map((bounds) => Math.round(bounds.y))).size).toBe(1);
   const before = await keep.boundingBox();

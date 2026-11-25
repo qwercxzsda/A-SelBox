@@ -4,7 +4,7 @@ import { editor, openEditor, setup } from "./sku-configuration-fixtures.mjs";
 
 const targetUser = "00000000-0000-4000-8000-000000000001";
 const company = "00000000-0000-4000-8000-00000000000a";
-const membership = (page) => page.getByRole("dialog", { name: "Company membership", exact: true });
+const membership = (page) => page.getByRole("dialog", { name: "User access details", exact: true });
 const rateChange = (page) =>
   editor(page).getByRole("region", { name: "Change rate from date", exact: true });
 
@@ -42,16 +42,18 @@ test("membership confirmation and cancellation keep keyboard focus on the curren
   expect(fixture.membershipRequests).toHaveLength(0);
 });
 
-test("saved membership keeps focus in the drawer when its editor is replaced", async ({ page }) => {
+test("a saved membership closes the drawer, names the account and returns focus to its row", async ({
+  page,
+}) => {
   const fixture = await openMembership(page);
   await membership(page).getByRole("button", { name: "Revoke membership", exact: true }).click();
   await membership(page).getByRole("button", { name: "Confirm revocation", exact: true }).click();
-  const notice = membership(page).getByRole("status");
-  await expect(notice).toContainText("Membership revoked. This user is now Unassigned.");
-  await expect(notice).toBeFocused();
-  await page.keyboard.press("Tab");
+  await expect(membership(page)).toBeHidden();
+  await expect(page.getByRole("status").filter({ hasText: "Membership revoked: " })).toHaveText(
+    "Membership revoked: keyboard-member@example.test",
+  );
   await expect(
-    membership(page).getByRole("button", { name: "Add company", exact: true }),
+    page.getByRole("row").filter({ has: page.getByText("keyboard-member@example.test") }),
   ).toBeFocused();
   expect(fixture.membershipRequests).toHaveLength(1);
 });
@@ -85,7 +87,7 @@ test("rate-change validation focuses the first invalid field and preserves enter
     .getByRole("button", { name: "Change rate from date for period 1", exact: true })
     .click();
   const helper = rateChange(page);
-  const date = helper.getByLabel("New rate effective date", { exact: true });
+  const date = helper.getByLabel("New rate effective from (inclusive)", { exact: true });
   const rate = helper.getByLabel("New fee rate (%)", { exact: true });
   await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
   await expect(date).toBeFocused();
@@ -113,8 +115,8 @@ test("phone fee fields have room for their values and keep actions reachable", a
   const labels = [
     "Marketplace 1",
     "Fee rate 1 (%)",
-    "Start date 1 (inclusive)",
-    "End date 1 (exclusive)",
+    "Effective from 1 (inclusive)",
+    "Effective until 1 (exclusive)",
   ];
   const fields = await Promise.all(
     labels.map((label) => editor(page).getByLabel(label, { exact: true }).boundingBox()),
@@ -136,7 +138,7 @@ test("phone fee fields have room for their values and keep actions reachable", a
     .getByRole("button", { name: "Change rate from date for period 1", exact: true })
     .click();
   const date = await rateChange(page)
-    .getByLabel("New rate effective date", { exact: true })
+    .getByLabel("New rate effective from (inclusive)", { exact: true })
     .boundingBox();
   const rate = await rateChange(page).getByLabel("New fee rate (%)", { exact: true }).boundingBox();
   expect(Math.round(date.x)).toBe(Math.round(rate.x));
@@ -155,7 +157,9 @@ for (const width of [320, 390]) {
       .getByRole("button", { name: "Change rate from date for period 1", exact: true })
       .click();
     const helper = rateChange(page);
-    await helper.getByLabel("New rate effective date", { exact: true }).fill("2026-09-02");
+    await helper
+      .getByLabel("New rate effective from (inclusive)", { exact: true })
+      .fill("2026-09-02");
     await helper.getByLabel("New fee rate (%)", { exact: true }).fill("99.123456");
     await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
     const percentage = helper.getByRole("cell", { name: "99.123456%", exact: true });

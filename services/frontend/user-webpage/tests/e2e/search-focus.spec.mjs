@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 for (const [tab, label, placeholder] of [
   ["Transactions", "Search", "SKU, type, source, or marketplace"],
@@ -18,7 +19,7 @@ for (const [tab, label, placeholder] of [
     if (tab === "Inventory") await mockInventory(page, [inventoryRow("ALPHA-001")]);
     await signIn(page);
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    await page.getByRole("tab", { name: tab, exact: true }).click();
+    await openWorkspaceTab(page, tab);
     const search = page.getByLabel(label, { exact: true });
     await expect(search).toHaveAttribute("placeholder", placeholder);
     expect(

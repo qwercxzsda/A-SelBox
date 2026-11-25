@@ -14,7 +14,7 @@ export function SkuTransactionLink({
     <Anchor
       component="button"
       type="button"
-      className={["sku-transaction-link", "ui-text-action", className].filter(Boolean).join(" ")}
+      className={["sku-transaction-link", "ui-link", className].filter(Boolean).join(" ")}
       aria-label={`Show transactions for ${sku}`}
       title="View all transactions for this SKU"
       onClick={() => {

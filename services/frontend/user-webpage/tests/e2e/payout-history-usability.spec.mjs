@@ -118,9 +118,7 @@ for (const width of [320, 390, 1440]) {
       payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
     ).toHaveAttribute("rowspan", "2");
     await expect(history.locator("xpath=ancestor::td")).toHaveAttribute("colspan", "4");
-    await expectFullyInViewport(
-      history.getByRole("button", { name: "Retry versions", exact: true }),
-    );
+    await expectFullyInViewport(history.getByRole("button", { name: "Retry", exact: true }));
     const previous = history.getByRole("button", { name: "Previous", exact: true });
     await expect(previous).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath(`history-error-${width}.png`) });

@@ -1,8 +1,9 @@
 import "./FinancialAmounts.css";
+import { Text, type MantineSpacing } from "@mantine/core";
 import type { CurrencyTotal } from "./api";
 import { formatMoney } from "./decimal";
 
-import { FINANCIAL_AMOUNTS, financialAmountLabel } from "./financial-amounts";
+import { FINANCIAL_AMOUNTS, financialAmountLabel, missingFeeRateCount } from "./financial-amounts";
 
 export function FinancialAmounts({
   total,
@@ -21,4 +22,21 @@ export function FinancialAmounts({
       ))}
     </dl>
   );
+}
+
+/** "N missing fee rates" near amounts, in the same warning tone as Current totals; nothing at 0. */
+export function MissingFeeRateNote({
+  count,
+  mt,
+  mb,
+}: {
+  count: number;
+  mt?: MantineSpacing | number;
+  mb?: MantineSpacing | number;
+}) {
+  return count > 0 ? (
+    <Text size="xs" fw={500} c="var(--ui-status-warning-text)" role="note" mt={mt} mb={mb}>
+      {missingFeeRateCount(count)}
+    </Text>
+  ) : null;
 }

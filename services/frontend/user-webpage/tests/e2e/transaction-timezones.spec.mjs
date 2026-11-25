@@ -9,6 +9,7 @@ import {
   summaryPeriods,
   typeBucket,
 } from "./summary-fixtures.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
   test.describe(`UTC transaction timeline in a ${timezoneId} browser`, () => {
@@ -152,7 +153,7 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
       });
       const us = summaryPeriods(page, "Amazon.com");
 
-      await expect(summaryCard(page, "Last day")).toContainText("Nov 6, 2026");
+      await expect(summaryCard(page, "Last day")).toContainText("2026-11-06");
 
       await expect(summaryAmount(us.day, "Reported amount")).toHaveText("13.00 USD");
       await page.screenshot({
@@ -208,7 +209,7 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
           p_date_from: date,
           p_date_to: date,
         });
-        await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+        await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
       }
       // Matching Selected dates and Last day reuse the same exact breakdown.
       expect(fixture.breakdownRequests).toHaveLength(1);
@@ -234,7 +235,7 @@ for (const timezoneId of ["Asia/Seoul", "America/Los_Angeles"]) {
         shared.getByRole("table", { name: "Amount records", exact: true }),
       ).toContainText("NEXT-UTC-DAY-001");
       expect(fixture.breakdownRequests).toHaveLength(2);
-      await expect(summaryCard(page, "Last day")).toContainText("Nov 6, 2026");
+      await expect(summaryCard(page, "Last day")).toContainText("2026-11-06");
     });
   });
 }
@@ -277,7 +278,7 @@ test.describe("source tables share the UTC transaction timeline", () => {
         ["2026-11-06 00:00:00", "2026-11-06 23:59:59"],
       ],
     ]) {
-      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await openWorkspaceTab(page, tab);
       const table = page.getByRole("table", { name: "Financial records", exact: true });
       await expect(table.getByRole("columnheader", { name: /^Date \(UTC\)/ })).toBeVisible();
       await sortBy(page, "Date (UTC)", "Oldest first");

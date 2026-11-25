@@ -101,7 +101,7 @@ for (const width of [1440, 390]) {
     // The latest transaction still determines the global UTC anchor, even if it belongs to SelBox.
     await expect(
       summaryCard(page, "Last day").getByRole("button", {
-        name: "Filter transactions to Nov 5, 2026 · UTC",
+        name: "Filter transactions to 2026-11-05 · UTC",
         exact: true,
       }),
     ).toBeVisible();
@@ -159,7 +159,7 @@ for (const width of [1440, 390]) {
   });
 }
 
-test("partial company amounts count only matching uncalculated records", async ({ page }) => {
+test("partial company amounts count only matching records missing a fee rate", async ({ page }) => {
   const fixture = await mockSupabase(page);
   fixture.roles["member-a"] = "administrator";
   fixture.companyIds["member-a"] = COMPANY;
@@ -175,6 +175,24 @@ test("partial company amounts count only matching uncalculated records", async (
   await expect(summaryAmount(totals, "Reported amount")).toHaveText("140.00 USD");
   await expect(summaryAmount(totals, "Service fee")).toHaveText("-5.00 USD");
   await expect(summaryAmount(totals, "Company amount")).toHaveText("95.00 USD");
-  await expect(totals).toContainText("Known amount · 1 uncalculated");
+  const missing = totals.getByRole("note");
+  await expect(missing).toHaveText("1 missing fee rate");
+  await expect(missing).toHaveCSS("color", "rgb(138, 59, 12)");
+  await expect(totals).not.toContainText("Known amount");
   await expect(totals.locator("[data-record-count]")).toHaveAttribute("data-record-count", "2");
+  // On a phone the label stays on one line and the page does not scroll sideways.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(missing).toBeVisible();
+  expect(
+    await missing.evaluate((element) => {
+      const range = globalThis.document.createRange();
+      range.selectNodeContents(element);
+      return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+    }),
+  ).toBe(1);
+  expect(
+    await page.evaluate(
+      () => globalThis.document.documentElement.scrollWidth - globalThis.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
 });

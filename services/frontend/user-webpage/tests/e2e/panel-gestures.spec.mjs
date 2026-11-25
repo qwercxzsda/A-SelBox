@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { inventoryRow, mockInventory } from "./inventory-fixtures.mjs";
 
-import { REVIEW_COMPANY, setupFinancialReview } from "./allocation-fixtures.mjs";
+import { WORKSPACE_COMPANY, setupAdministratorWorkspace } from "./administrator-fixtures.mjs";
 import { item, openEditor, openReview, editor } from "./sku-configuration-fixtures.mjs";
 import { summaryBucket, typeBucket } from "./summary-fixtures.mjs";
 import { preventedBrowserGestures, UNPREVENTED_BROWSER_GESTURES } from "./browser-gestures.mjs";
@@ -14,11 +14,11 @@ const financialTable = (page) =>
 
 async function setup(page) {
   const fixture = await mockSupabase(page);
-  setupFinancialReview(fixture);
-  fixture.skuConfigurationItems = [item("S1", { company_id: REVIEW_COMPANY })];
+  setupAdministratorWorkspace(fixture);
+  fixture.skuConfigurationItems = [item("S1", { company_id: WORKSPACE_COMPANY })];
   fixture.aggregateRows = [summaryBucket("2026-09-01", "10"), summaryBucket("2026-09-02", "0")];
   fixture.breakdownRows = [typeBucket("PRODUCT_SALES", "10")];
-  await mockInventory(page, [inventoryRow("GESTURE-SKU", { company_id: REVIEW_COMPANY })]);
+  await mockInventory(page, [inventoryRow("GESTURE-SKU", { company_id: WORKSPACE_COMPANY })]);
   await signIn(page);
   return fixture;
 }
@@ -69,7 +69,7 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
     .locator("tbody tr")
     .first()
     .click();
-  const membership = drawer(page, "Company membership");
+  const membership = drawer(page, "User access details");
   await checkPanelGestures(page, membership);
   await closePanel(page, membership);
 
@@ -79,7 +79,7 @@ test("every drawer preserves zoom/navigation gestures, including nested source d
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
-  const review = drawer(page, "Review configuration changes");
+  const review = drawer(page, "Review changes");
   await checkPanelGestures(page, review);
   await closePanel(page, review);
 

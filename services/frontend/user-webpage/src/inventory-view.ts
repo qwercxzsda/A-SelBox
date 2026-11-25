@@ -1,5 +1,6 @@
 import type { InventoryRow } from "./api/inventory.ts";
 import { compareDecimals } from "./decimal.ts";
+import { compareText } from "./local-list.ts";
 import { inventoryUrgency, recommendationLabel } from "./inventory-options.ts";
 
 export const INVENTORY_SORT_COLUMNS = [
@@ -21,8 +22,14 @@ export interface InventoryPageOptions {
   pageIndex: number;
   pageSize: number;
 }
-const compareText = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
-
+/** Every column filter removed; the search term is kept. */
+export const CLEARED_INVENTORY_FILTERS = {
+  skus: [],
+  healthStatuses: [],
+  recommendations: [],
+  marketplaces: [],
+  companyIds: [],
+} satisfies Partial<InventoryPageOptions>;
 /** Filter and order the complete authorized snapshot before taking a display page. */
 export function inventoryPage(allRows: readonly InventoryRow[], options: InventoryPageOptions) {
   const term = options.search.trim().toLocaleLowerCase();

@@ -1,11 +1,41 @@
-import "./RowDetail.css";
 import { useLayoutEffect, useRef, type ReactElement, type ReactNode } from "react";
-import { Drawer } from "@mantine/core";
-import type { CanonicalRow, TableDatasetKey } from "./api";
-import { formatRecordMonth } from "./date-display";
-import { DrawerHeading } from "./DrawerHeading";
+import type { CanonicalRow, RawReportKey, TableDatasetKey } from "./api";
+import { sourceCodeLabel } from "./categories";
+import { formatRecordDay, formatRecordMonth } from "./date-display";
+import { DetailDrawer } from "./DetailDrawer";
 import { RowDetailContent } from "./RowDetailContent";
 import { payoutMarketplaceLabel } from "./payout-report-scope";
+
+/** Amazon report rows open RawRecordDrawer instead. */
+type RecordDataset = Exclude<TableDatasetKey, RawReportKey>;
+
+const TITLES: Record<RecordDataset, string> = {
+  live: "Transaction details",
+  finances: "Finances record details",
+  payouts: "Payout report details",
+  accounts: "User access details",
+};
+
+/** "identity · scope" for the drawer heading. */
+function rowContext(dataset: TableDatasetKey, row: CanonicalRow, companies: Map<string, string>) {
+  if (dataset === "payouts")
+    return [
+      companies.get(row.company_id ?? "") ?? "Company",
+      formatRecordMonth(row.start_date ?? ""),
+      payoutMarketplaceLabel(row),
+      row.currency,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  const day = row.activity_at ?? row.activity_date ?? row.posted_date;
+  return [
+    row.sku ?? (row.component_type ? sourceCodeLabel(row.component_type) : null),
+    row.marketplace_name,
+    day ? formatRecordDay(day) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 export function RowDetail({
   companies,
@@ -17,11 +47,12 @@ export function RowDetail({
   reportNavigation,
   stackId,
   onExitTransitionEnd,
+  onShowTransactions,
   fallbackContent = null,
   requestFeedback,
 }: {
   companies: Map<string, string>;
-  dataset: TableDatasetKey;
+  dataset: RecordDataset;
   row: CanonicalRow | null;
   onClose: () => void;
   isAdministrator: boolean;
@@ -29,10 +60,11 @@ export function RowDetail({
   reportNavigation?: ReactNode;
   stackId?: string;
   onExitTransitionEnd?: () => void;
+  onShowTransactions?: (sku: string) => void;
   fallbackContent?: ReactElement | null;
   requestFeedback?: ReactNode;
 }) {
-  const rowHeadingRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
   const hasFallback = fallbackContent !== null;
@@ -49,35 +81,20 @@ export function RowDetail({
       !lastFocused.current.isConnected &&
       (active === document.body || active === document.documentElement)
     )
-      (row ? rowHeadingRef.current : closeButtonRef.current)?.focus({ preventScroll: true });
+      (row ? titleRef.current : closeButtonRef.current)?.focus({ preventScroll: true });
   }, [row, hasFallback]);
-  const title = {
-    live: "Transaction details",
-    finances: "Finances record details",
-    payouts: "Payout report details",
-    accounts: "User access details",
-  }[dataset];
   return (
-    <Drawer
+    <DetailDrawer
       stackId={stackId}
       onExitTransitionEnd={onExitTransitionEnd}
       id="selected-row-details"
       opened={row !== null || fallbackContent !== null}
       onClose={onClose}
-      position="right"
-      size={dataset === "payouts" ? "min(1440px, 100vw)" : "lg"}
-      padding="lg"
-      title={
-        dataset === "payouts" && row ? (
-          <DrawerHeading
-            title={title}
-            context={`${companies.get(row.company_id ?? "") ?? "Company"} · ${formatRecordMonth(row.start_date ?? "")} · ${payoutMarketplaceLabel(row)}${row.currency ? ` · ${row.currency}` : ""}`}
-          />
-        ) : (
-          title
-        )
-      }
-      closeButtonProps={{ ref: closeButtonRef, "aria-label": "Close row details" }}
+      width={dataset === "payouts" ? "full" : "record"}
+      title={TITLES[dataset]}
+      context={row ? rowContext(dataset, row, companies) : ""}
+      titleRef={titleRef}
+      closeButtonRef={closeButtonRef}
     >
       <div
         role="group"
@@ -95,12 +112,12 @@ export function RowDetail({
             isAdministrator={isAdministrator}
             accessToken={accessToken}
             reportNavigation={reportNavigation}
-            headingRef={rowHeadingRef}
+            onShowTransactions={onShowTransactions}
           />
         ) : (
           fallbackContent
         )}
       </div>
-    </Drawer>
+    </DetailDrawer>
   );
 }

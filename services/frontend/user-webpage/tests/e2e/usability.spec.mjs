@@ -3,6 +3,7 @@ import { feeRow, skuAssignment, liveRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { columnTrigger, columnHeader } from "./table-actions.mjs";
 import { feeRow as feeRecord, feeDetails } from "./sku-configuration-fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 test("tab roundtrips retain working filters, sorting, pages, and fee search until sign-out", async ({
   page,
@@ -153,7 +154,7 @@ test("an unsuccessful search explains the empty result and offers a clear recove
   await expect(page.getByRole("table", { name: "Financial records" }).getByRole("row")).toHaveCount(
     1,
   );
-  await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+  await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
   await expect(page.getByText(/No .*available for your company\./)).toHaveCount(0);
   await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
   await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
@@ -218,13 +219,31 @@ test("phone fee details keep rates within the screen and return to search", asyn
   const bounds = await rate.boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
-  const table = page.getByRole("table", { name: "Marketplace fees for GROUP-001", exact: true });
-  const tableBounds = await table.boundingBox();
-  expect(tableBounds.x + tableBounds.width).toBeLessThanOrEqual(390);
+  // Four columns (two for the dates) are wider than a phone: the table scrolls inside its own
+  // keyboard-scrollable region, and the page never scrolls sideways.
+  const region = page.getByRole("region", {
+    name: "Marketplace fees for GROUP-001 table",
+    exact: true,
+  });
+  await expect(region).toHaveAttribute("tabindex", "0");
+  const regionBounds = await region.boundingBox();
+  expect(regionBounds.x).toBeGreaterThanOrEqual(0);
+  expect(regionBounds.x + regionBounds.width).toBeLessThanOrEqual(390);
+  expect(
+    await page.evaluate(() => globalThis.document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await region.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  const until = region.getByRole("cell", { name: "2026-01-02", exact: true });
+  const untilBounds = await until.boundingBox();
+  expect(untilBounds.x + untilBounds.width).toBeLessThanOrEqual(
+    regionBounds.x + regionBounds.width,
+  );
   await feeDetails(page).getByRole("button", { name: "Close fee details", exact: true }).click();
   await expect(group).toHaveAttribute("aria-selected", "false");
   await page.getByLabel("Search SKUs", { exact: true }).fill("NO-SUCH-SKU");
-  await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No matching SKUs", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
   await expect(group).toBeVisible();
 });
@@ -272,10 +291,10 @@ for (const role of ["member", "administrator"]) {
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
     await expect(
       page.getByRole("tablist", { name: "Workspace data", exact: true }).getByRole("tab"),
-    ).toHaveCount(role === "administrator" ? 9 : 4);
-    await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Current fees", exact: true })).toBeVisible();
-    for (const sourceTab of ["Finances", "Assignments", "Financial review"]) {
+    ).toHaveCount(role === "administrator" ? 9 : 5);
+    for (const shared of ["Transactions", "Current fees", "Assignments"])
+      await expect(page.getByRole("tab", { name: shared, exact: true })).toBeVisible();
+    for (const sourceTab of ["Raw data", "Financial review"]) {
       await expect(page.getByRole("tab", { name: sourceTab, exact: true })).toHaveCount(
         role === "administrator" ? 1 : 0,
       );
@@ -324,10 +343,10 @@ for (const role of ["member", "administrator"]) {
       await details.getByText("Additional details", { exact: true }).click();
       await expect(details.getByText(companyName, { exact: true })).toBeVisible();
     }
-    await details.getByRole("button", { name: "Close row details", exact: true }).click();
+    await details.getByRole("button", { name: "Close transaction details", exact: true }).click();
 
     if (role === "administrator") {
-      await page.getByRole("tab", { name: "Finances", exact: true }).click();
+      await openRawData(page);
       await expect(columnHeader(page, "Source")).toHaveCount(0);
     }
 

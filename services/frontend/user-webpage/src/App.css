@@ -107,4 +107,19 @@
   .session-identity {
     text-align: left;
   }
+  /* One scrollable row keeps every group separator between two tabs. */
+  .dataset-tabs > .ui-tabs-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+  .dataset-tabs > .ui-tabs-list > .ui-tabs-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  /* The scroller clips outside outlines; draw the focus ring inside the tab. */
+  .dataset-tabs > .ui-tabs-list > .ui-tabs-tab:focus-visible {
+    outline-offset: -2px;
+  }
 }

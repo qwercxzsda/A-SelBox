@@ -32,7 +32,7 @@ for (const role of ["administrator", "member"]) {
     if (role === "administrator") await selectColumnOptions(page, "Company", ["Monthly Company"]);
     await expect(page.getByLabel("Report company")).toHaveCount(0);
     await applyReportMonth(page, "2026-07");
-    await expect(page.getByText("No matching reports", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching payout reports", { exact: true })).toBeVisible();
     await expect(page.getByText("This month is not mature yet.", { exact: false })).toHaveCount(0);
     await expect(page.getByRole("region", { name: /payout readiness/ })).toHaveCount(0);
     await applyReportMonth(page, "2026-06");

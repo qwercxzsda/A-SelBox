@@ -66,7 +66,7 @@ async function checkWorkspaceControls(page, mobile) {
     .getByRole("row")
     .filter({ has: page.getByText("member-b@example.test", { exact: true }) })
     .click();
-  const membership = page.getByRole("dialog", { name: "Company membership", exact: true });
+  const membership = page.getByRole("dialog", { name: "User access details", exact: true });
   const company = membership.getByRole("combobox", { name: "Company", exact: true });
   await checkControl(company, mobile);
   await company.fill("Alpha");
@@ -78,7 +78,7 @@ async function checkWorkspaceControls(page, mobile) {
     membership.getByRole("button", { name: "Save membership", exact: true }),
   ).toBeEnabled();
   await checkPageWidth(page);
-  await membership.getByRole("button", { name: "Close membership details", exact: true }).click();
+  await membership.getByRole("button", { name: "Close user access details", exact: true }).click();
 
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   await openEditor(page);
@@ -86,8 +86,8 @@ async function checkWorkspaceControls(page, mobile) {
     "Company",
     "Marketplace 1",
     "Fee rate 1 (%)",
-    "Start date 1 (inclusive)",
-    "End date 1 (exclusive)",
+    "Effective from 1 (inclusive)",
+    "Effective until 1 (exclusive)",
   ]) {
     const control = editor(page).getByLabel(label, { exact: true });
     await control.scrollIntoViewIfNeeded();

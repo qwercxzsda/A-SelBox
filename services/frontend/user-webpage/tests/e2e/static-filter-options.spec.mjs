@@ -3,6 +3,7 @@ import marketplaces from "../../src/generated/marketplaces.json" with { type: "j
 import { skuAssignment } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 async function closeMenu(menu) {
   await menu.getByRole("button", { name: "Close options", exact: true }).click();
@@ -18,7 +19,7 @@ for (const role of ["member", "administrator"]) {
     await signIn(page);
     const preloadRequests = fixture.optionRequests.length;
     await page.getByLabel("Search", { exact: true }).fill("ZERO RESULT");
-    await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
 
     const source = await openColumn(page, "Source");
     await expect(source.getByRole("checkbox")).toHaveCount(5);
@@ -38,7 +39,7 @@ for (const role of ["member", "administrator"]) {
     await expect(marketplace.getByRole("checkbox")).toHaveCount(1);
     await marketplace.getByRole("checkbox", { name: "Non-Amazon IT", exact: true }).check();
     await marketplace.getByLabel("Search marketplace", { exact: true }).fill("NO MATCH");
-    await expect(marketplace.getByText("No matching options.", { exact: true })).toBeVisible();
+    await expect(marketplace.getByText("No matching options", { exact: true })).toBeVisible();
     await closeMenu(marketplace);
 
     const type = await openColumn(page, "Type");
@@ -64,14 +65,14 @@ for (const role of ["member", "administrator"]) {
       selectedType.getByRole("checkbox", { name: "Product sales", exact: true }),
     ).toBeChecked();
     await closeMenu(selectedType);
-    await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
     expect(fixture.optionRequests).toHaveLength(preloadRequests);
     expect(fixture.requests.at(-1).args.p_types).toEqual(["PRODUCT_SALES"]);
     expect(fixture.requests.at(-1).args.p_marketplaces).toEqual(["Non-Amazon IT"]);
     expect(fixture.requests.at(-1).args.p_sources).toEqual(["STORAGE"]);
 
     if (role === "administrator") {
-      await page.getByRole("tab", { name: "Finances", exact: true }).click();
+      await openRawData(page);
       const rawType = await openColumn(page, "Type");
       await expect(rawType.getByLabel("Search type", { exact: true })).toBeVisible();
       await expect(rawType.getByRole("checkbox").first()).toBeVisible();
@@ -106,7 +107,7 @@ test("member SKU options use complete assignments, deduplicate exact keys, and s
   await expect(menu.getByRole("checkbox")).toHaveCount(1);
   await menu.getByRole("checkbox", { name: "GROUP-010", exact: true }).check();
   await closeMenu(menu);
-  await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+  await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
   const reopened = await openColumn(page, "SKU");
   await expect(reopened.getByRole("checkbox", { name: "GROUP-010", exact: true })).toBeChecked();
   expect(fixture.optionRequests).toHaveLength(0);

@@ -1,23 +1,23 @@
 import { useEffect, type RefObject } from "react";
 import { useMutationState, useQueryClient, type MutationKey } from "@tanstack/react-query";
 import { ApiError } from "./api";
-import { getErrorMessage } from "./view-model";
+import { saveError, type SaveError } from "./save-error";
 
-export interface MembershipFeedback {
-  kind: "success" | "error";
-  message: string;
+export type MembershipFeedback =
+  | { kind: "success"; message: string }
+  | { kind: "error"; error: SaveError };
+
+function knownReason(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined;
+  if (error.status === 403) return "Only the database manager can change administrators.";
+  if (error.status === 409) return "Access changed elsewhere. Review, then save again.";
+  if (error.status === null || error.status >= 500)
+    return "Could not confirm whether membership changed. Review it, then retry.";
+  return undefined;
 }
 
-function membershipError(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.status === 403)
-      return "You cannot change this user's access. Only the database manager can change administrators.";
-    if (error.status === 409)
-      return "This user's access changed while you were editing. Review their current membership below before saving again.";
-    if (error.status === null || error.status >= 500)
-      return "Could not confirm whether membership changed. Review the current membership below before trying again.";
-  }
-  return `Could not save membership. ${getErrorMessage(error)}`;
+function membershipError(error: unknown): SaveError {
+  return saveError("save the membership", error, knownReason(error));
 }
 
 /** Follow this user's pending save across editor remounts without replaying older results. */
@@ -52,12 +52,10 @@ export function useMembershipSaveFeedback({
     observedSaveRef.current = null;
     onFeedbackChange(
       latestSave.status === "error"
-        ? { kind: "error", message: membershipError(latestSave.error) }
+        ? { kind: "error", error: membershipError(latestSave.error) }
         : {
             kind: "success",
-            message: latestSave.revocation
-              ? "Membership revoked. This user is now Unassigned."
-              : "Company membership saved.",
+            message: latestSave.revocation ? "Membership revoked" : "Membership saved",
           },
     );
   }, [latestSave, onFeedbackChange, observedSaveRef]);

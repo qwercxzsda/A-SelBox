@@ -8,6 +8,7 @@ import type { SkuConfigurationChange } from "./api/sku-configuration-types.ts";
 import type { InventoryPageOptions } from "./inventory-view.ts";
 import type { FeeStatus } from "./fee-status.ts";
 import type { FeeRateChangeDraft } from "./sku-rate-change.ts";
+import type { SaveError } from "./save-error.ts";
 
 export type InventoryViewState = InventoryPageOptions & { selectedRowId: string | null };
 
@@ -25,6 +26,8 @@ export interface FeeEditorState {
   form: SkuConfigurationChange;
   submitError: string | null;
   rateChange: FeeRateChangeDraft | null;
+  /** Form paths the user typed into or left; a blank field shows its error only after that. */
+  visited: string[];
 }
 
 export interface FeeViewState {
@@ -39,7 +42,7 @@ export interface FeeViewState {
   companyIds: (string | null)[];
   marketplaces: string[];
   statuses: FeeStatus[];
-  saveProblem: string | null;
+  saveProblem: SaveError | null;
   requiresReload: boolean;
   savedNotice: string | null;
   refreshFailed: boolean;
@@ -52,6 +55,12 @@ export interface FeeViewState {
 export interface ViewStateProps<State> {
   viewState: State;
   onViewStateChange: Dispatch<SetStateAction<State>>;
+}
+
+/** View state the loaded data can correct: a page past the end, or a selected row that is gone. */
+export interface CorrectableViewStateProps<State> extends ViewStateProps<State> {
+  /** Corrects the state to the loaded data, replacing the history entry instead of adding one. */
+  onViewStateCorrect: Dispatch<SetStateAction<State>>;
 }
 
 export function createInventoryViewState(): InventoryViewState {

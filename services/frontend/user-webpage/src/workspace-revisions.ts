@@ -28,6 +28,12 @@ function datasetDependencies(dataset: unknown, administrator: boolean): readonly
       return FINANCIAL_REVISION_SOURCES;
     case "finances":
       return administrator ? ["finances"] : ["finances", "fees"];
+    // Advertising invoices and warehouse reports are reference sources.
+    case "ad_invoices":
+    case "storage":
+    case "aged_storage":
+    case "removal_orders":
+      return ["references"];
     default:
       return [];
   }

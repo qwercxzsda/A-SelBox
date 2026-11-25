@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { sortBy } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 const uuid = (index) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 
@@ -50,7 +51,7 @@ for (const [dataset, tab] of [
       .getByRole("table", { name: "Financial records", exact: true })
       .locator('tbody [data-column="sku"]');
     await signIn(page);
-    if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+    if (dataset !== "live") await openWorkspaceTab(page, tab);
 
     async function verifyBothPages(expected) {
       await expect(skuCells).toHaveText(expected.slice(0, 25).map((row) => row.sku));

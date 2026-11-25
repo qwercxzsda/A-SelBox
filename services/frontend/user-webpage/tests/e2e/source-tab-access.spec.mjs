@@ -1,23 +1,24 @@
 import { expect, test } from "@playwright/test";
 import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
-for (const dataset of ["finances"]) {
-  test(`member cannot open the ${dataset} full-source tab through a URL`, async ({ page }) => {
+for (const location of ["tab=finances", "tab=raw-data", "tab=raw-data&raw=finances"]) {
+  test(`member cannot open Finances through ${location}`, async ({ page }) => {
     const rawRequests = [];
     page.on("request", (request) => {
-      if (/\/source_transaction_(page|count)$/.test(new URL(request.url()).pathname))
+      if (/\/(source_transaction_(page|count)|current_\w+)$/.test(new URL(request.url()).pathname))
         rawRequests.push(request.url());
     });
     await mockSupabase(page);
     await signIn(page);
-    await page.goto(`/?tab=${dataset}`);
+    await page.goto(`/?${location}`);
     await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    for (const name of ["Finances"])
+    for (const name of ["Raw data", "Finances"])
       await expect(page.getByRole("tab", { name, exact: true })).toHaveCount(0);
     expect(rawRequests).toEqual([]);
   });
@@ -37,6 +38,6 @@ test("administrator Finances retains historical charge rows", async ({ page }) =
     },
   ];
   await signIn(page);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
-  await expect(rowWithSku(page, "FINANCE-CONTROL")).toBeVisible();
+  await openRawData(page);
+  await expect(rowWithSku(page, "FINANCE-CONTROL")).toContainText("Earlier version");
 });

@@ -63,7 +63,7 @@ for (const [role, revision] of [
     await signIn(page);
     await page.getByLabel("Search", { exact: true }).fill("new");
     await expect.poll(() => fixture.countRequests.at(-1).args.p_search_skus).toEqual([]);
-    await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
     const before = fixture.requests.length;
     const started = deferred();
     const release = deferred();

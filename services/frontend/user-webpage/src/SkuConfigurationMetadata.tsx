@@ -1,7 +1,7 @@
 import type { SkuConfigurationItem } from "./api";
 import { AdditionalDetails } from "./AdditionalDetails";
 
-/** Saved identity stays separate from editable assignment and period values. */
+/** Saved identity stays separate from the editable company and period values. */
 export function SkuConfigurationMetadata({ item }: { item: SkuConfigurationItem | null }) {
   if (!item || !(item.sku_id || item.terms_version_id || item.company_id)) return null;
   return (

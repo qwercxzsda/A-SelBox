@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { assignmentId, feeRow, liveRow, financesRow, skuAssignments } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 const SCOPES = [
   ["member", "live", "Transactions"],
@@ -29,7 +30,7 @@ for (const [role, dataset, tab] of SCOPES) {
     }));
     fixture[dataset === "live" ? "liveRows" : "financesRows"] = rows;
     await signIn(page);
-    if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+    if (dataset !== "live") await openWorkspaceTab(page, tab);
     const table = page.getByRole("table", { name: "Financial records", exact: true });
     await expect(table.getByRole("row")).toHaveCount(4);
     const menu = await openColumn(page, "SKU");
@@ -57,17 +58,17 @@ for (const [role, dataset, tab] of SCOPES) {
       const drawer = page.getByRole("dialog", {
         name: dataset === "live" ? "Transaction details" : `${tab} record details`,
       });
-      await expect(drawer.getByRole("heading", { name: "S1", exact: true })).toBeVisible();
+      await expect(drawer.locator(".detail-drawer-context")).toHaveText(/^S1 · /);
       if (role === "administrator") {
-        await expect(drawer.getByText("Source namespace", { exact: true })).toHaveCount(0);
+        await expect(drawer.getByText("Seller account", { exact: true })).toHaveCount(0);
         await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
-        await expect(drawer.getByText("Source namespace", { exact: true })).toBeVisible();
+        await expect(drawer.getByText("Seller account", { exact: true })).toBeVisible();
         await expect(drawer.getByText(namespace, { exact: true })).toBeVisible();
       } else {
         await expect(drawer).not.toContainText(/namespace|\bN[12]\b/i);
         await expect(drawer.getByText("Additional details", { exact: true })).toHaveCount(0);
       }
-      await page.getByRole("button", { name: "Close row details", exact: true }).click();
+      await drawer.getByRole("button", { name: /^Close .+ details$/ }).click();
     }
 
     await page.getByLabel("Search", { exact: true }).fill("S1");

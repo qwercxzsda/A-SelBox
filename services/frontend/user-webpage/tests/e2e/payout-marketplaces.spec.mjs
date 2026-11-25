@@ -76,7 +76,7 @@ for (const [role, width] of [
     await expect(drawer).toContainText("90.00");
     const version = fixture.requests.find(({ params }) => params.get("id") === `eq.${reportId(4)}`);
     expect(version.params.get("marketplace_name")).toBe("eq.Amazon.de");
-    await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
+    await drawer.getByRole("button", { name: "Close payout report details", exact: true }).click();
     await expect(table).not.toContainText("200.00 EUR");
     await expect
       .poll(() =>

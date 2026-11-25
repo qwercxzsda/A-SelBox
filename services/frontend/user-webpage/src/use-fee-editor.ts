@@ -1,6 +1,6 @@
 import { useRef, type SetStateAction } from "react";
 import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
-import { createSkuDraft, newSkuItem, sameSkuDraft } from "./sku-configuration-form";
+import { createSkuDraft, formPaths, newSkuItem, sameSkuDraft } from "./sku-configuration-form";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import type { FeeEditorState, FeeViewState, ViewStateProps } from "./workspace-view-state";
 
@@ -42,6 +42,10 @@ export function useFeeEditor(
     change((current) => {
       const key = editorKey({ sku, isNew });
       const paused = current.editorDrafts.find((editor) => editorKey(editor) === key);
+      const form = structuredClone(
+        isNew ? createSkuDraft(newSkuItem()) : baselineDraft(sku, savedItems, current.drafts),
+      );
+      const kept = !isNew && current.drafts.some((draft) => draft.sku === sku);
       return {
         ...current,
         selectedSku: isNew ? null : sku,
@@ -49,11 +53,11 @@ export function useFeeEditor(
         editing: paused ?? {
           sku,
           isNew,
-          form: structuredClone(
-            isNew ? createSkuDraft(newSkuItem()) : baselineDraft(sku, savedItems, current.drafts),
-          ),
+          form,
           submitError: null,
           rateChange: null,
+          // A kept draft was already worked on: its blank fields show their errors at once.
+          visited: kept ? formPaths(form) : [],
         },
       };
     });

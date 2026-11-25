@@ -39,7 +39,8 @@ test("returning to details keeps unfinished edits and metadata in the same drawe
   await expect(
     feeDetails(page).getByRole("table", { name: "Marketplace fees for S1", exact: true }),
   ).toContainText("5%");
-  await expect(feeDetails(page).getByText("Unfinished edit saved", { exact: true })).toBeVisible();
+  await expect(feeDetails(page).getByText("Unfinished edit", { exact: true })).toBeVisible();
+  await expect(feeDetails(page)).not.toContainText("Unfinished edit saved");
   await feeDetails(page).getByRole("button", { name: "Edit S1", exact: true }).click();
   await expect(editor(page).getByLabel("Fee rate 1 (%)", { exact: true })).toHaveValue("6.123456");
   await expect(editor(page).getByRole("combobox", { name: "Company", exact: true })).toHaveValue(
@@ -84,7 +85,9 @@ test("editing another period keeps the unfinished guided rate change through rel
     .getByRole("button", { name: "Change rate from date for period 1", exact: true })
     .click();
   const helper = rateChange(page);
-  await helper.getByLabel("New rate effective date", { exact: true }).fill("2026-09-02");
+  await helper
+    .getByLabel("New rate effective from (inclusive)", { exact: true })
+    .fill("2026-09-02");
   await helper.getByLabel("New fee rate (%)", { exact: true }).fill("6.25");
   await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
   await editor(page).getByLabel("Fee rate 2 (%)", { exact: true }).fill("8");
@@ -94,10 +97,10 @@ test("editing another period keeps the unfinished guided rate change through rel
     helper.getByRole("button", { name: "Preview rate change", exact: true }),
   ).toBeVisible();
   await editor(page).getByRole("button", { name: "Add fee period", exact: true }).click();
-  await expect(helper.getByLabel("New rate effective date", { exact: true })).toHaveValue(
-    "2026-09-02",
-  );
-  await editor(page).getByRole("button", { name: "Close SKU editor", exact: true }).click();
+  await expect(
+    helper.getByLabel("New rate effective from (inclusive)", { exact: true }),
+  ).toHaveValue("2026-09-02");
+  await editor(page).getByRole("button", { name: "Close fee editor", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: "Resume unfinished edit", exact: true }).click();
   await expect(helper.getByLabel("New fee rate (%)", { exact: true })).toHaveValue("6.25");
@@ -156,7 +159,9 @@ for (const removedPeriod of [1, 3]) {
       .getByRole("button", { name: "Change rate from date for period 2", exact: true })
       .click();
     const helper = rateChange(page);
-    await helper.getByLabel("New rate effective date", { exact: true }).fill("2026-09-06");
+    await helper
+      .getByLabel("New rate effective from (inclusive)", { exact: true })
+      .fill("2026-09-06");
     await helper.getByLabel("New fee rate (%)", { exact: true }).fill("6.75");
     await editor(page)
       .getByRole("button", { name: `Remove period ${removedPeriod}`, exact: true })
@@ -169,7 +174,7 @@ for (const removedPeriod of [1, 3]) {
       "7",
     );
     await expect(
-      editor(page).getByLabel(`End date ${source} (exclusive)`, { exact: true }),
+      editor(page).getByLabel(`Effective until ${source} (exclusive)`, { exact: true }),
     ).toHaveValue("2026-09-06");
     await expect(
       editor(page).getByLabel(`Fee rate ${source + 1} (%)`, { exact: true }),
@@ -186,25 +191,29 @@ test("editing the guided change's source invalidates its preview without clearin
     .getByRole("button", { name: "Change rate from date for period 1", exact: true })
     .click();
   const helper = rateChange(page);
-  await helper.getByLabel("New rate effective date", { exact: true }).fill("2026-09-06");
+  await helper
+    .getByLabel("New rate effective from (inclusive)", { exact: true })
+    .fill("2026-09-06");
   await helper.getByLabel("New fee rate (%)", { exact: true }).fill("6.75");
   await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
-  await editor(page).getByLabel("Start date 1 (inclusive)", { exact: true }).fill("2026-09-07");
+  await editor(page).getByLabel("Effective from 1 (inclusive)", { exact: true }).fill("2026-09-07");
   await expect(helper.getByLabel("New fee rate (%)", { exact: true })).toHaveValue("6.75");
   await expect(
     helper.getByRole("button", { name: "Use rate change in draft", exact: true }),
   ).toHaveCount(0);
   await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
   await expect(
-    helper.getByText("Choose a date within this period. Its end date is exclusive.", {
-      exact: true,
-    }),
+    helper.getByText("Choose a date inside this period.", { exact: true }),
   ).toBeVisible();
-  await expect(helper.getByLabel("New rate effective date", { exact: true })).toBeFocused();
-  await helper.getByLabel("New rate effective date", { exact: true }).fill("2026-09-08");
+  await expect(
+    helper.getByLabel("New rate effective from (inclusive)", { exact: true }),
+  ).toBeFocused();
+  await helper
+    .getByLabel("New rate effective from (inclusive)", { exact: true })
+    .fill("2026-09-08");
   await helper.getByRole("button", { name: "Preview rate change", exact: true }).click();
   await helper.getByRole("button", { name: "Use rate change in draft", exact: true }).click();
-  await expect(editor(page).getByLabel("Start date 2 (inclusive)", { exact: true })).toHaveValue(
-    "2026-09-08",
-  );
+  await expect(
+    editor(page).getByLabel("Effective from 2 (inclusive)", { exact: true }),
+  ).toHaveValue("2026-09-08");
 });

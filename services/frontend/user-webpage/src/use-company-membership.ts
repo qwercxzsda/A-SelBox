@@ -6,6 +6,7 @@ import { useWorkspacePreference } from "./use-workspace-preference";
 import { isUuid } from "./api/validation";
 import { useMountedRef } from "./use-mounted-ref";
 import { useMembershipSaveFeedback, type MembershipFeedback } from "./use-membership-save-feedback";
+import { saveError } from "./save-error";
 
 interface MembershipOptions {
   accessToken: string;
@@ -84,7 +85,11 @@ export function useCompanyMembership({
     if (nextCompanyId !== null && !companies.some(({ id }) => id === nextCompanyId)) {
       onFeedbackChange({
         kind: "error",
-        message: "This company is no longer available. Choose another company.",
+        error: saveError(
+          "save the membership",
+          null,
+          "This company is no longer available. Choose another company.",
+        ),
       });
       return;
     }

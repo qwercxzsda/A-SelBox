@@ -1,15 +1,15 @@
 import { expect } from "@playwright/test";
 import { datasetRecord } from "../api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 export const transaction = "AMAZON-LONG-RETAINED-LOOKUP";
 export const versionId = "0198b50b-701a-7000-8000-000000000042";
-export const recordId = (index) =>
-  `0198b50b-701a-7000-8000-${String(index + 100).padStart(12, "0")}`;
+const recordId = (index) => `0198b50b-701a-7000-8000-${String(index + 100).padStart(12, "0")}`;
 export const sourceDetail = (page) =>
   page.getByRole("dialog", { name: "Finances record details", exact: true });
 export const sourceLookup = (page) =>
-  page.getByRole("dialog", { name: "Find Amazon transaction", exact: true });
+  page.getByRole("dialog", { name: "Find transaction", exact: true });
 export const sourceLookupTrigger = (page) =>
   page.getByRole("button", { name: "Find by transaction ID…", exact: true });
 
@@ -76,7 +76,7 @@ export async function openSourceLookup(page, options = {}) {
   const state = await sourceRoutes(page, options);
   options.configure?.(state);
   await signIn(page);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   const trigger = sourceLookupTrigger(page);
   await trigger.click();
   const lookup = sourceLookup(page);

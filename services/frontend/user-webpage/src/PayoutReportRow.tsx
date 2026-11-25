@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Badge, Group, Table } from "@mantine/core";
+import { Group, Table } from "@mantine/core";
+import { StatusBadge } from "./StatusBadge";
 import type { CanonicalRow } from "./api";
-import type { ColumnDefinition } from "./view-model";
+import type { ColumnDefinition } from "./table-columns";
 import { TableCellValue } from "./Cell";
 import { inspectableRowProps } from "./inspectable-row";
 import { payoutMarketplaceLabel } from "./payout-report-scope";
@@ -58,15 +59,12 @@ export function PayoutReportRow({
           >
             {column.key === "created_at" ? (
               <div className="payout-report-updated">
-                <Badge
-                  size="xs"
-                  variant="light"
-                  color={latest ? "teal" : "gray"}
-                  c={latest ? "#065f46" : undefined}
+                <StatusBadge
+                  tone={latest ? "success" : "neutral"}
                   title={latest ? "Newest saved version" : undefined}
                 >
                   {latest ? "Latest" : "Previous"}
-                </Badge>
+                </StatusBadge>
                 <TableCellValue column={column} row={row} companies={companies} />
               </div>
             ) : column.key === "marketplace_name" ? (

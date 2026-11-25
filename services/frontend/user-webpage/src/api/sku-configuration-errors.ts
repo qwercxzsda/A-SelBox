@@ -25,23 +25,19 @@ export function skuConfigurationRpcError(body: unknown): SkuConfigurationError |
   if (error.sqlstate === "PT409" && error.detail.code === "SKU_CONFIGURATION_STALE")
     return new SkuConfigurationError(
       "conflict",
-      "A SKU changed while you were editing. Load its latest saved settings before saving.",
+      "A SKU changed elsewhere. Refresh saved settings first.",
     );
   if (error.sqlstate !== "23514") return null;
   if (error.detail.code === "SKU_CONFIGURATION_INVALID")
     return new SkuConfigurationError(
       "invalid",
-      "Check the selected companies, fee rates, and date ranges. No changes were saved.",
+      "Invalid company, fee rate or date. Nothing saved.",
     );
   if (error.detail.code !== "SKU_CONFIGURATION_INCOMPLETE") return null;
   try {
     const issues = parseConfigurationIssues(error.detail.issues);
     if (issues.length === 0) return null;
-    return new SkuConfigurationError(
-      "incomplete",
-      "Each changed SKU needs a company and coverage for its required fees. No changes were saved.",
-      issues,
-    );
+    return new SkuConfigurationError("incomplete", "Some SKUs need setup. Nothing saved.", issues);
   } catch {
     return null;
   }

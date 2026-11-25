@@ -54,7 +54,7 @@ test("confirmation errors do not render an untrusted Auth error description", ()
         fragment({ error: "access_denied", error_description: "private server details" }),
       ),
     (error) => {
-      assert.match(error.message, /invalid or has expired/);
+      assert.match(error.message, /invalid or expired/);
       assert.equal(error.message.includes("private server details"), false);
       return true;
     },

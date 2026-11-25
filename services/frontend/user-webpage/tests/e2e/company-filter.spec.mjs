@@ -91,7 +91,7 @@ test("administrator company selections change amounts while shared UTC periods s
   const latestRequests = fixture.latestRequests.length;
   await expect(
     summaryCard(page, "Last day").getByRole("button", {
-      name: "Filter transactions to Apr 20, 2026 · UTC",
+      name: "Filter transactions to 2026-04-20 · UTC",
       exact: true,
     }),
   ).toHaveCount(1);
@@ -109,7 +109,7 @@ test("administrator company selections change amounts while shared UTC periods s
   await expect(month.locator("[data-amount-field]")).toHaveCount(0);
   await expect(
     summaryCard(page, "Last day").getByRole("button", {
-      name: "Filter transactions to Apr 20, 2026 · UTC",
+      name: "Filter transactions to 2026-04-20 · UTC",
       exact: true,
     }),
   ).toHaveCount(1);
@@ -152,7 +152,7 @@ test("administrator company selections change amounts while shared UTC periods s
     "gte.2026-01-01T00:00:00.000000Z",
     "lt.2026-03-01T00:00:00.000000Z",
   ]);
-  await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await drawer.getByRole("button", { name: "Close transaction totals", exact: true }).click();
 
   await expect(amount(day, "Reported amount", "EUR")).toHaveCount(0);
   await expect(amount(month, "Reported amount", "EUR")).toHaveCount(0);
@@ -176,7 +176,7 @@ test("administrator company selections change amounts while shared UTC periods s
     .click();
   await expect(amount(total, "Reported amount")).toHaveText("900.00 USD");
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(companyScope(COMPANY_B));
-  await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await drawer.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await chooseCompanies(page, ["Company B", "Company A"]);
 
   await expect(amount(selected, "Reported amount")).toHaveText("1,015.12 USD");
@@ -199,7 +199,7 @@ test("administrator company selections change amounts while shared UTC periods s
   expect(fixture.breakdownRequests.at(-1).params.get("company_id")).toBe(
     companyScope(COMPANY_A, COMPANY_B),
   );
-  await drawer.getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await drawer.getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await chooseCompanies(page, ["Company A"]);
 
   await expect(amount(selected, "Reported amount")).toHaveText("115.12 USD");
@@ -207,7 +207,7 @@ test("administrator company selections change amounts while shared UTC periods s
 
   await expect(amount(selected, "Reported amount")).toHaveText("1,022.12 USD");
   await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
-    "1–25 of 61 rows",
+    "1–25 of 61 transactions",
   );
   for (const requests of [fixture.requests, fixture.aggregateRequests]) {
     expect(

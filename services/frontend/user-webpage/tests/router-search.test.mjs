@@ -55,13 +55,13 @@ test("route validation accepts repeated filters, normalizes scalar keys, and rej
   );
 });
 
-test("review and report marketplace metadata stay scalar while table marketplace filters repeat", () => {
+test("review and report metadata stay scalar while table marketplace filters repeat", () => {
   const parsed = parseWorkspaceSearch(
-    "?outcome=Amazon.de&outcome=Amazon.fr&marketplace=Amazon.de&marketplace=Amazon.fr&reportMarketplace=&reportCurrency=EUR",
+    "?reason=ROUNDING&reason=NOT_IN_LEDGER&marketplace=Amazon.de&marketplace=Amazon.fr&reportMarketplace=&reportCurrency=EUR",
   );
   const validated = validateWorkspaceSearch(parsed);
   assert.deepEqual(validated, {
-    outcome: "Amazon.de",
+    reason: "ROUNDING",
     marketplace: ["Amazon.de", "Amazon.fr"],
     reportMarketplace: "",
     reportCurrency: "EUR",

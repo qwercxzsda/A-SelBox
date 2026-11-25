@@ -47,10 +47,7 @@ test("every live totals mode surfaces the actionable group limit without exposin
     await assert.rejects(action(client), (error) => {
       assert.ok(error instanceof TransactionTotalsLimitError);
       assert.equal(error.message, TRANSACTION_TOTALS_LIMIT_MESSAGE);
-      assert.equal(
-        error.message,
-        "This selection is too large. Choose a shorter date range or narrow your filters.",
-      );
+      assert.equal(error.message, "Too many records. Choose fewer dates or filters.");
       assert.equal(error.message.includes("private"), false);
       return true;
     });

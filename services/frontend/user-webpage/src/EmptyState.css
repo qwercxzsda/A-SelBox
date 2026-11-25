@@ -1,0 +1,13 @@
+/* Stays in view when a wide table is scrolled sideways. */
+.empty-state {
+  position: sticky;
+  left: 0;
+  display: grid;
+  min-height: 150px;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  padding: 28px;
+  color: var(--ui-text-muted);
+  text-align: center;
+}

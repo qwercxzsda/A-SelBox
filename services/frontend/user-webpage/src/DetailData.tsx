@@ -1,16 +1,20 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Alert, Button, Group, Text } from "@mantine/core";
+import { Text } from "@mantine/core";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
+import { ErrorAlert } from "./ErrorAlert";
+import { loadErrorDetail } from "./load-error";
 import { LoadingStatus } from "./LoadingStatus";
 import { lastPageIndex } from "./pagination";
 import { DetailPagination, type DetailPaginationState } from "./DetailPagination";
 import { revealSection } from "./reveal-section";
+import { drawerScroller, useScrollReserve } from "./scroll-reserve";
 
 interface DetailQuery {
   isPending: boolean;
   isFetching: boolean;
   isError: boolean;
   isSuccess: boolean;
+  error: unknown;
   refetch: () => Promise<unknown>;
 }
 
@@ -33,6 +37,8 @@ export function DetailData({
   const sectionRef = useRef<HTMLDivElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
   const { pageIndex, totalCount, onPageChange } = pagination ?? {};
+  // A shorter result (another reason, group or page) keeps the drawer where it is.
+  useScrollReserve(sectionRef, drawerScroller);
   useEffect(() => {
     if (
       !query.isSuccess ||
@@ -59,8 +65,10 @@ export function DetailData({
   function focusResults() {
     sectionRef.current?.focus({ preventScroll: true });
   }
-  function changePage(page: number) {
-    revealSection(sectionRef.current);
+  /** Paging keeps focus on the list; only the pager below the rows scrolls to its start. */
+  function changePage(page: number, fromBottom: boolean) {
+    if (fromBottom) revealSection(sectionRef.current);
+    else focusResults();
     pagination?.onPageChange(page);
   }
   return (
@@ -83,23 +91,15 @@ export function DetailData({
         <LoadingStatus state="updating" />
       ) : null}
       {query.isError ? (
-        <Alert role="alert" color="red" mb="sm">
-          <Group justify="space-between" gap="sm">
-            <span>Could not load {label}.</span>
-            <Button
-              variant="subtle"
-              size="xs"
-              color="red"
-              aria-label={`Retry ${label}`}
-              onClick={() => {
-                focusResults();
-                void query.refetch();
-              }}
-            >
-              Retry
-            </Button>
-          </Group>
-        </Alert>
+        <ErrorAlert
+          title={`Could not load ${label}`}
+          detail={loadErrorDetail(query.error)}
+          retrying={query.isFetching}
+          onRetry={() => {
+            focusResults();
+            void query.refetch();
+          }}
+        />
       ) : null}
       {query.isSuccess && rowCount === 0 ? (
         <Text className="detail-data-message" role="status">
@@ -108,7 +108,12 @@ export function DetailData({
       ) : null}
       {visiblePagination ? (
         <DetailPagination
-          pagination={{ ...visiblePagination, onPageChange: changePage }}
+          pagination={{
+            ...visiblePagination,
+            onPageChange: (page) => {
+              changePage(page, false);
+            },
+          }}
           label={label}
           rowCount={rowCount}
           disabled={query.isFetching}
@@ -117,7 +122,12 @@ export function DetailData({
       {children}
       {visiblePagination && rowCount > 10 ? (
         <DetailPagination
-          pagination={{ ...visiblePagination, onPageChange: changePage }}
+          pagination={{
+            ...visiblePagination,
+            onPageChange: (page) => {
+              changePage(page, true);
+            },
+          }}
           label={label}
           rowCount={rowCount}
           disabled={query.isFetching}

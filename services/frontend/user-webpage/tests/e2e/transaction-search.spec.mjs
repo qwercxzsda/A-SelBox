@@ -2,6 +2,12 @@ import { expect, test } from "@playwright/test";
 import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
+
+const DATASET_NO_MATCH = {
+  live: "No matching transactions",
+  finances: "No matching Finances transactions",
+};
 
 for (const [dataset, tab] of [
   ["live", "Transactions"],
@@ -39,7 +45,7 @@ for (const [dataset, tab] of [
     else fixture.financesRows = cases.map(({ row }) => row);
 
     await signIn(page);
-    if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+    if (dataset !== "live") await openWorkspaceTab(page, tab);
     const table = page.getByRole("table", { name: "Financial records", exact: true });
     for (const { term, argument, row } of cases) {
       await page.getByLabel("Search", { exact: true }).fill(` ${term.toLowerCase()} `);
@@ -67,7 +73,7 @@ for (const [dataset, tab] of [
       const previous = fixture.requests.length;
       await page.getByLabel("Search", { exact: true }).fill(hidden);
       await expect.poll(() => fixture.requests.length).toBeGreaterThan(previous);
-      await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+      await expect(page.getByText(DATASET_NO_MATCH[dataset], { exact: true })).toBeVisible();
       await expect(table.getByRole("row")).toHaveCount(1);
       const args = fixture.requests.at(-1).args;
       for (const key of [

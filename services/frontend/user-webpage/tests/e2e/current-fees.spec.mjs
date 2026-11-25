@@ -42,9 +42,17 @@ for (const role of ["member", "administrator"]) {
     await page.getByRole("tab", { name: "Current fees", exact: true }).click();
     const header = page.locator(".workspace-header");
     await expect(header.getByRole("status")).toHaveText("Loading…");
-    await expect(page.getByText("Loading assignments and fees…", { exact: true })).toHaveCount(0);
     const headerBounds = await header.boundingBox();
     await expect(skuRecord(page)).toHaveCount(0);
+    // The list frame stays in place while loading, with no count and no empty state.
+    await expect(
+      page.getByRole("table", { name: "Current fee configurations", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Search SKUs", { exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
+      "of —",
+    );
+    await expect(page.getByText(/^No SKUs/)).toHaveCount(0);
     pending.resolve();
     await expect(skuRecord(page)).toBeVisible();
     await expect(header.getByRole("status").filter({ hasText: "Loading…" })).toHaveCount(0);
@@ -52,6 +60,13 @@ for (const role of ["member", "administrator"]) {
     await expect(page.getByRole("navigation", { name: "Pagination", exact: true })).toContainText(
       /1[-–]25 of 26 SKUs/,
     );
+    // "Assignment" belongs to Reference IDs; Current fees speaks of each SKU's company.
+    await page.getByRole("button", { name: "Current fees help", exact: true }).click();
+    const help = page.getByRole("dialog", { name: "Current fees help", exact: true });
+    await expect(help).toContainText("each SKU's company");
+    await expect(help).not.toContainText(/assignment/i);
+    await page.keyboard.press("Escape");
+    await expect(help).toHaveCount(0);
     const summary = page.getByRole("table", { name: "Current fee configurations", exact: true });
     await expect(feePeriods(page, SKU)).toHaveCount(0);
     if (role === "administrator") await expect(skuRecord(page)).toContainText("Company A");
@@ -96,7 +111,16 @@ for (const role of ["member", "administrator"]) {
     await expect(table.getByRole("row")).toHaveCount(6);
     await expect(table.getByRole("cell", { name: "5.123456%", exact: true })).toBeVisible();
     await expect(table.getByRole("cell", { name: "0%", exact: true })).toBeVisible();
-    await expect(table).toContainText("2026-01-02 (exclusive)");
+    // The same two date columns as the list, with no combined "start → end" value.
+    await expect(table.getByRole("columnheader")).toHaveText([
+      "Marketplace",
+      "Fee rate",
+      "Effective from (inclusive)",
+      "Effective until (exclusive)",
+    ]);
+    await expect(table.getByRole("cell", { name: "2026-01-02", exact: true })).not.toHaveCount(0);
+    await expect(table).not.toContainText("→");
+    await expect(table.getByRole("cell", { name: /\(exclusive\)$/ })).toHaveCount(0);
     await expect(table.getByRole("columnheader", { name: "Company", exact: true })).toHaveCount(0);
     await expect(table.getByRole("row").last()).toBeVisible();
     if (mobile) {
@@ -106,6 +130,13 @@ for (const role of ["member", "administrator"]) {
           return bounds.x + bounds.width;
         })
         .toBeLessThanOrEqual(390);
+      // Wide rates scroll inside the table's own region; the page never scrolls sideways.
+      await expect(table.locator("..")).toHaveAttribute("tabindex", "0");
+      expect(
+        await page.evaluate(
+          () => globalThis.document.documentElement.scrollWidth - globalThis.innerWidth,
+        ),
+      ).toBeLessThanOrEqual(0);
     }
     await page.screenshot({
       path: testInfo.outputPath(`sku-fees-${mobile ? "mobile" : "desktop"}.png`),
@@ -123,7 +154,7 @@ for (const role of ["member", "administrator"]) {
       role === "administrator" ? "Company A" : SKU,
     );
     await page.getByLabel("Search SKUs", { exact: true }).fill("absent");
-    await expect(page.getByText("No SKUs match these filters.", { exact: true })).toBeVisible();
+    await expect(page.getByText("No matching SKUs", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Clear search", exact: true }).first().click();
     await expect(skuRecord(page)).toHaveAttribute("aria-selected", "false");
   });
@@ -138,7 +169,7 @@ test("a failed configuration load does not invent empty settings and can be retr
   await expect(page.getByRole("alert")).toContainText("HTTP 403");
   await expect(skuRecord(page)).toHaveCount(0);
   fixture.configurationStatus = 200;
-  await page.getByRole("button", { name: "Retry configuration" }).click();
+  await page.getByRole("alert").getByRole("button", { name: "Retry", exact: true }).click();
   await skuRecord(page).press("Enter");
   await expect(feeTable(page).getByRole("row")).toHaveCount(6);
 });

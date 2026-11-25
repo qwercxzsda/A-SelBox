@@ -181,6 +181,19 @@ language sql stable security definer set search_path = '' as $$
     where a.user_id = (select auth.uid()) and a.access_role = 'member';
 $$;
 
+-- The same boundary for assignments of every kind: the caller's current keys and
+-- versions only. Earlier versions and other companies' keys stay administrator-only.
+create function private.current_owned_assignments() returns table (
+    key_id uuid, version_id uuid
+)
+language sql stable security definer set search_path = '' as $$
+    select k.id::uuid, v.id::uuid
+    from public.app_accounts as a
+    join public.assignment_versions as v on v.company_id = a.company_id
+    join public.assignment_keys as k on k.id = v.key_id and k.current_version_id = v.id
+    where a.user_id = (select auth.uid()) and a.access_role = 'member';
+$$;
+
 -- Include explicitly unassigned current terms; their NULL company is part of
 -- existing missing-ownership diagnostics. The invoker retains both tables' RLS.
 create view private.current_sku_terms with (security_invoker = true) as

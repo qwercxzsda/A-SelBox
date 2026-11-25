@@ -28,7 +28,7 @@ for (const activation of ["click", "Enter", "Space"]) {
 
     const details = page.getByRole("dialog", { name: "Transaction details" });
     await expect(details).toBeVisible();
-    await expect(details.getByRole("heading", { name: "ALPHA-002", exact: true })).toBeVisible();
+    await expect(details.locator(".detail-drawer-context")).toContainText("ALPHA-002");
     await expect(details.getByText("2.12 USD", { exact: true })).toBeVisible();
     if (activation === "click") await captureResponsiveReview(page, testInfo, "drawer", false);
     await expect
@@ -37,7 +37,7 @@ for (const activation of ["click", "Enter", "Space"]) {
       )
       .toBe(true);
     if (activation === "Enter") await page.keyboard.press("Escape");
-    else await details.getByRole("button", { name: "Close row details" }).click();
+    else await details.getByRole("button", { name: "Close transaction details" }).click();
     await expect(details).toHaveCount(0);
     await expect(row).toBeFocused();
   });

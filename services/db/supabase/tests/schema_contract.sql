@@ -35,8 +35,52 @@ begin
           and table_name in ('finances_amounts','ad_invoice_lines','storage_rows','aged_storage_rows','removal_order_rows')
           and column_name = 'amount' and is_nullable <> 'NO'
     ) then raise exception 'Published source facts require quantified amounts'; end if;
-    if to_regclass('private.source_unit_versions') is null or to_regclass('public.financial_review_monthly') is null then
-        raise exception 'Reference versions and the monthly reconciliation view are required';
+    if to_regclass('private.source_unit_versions') is null then
+        raise exception 'Reference versions are required';
+    end if;
+    if exists (
+        select 1 from unnest(array[
+            'public.financial_review_months(text,integer)',
+            'public.financial_outcome_page(text,date,text,text,text,integer,bigint)'
+        ]) as api(signature)
+        where to_regprocedure(api.signature) is null
+           or not has_function_privilege('authenticated', api.signature, 'EXECUTE')
+           or has_function_privilege('anon', api.signature, 'EXECUTE')
+    ) or exists (
+        select 1 from unnest(array[
+            'private.read_financial_review_months(text,integer)',
+            'private.read_financial_outcome_page(text,date,text,text,text,integer,bigint)'
+        ]) as reader(signature)
+        left join pg_proc p on p.oid = to_regprocedure(reader.signature)
+        where not coalesce(p.prosecdef, false)
+           or pg_get_functiondef(p.oid) not like '%private.is_administrator()%'
+    ) or has_function_privilege('authenticated', 'private.monthly_outcomes(date,date,text)', 'EXECUTE') then
+        raise exception 'Financial review must be read through its administrator-gated RPCs';
+    end if;
+    if pg_get_functiondef(
+        'private.read_financial_outcome_page(text,date,text,text,text,integer,bigint)'::regprocedure
+    ) not like '%private.difference_reasons()%private.selbox_group%' then
+        raise exception 'Financial review pages must reject reason and group codes the database does not define';
+    end if;
+    if (select count(*) from information_schema.columns
+        where table_schema = 'private' and table_name = 'storage_rows'
+          and column_name in ('average_quantity_on_hand','product_size_tier','estimated_total_item_volume',
+              'volume_units','storage_rate','base_rate','utilization_surcharge_rate',
+              'storage_utilization_ratio','est_vol_for_sus','est_base_msf','est_sus')) <> 11
+        or not exists (
+            select 1 from pg_constraint where conrelid = 'private.storage_rows'::regclass and contype = 'c'
+              and pg_get_constraintdef(oid) like '%(storage_rate IS NULL) = (base_rate IS NOT NULL)%'
+        ) or not exists (
+            select 1 from pg_constraint where conrelid = 'private.storage_rows'::regclass and contype = 'c'
+              and pg_get_constraintdef(oid) like '%est_base_msf%+%est_sus%-%fee_amount%'
+        ) then
+        raise exception 'Monthly storage rows must keep Amazon''s quantity, volume, one rate form and fee split';
+    end if;
+    if not exists (
+        select 1 from pg_constraint where conrelid = 'private.removal_order_rows'::regclass and contype = 'c'
+          and pg_get_constraintdef(oid) like '%Disposal%disposed_quantity IS NOT NULL%shipped_quantity IS NULL%'
+    ) then
+        raise exception 'Removal order rows must state the quantity of their order type';
     end if;
     if has_schema_privilege('anon','private','USAGE')
         or has_table_privilege('authenticated','public.assignment_keys','INSERT,UPDATE,DELETE')
@@ -67,6 +111,25 @@ begin
           and (udt_schema <> 'pg_catalog' or udt_name <> 'text')
     ) then
         raise exception 'Every marketplace name projection must retain native text';
+    end if;
+    if to_regclass('public.assignment_status') is not null
+        or not has_function_privilege('authenticated','public.reference_assignments()','EXECUTE')
+        or has_function_privilege('anon','public.reference_assignments()','EXECUTE')
+        or has_table_privilege('authenticated','private.assignment_candidates','SELECT')
+        or has_table_privilege('authenticated','private.reference_charges','SELECT') then
+        raise exception 'Assignments must be read only through the caller-bound reference_assignments RPC';
+    end if;
+    if exists (
+        select 1 from unnest(array['current_ad_invoices','current_ad_invoice_lines','current_storage_rows',
+            'current_aged_storage_rows','current_removal_order_rows']) as raw(name)
+        left join pg_class c on c.relname = raw.name and c.relnamespace = 'public'::regnamespace and c.relkind = 'v'
+        where c.oid is null
+           or not has_table_privilege('authenticated', c.oid, 'SELECT')
+           or has_table_privilege('authenticated', c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE')
+           or has_table_privilege('anon', c.oid, 'SELECT')
+           or pg_get_viewdef(c.oid) not like '%private.is_administrator()%'
+    ) then
+        raise exception 'Raw data views must be administrator-gated reads for signed-in accounts only';
     end if;
 end;
 $$;

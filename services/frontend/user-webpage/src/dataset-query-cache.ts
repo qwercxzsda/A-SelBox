@@ -22,11 +22,9 @@ export function createDatasetScope(identity: DatasetQueryIdentity, options: Data
   const searchValues = isTransactionDataset(options.dataset)
     ? resolveTransactionSearch(options.dataset, access_role, identity.skuOptions, options.search)
     : null;
+  const view = [identity.session.user.id, access_role, company_id, options.dataset] as const;
   const membership = [
-    identity.session.user.id,
-    access_role,
-    company_id,
-    options.dataset,
+    ...view,
     options.search,
     filters,
     searchValues,
@@ -34,11 +32,15 @@ export function createDatasetScope(identity: DatasetQueryIdentity, options: Data
   ] as const;
   const key = ["dataset", ...membership] as const;
   const scopeHash = hashKey(key);
+  const viewHash = hashKey(["dataset", ...view]);
   return {
     key,
     filters,
     searchValues,
     countKey: ["dataset-count", ...membership] as const,
+    /** Pages of the same account and dataset may stand in for each other while one loads. */
+    sameView: (queryKey: readonly unknown[]) =>
+      hashKey(queryKey.slice(0, view.length + 1)) === viewHash,
     // Partial query-key matching treats empty filter arrays as wildcards.
     matches: (query: Query) => hashKey(query.queryKey.slice(0, key.length)) === scopeHash,
   };

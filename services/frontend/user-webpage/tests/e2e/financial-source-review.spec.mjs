@@ -4,6 +4,7 @@ import { captureResponsiveReview, mockSupabase, signIn } from "./fixtures.mjs";
 import { datasetRecord } from "../api-fixtures.mjs";
 import { sourceLookup, sourceLookupTrigger } from "./financial-source-fixtures.mjs";
 import { selectColumnOptions } from "./table-actions.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 const rowId = "0198b50b-701a-7000-8000-000000000041";
 const versionId = "0198b50b-701a-7000-8000-000000000042";
 const native = "AMAZON-EXACT-LOOKUP";
@@ -56,7 +57,7 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
   const requests = [];
   await sourceRoutes(page, requests);
   await signIn(page);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   const search = page.getByRole("searchbox", { name: "Search", exact: true });
   await search.fill("no matching main table SKU");
   await selectColumnOptions(page, "Marketplace", ["Amazon.co.jp"]);
@@ -69,8 +70,8 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
       p_search_types: [],
     });
   const mainScope = mainRequest().args;
-  await page.getByRole("button", { name: "Finances help", exact: true }).click();
-  const help = page.getByRole("dialog", { name: "Finances help", exact: true });
+  await page.getByRole("button", { name: "Raw data help", exact: true }).click();
+  const help = page.getByRole("dialog", { name: "Raw data help", exact: true });
   await expect(help).toContainText(
     "Find by transaction ID searches all retained captures, regardless of table filters.",
   );
@@ -108,7 +109,7 @@ test("Finances provides an independent exact Amazon ID lookup with current and r
   expect(requests.at(-1).args.p_row_id).toBe("0198b50b-701a-7000-8000-000000000043");
   await page.keyboard.press("Escape");
   await expect(lookup).toBeVisible();
-  await lookup.getByRole("button", { name: "Close transaction lookup", exact: true }).click();
+  await lookup.getByRole("button", { name: "Close find transaction", exact: true }).click();
   await expect(trigger).toBeFocused();
   await expect(search).toHaveValue("no matching main table SKU");
   expect(mainRequest().args).toEqual(mainScope);

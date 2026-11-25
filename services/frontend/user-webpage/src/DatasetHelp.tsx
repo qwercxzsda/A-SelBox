@@ -12,13 +12,15 @@ export function DatasetHelp({ dataset }: { dataset: TableDatasetKey }) {
             releases and bank transfers are excluded. A released status alone does not exclude a
             directly posted fee.
           </p>
+          <p>Rows marked Earlier version belong to a superseded capture.</p>
           <p>Find by transaction ID searches all retained captures, regardless of table filters.</p>
         </>
       ) : null}
       {dataset === "payouts" ? (
         <p>
-          Latest marks the newest saved version for each company, month, marketplace, and currency.
-          Show versions opens earlier snapshots. Saved amounts retain their original inputs.
+          Reports appear two months after each month ends. Latest marks the newest saved version for
+          each company, month, marketplace, and currency. Show versions opens earlier snapshots.
+          Saved amounts retain their original inputs.
         </p>
       ) : null}
       <p>

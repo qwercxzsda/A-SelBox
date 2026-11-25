@@ -1,9 +1,5 @@
 import { Button, NativeSelect } from "@mantine/core";
-import {
-  compactTransactionTrendDateLabel,
-  transactionTrendDateLabel,
-  type TransactionTrendPoint,
-} from "./transaction-trend-chart";
+import { transactionTrendDateLabel, type TransactionTrendPoint } from "./transaction-trend-chart";
 
 export function TransactionTrendNavigation({
   points,
@@ -21,7 +17,6 @@ export function TransactionTrendNavigation({
   onOpen: () => void;
 }) {
   const index = points.findIndex((point) => point.periodStart === inspected.periodStart);
-  const fullDate = transactionTrendDateLabel(inspected);
   return (
     <div className="transaction-trend-detail-controls">
       <div
@@ -45,14 +40,13 @@ export function TransactionTrendNavigation({
         <NativeSelect
           label={`Chart ${periodName}`}
           aria-label={`Chart ${periodName} for ${scope}`}
-          title={fullDate}
           value={inspected.periodStart}
           onChange={(event) => {
             onNavigate(event.currentTarget.value);
           }}
           data={points.map((point) => ({
             value: point.periodStart,
-            label: compactTransactionTrendDateLabel(point),
+            label: transactionTrendDateLabel(point),
           }))}
         />
         <Button

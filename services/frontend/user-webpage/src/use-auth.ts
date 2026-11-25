@@ -19,6 +19,7 @@ import {
   type IdentityRefreshOptions,
 } from "./auth-session";
 import { sessionRefreshDelayMs } from "./session";
+import { loadErrorDetail } from "./load-error";
 import { getErrorMessage } from "./view-model";
 import { sameAccount } from "./workspace-revisions";
 import { clearBrowserWorkspace } from "./workspace-browser-storage";
@@ -54,6 +55,7 @@ export function useAuth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
+  /** Why the saved session could not be restored, shown beneath "Could not restore your session". */
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const operation = useRef(0);
@@ -83,7 +85,7 @@ export function useAuth() {
           if (!current()) return;
           updateIdentity(null);
           if (isTemporaryAuthError(error)) {
-            setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
+            setRestoreError(loadErrorDetail(error));
           } else {
             const flow = callbackStore.read();
             const recovery =
@@ -98,11 +100,9 @@ export function useAuth() {
             if (recovery) {
               callbackStore.write({ pending: null, recovery: { stage: "request" } });
               setAuthMode("recover");
-              setAuthError(
-                "This recovery link is invalid or has expired. Request a new link below.",
-              );
+              setAuthError("Recovery link expired. Request a new one below.");
             } else {
-              setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
+              setAuthError(`Please sign in again. ${loadErrorDetail(error)}`);
             }
           }
         })
@@ -236,10 +236,7 @@ export function useAuth() {
           email.trim(),
           `${window.location.origin}${window.location.pathname}`,
         );
-        if (current())
-          setAuthStatus(
-            "If an account exists for this email address, you’ll receive a password recovery link. Check your inbox and spam folder.",
-          );
+        if (current()) setAuthStatus("If the account exists, we sent a link.");
         return;
       }
       const received =
@@ -254,9 +251,7 @@ export function useAuth() {
       setPassword("");
       if (!received) {
         setAuthMode("sign-in");
-        setAuthStatus(
-          "If this address needs confirmation, you’ll receive an email with a confirmation link. Open it to continue, or sign in below if your email is already confirmed.",
-        );
+        setAuthStatus("Open the link in your email, then sign in.");
         return;
       }
       saved = store.write(received);
@@ -265,14 +260,14 @@ export function useAuth() {
     } catch (error) {
       if (!current()) return;
       if (saved && isTemporaryAuthError(error)) {
-        setRestoreError(`Could not restore your session: ${getErrorMessage(error)}`);
+        setRestoreError(loadErrorDetail(error));
       } else {
         store.clear();
         setAuthError(
           authMode === "sign-up" &&
             error instanceof ApiError &&
             [400, 422].includes(error.status ?? 0)
-            ? "Could not create an account with these details. Try signing in if you already have an account."
+            ? "Could not create the account. Try signing in."
             : getErrorMessage(error),
         );
       }
@@ -292,7 +287,7 @@ export function useAuth() {
     try {
       await signOut(accessToken);
     } catch (error) {
-      if (current()) setAuthError(`Could not complete sign out: ${getErrorMessage(error)}`);
+      if (current()) setAuthError(`Could not sign out. ${loadErrorDetail(error)}`);
     } finally {
       if (current()) setIsSigningOut(false);
     }
@@ -328,7 +323,7 @@ export function useAuth() {
       // Clear recovery state before another await or reload can replay the completed operation.
       discardStoredSession();
       setAuthStatusTitle("Password updated");
-      setAuthStatus("Your password has been updated. Sign in with your new password.");
+      setAuthStatus("Sign in with your new password.");
       void signOut(verified.access_token).catch(() => {
         /* Local credentials are already cleared. */
       });
@@ -339,9 +334,9 @@ export function useAuth() {
         (error instanceof ApiError && [401, 403].includes(error.status ?? 0))
       ) {
         requestNewRecoveryLink();
-        setAuthError("This recovery session is no longer valid. Request a new link below.");
+        setAuthError("Recovery link expired. Request a new one below.");
       } else {
-        setAuthError(`Could not update your password: ${getErrorMessage(error)}`);
+        setAuthError(`Could not update your password. ${loadErrorDetail(error)}`);
       }
     } finally {
       if (current()) setIsSubmitting(false);
@@ -372,7 +367,7 @@ export function useAuth() {
         );
       } else {
         discardStoredSession();
-        setAuthError(`Please sign in again: ${getErrorMessage(error)}`);
+        setAuthError(`Please sign in again. ${loadErrorDetail(error)}`);
       }
       return false;
     }

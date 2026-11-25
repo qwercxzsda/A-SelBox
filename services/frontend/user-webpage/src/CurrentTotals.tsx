@@ -1,7 +1,9 @@
 import type { MarketplaceSummary, OpenSummaryBreakdown, SummaryState } from "./summary-types";
-import { Alert, Button, Group, Title } from "@mantine/core";
+import { Title } from "@mantine/core";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import type { SummaryFilter } from "./SummaryFilters";
+import { AlertTable } from "./AlertTable";
+import { ErrorAlert } from "./ErrorAlert";
 import { MarketplaceTotalsTable } from "./MarketplaceTotalsTable";
 import { TotalsDateControl } from "./TotalsDateControl";
 import { TransactionSummaryHeading } from "./TransactionSummaryHeading";
@@ -13,6 +15,34 @@ import {
   type TotalsPeriod,
 } from "./summary-periods";
 import "./CurrentTotals.css";
+
+interface TotalsFailure {
+  period: string;
+  cause: string;
+}
+
+const FAILURE_COLUMNS = [
+  { key: "period", label: "Period", value: ({ period }: TotalsFailure) => period },
+  { key: "cause", label: "Cause", value: ({ cause }: TotalsFailure) => cause },
+] as const;
+
+/** One cause is said once, after the periods it hit unless it hit them all; else a table. */
+function failureDetail(failures: TotalsFailure[]): ReactNode {
+  const causes = new Set(failures.map(({ cause }) => cause));
+  if (causes.size === 1) {
+    const [cause] = causes;
+    if (failures.length === TOTALS_PERIODS.length) return cause;
+    return `${failures.map(({ period }) => period).join(", ")}: ${cause}`;
+  }
+  return (
+    <AlertTable
+      label="Failed totals"
+      columns={FAILURE_COLUMNS}
+      rows={failures}
+      rowKey={({ period }) => period}
+    />
+  );
+}
 
 interface CurrentTotalsProps {
   groups: MarketplaceSummary[];
@@ -38,11 +68,10 @@ export function CurrentTotals({
   controls,
 }: CurrentTotalsProps) {
   const [choosingDates, setChoosingDates] = useState(false);
-  const errors = [
-    ...new Set(
-      TOTALS_PERIODS.map((period) => states[period].error).filter((error) => error !== null),
-    ),
-  ];
+  const failures = TOTALS_PERIODS.flatMap((period) => {
+    const cause = states[period].error;
+    return cause === null ? [] : [{ period: TOTALS_PERIOD_LABELS[period], cause }];
+  });
 
   return (
     <section className="current-totals" aria-label="Current totals" aria-busy={loading}>
@@ -59,37 +88,23 @@ export function CurrentTotals({
               Select a company amount to open its breakdown and records.
             </p>
             <p>
-              Last day and Last month are the previous UTC calendar periods based on the latest
-              accessible transaction, independent of filters.
+              Totals use all selected filters and search. Last day and Last month are the previous
+              UTC calendar periods based on the latest accessible transaction, independent of
+              filters; Selected dates uses the transaction list's date range.
             </p>
             <p>
-              Totals use all selected filters and search. Last day and Last month use their own UTC
-              periods; Selected dates uses the transaction list's date range.
+              A company amount marked "N missing fee rates" leaves out N records without a fee rate.
+              Add the rates in Current fees.
             </p>
-            <p>Known company amounts exclude records with a missing fee rate.</p>
           </>
         }
       />
-      {errors.length > 0 ? (
-        <Alert color="red" role="alert" mb="sm">
-          <Group justify="space-between" gap="xs">
-            <div>
-              {errors.length === 1 ? (
-                errors[0]
-              ) : (
-                <details>
-                  <summary>Some marketplace totals are unavailable</summary>
-                  {errors.map((error) => (
-                    <div key={error}>{error}</div>
-                  ))}
-                </details>
-              )}
-            </div>
-            <Button variant="subtle" color="red" size="compact-sm" onClick={() => void onRetry()}>
-              Retry summaries
-            </Button>
-          </Group>
-        </Alert>
+      {failures.length > 0 ? (
+        <ErrorAlert
+          title="Could not load current totals"
+          detail={failureDetail(failures)}
+          onRetry={() => void onRetry()}
+        />
       ) : null}
       <div
         className="totals-cards-grid"

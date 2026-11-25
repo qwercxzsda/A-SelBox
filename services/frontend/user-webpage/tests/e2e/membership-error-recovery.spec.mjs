@@ -17,7 +17,7 @@ async function selectMembership(page) {
   await page.getByRole("tab", { name: "User access", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: "concurrent-member@example.test" });
   await row.click();
-  const drawer = page.getByRole("dialog", { name: "Company membership", exact: true });
+  const drawer = page.getByRole("dialog", { name: "User access details", exact: true });
   const company = drawer.getByRole("combobox", { name: "Company", exact: true });
   await company.fill("North Company");
   await page.getByRole("option", { name: "North Company", exact: true }).click();
@@ -33,17 +33,25 @@ test("a concurrent membership change keeps its explanation after the latest acco
   await drawer.getByRole("button", { name: "Save membership", exact: true }).click();
   await expect(company).toHaveValue("South Company");
   await expect(row).toContainText("South Company");
+  // The one failure format: ErrorAlert's title, then the reason beneath it.
   const problem = drawer.getByRole("alert");
-  await expect(problem).toContainText("This user's access changed while you were editing.");
+  await expect(problem.locator(".mantine-Alert-title")).toHaveText("Could not save the membership");
+  await expect(problem.locator(".mantine-Alert-message")).toHaveText(
+    "Access changed elsewhere. Review, then save again.",
+  );
   await expect(problem).toBeFocused();
   expect(fixture.membershipRequests).toHaveLength(1);
   expect(fixture.companyIds[targetUser]).toBe(southCompany);
   await company.fill("North Company");
   await page.getByRole("option", { name: "North Company", exact: true }).click();
   await drawer.getByRole("button", { name: "Save membership", exact: true }).click();
+  await expect(drawer).toBeHidden();
   await expect(
-    drawer.getByRole("status").filter({ hasText: "Company membership saved." }),
+    page
+      .getByRole("status")
+      .filter({ hasText: "Membership saved: concurrent-member@example.test" }),
   ).toBeVisible();
+  await expect(row).toBeFocused();
   await expect(problem).toHaveCount(0);
   expect(fixture.membershipRequests).toHaveLength(2);
 });

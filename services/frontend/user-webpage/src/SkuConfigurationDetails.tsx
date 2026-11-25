@@ -1,9 +1,13 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { Alert, Button, Group, Stack, Text, Title } from "@mantine/core";
+import { useEffect, type ReactNode, type RefObject } from "react";
+import { Alert, Button, Group, Stack, Text } from "@mantine/core";
 import type { SkuConfigurationItem } from "./api";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { SkuTransactionLink } from "./SkuTransactionLink";
 import { SkuConfigurationMetadata } from "./SkuConfigurationMetadata";
+import { SkuConfigurationIssues } from "./SkuConfigurationIssues";
+import { DetailFields } from "./DetailFields";
+import { StatusBadge } from "./StatusBadge";
+import { FEE_STATUS_LABELS, FEE_STATUS_TONES } from "./fee-status";
 
 export function SkuConfigurationDetails({
   item,
@@ -11,10 +15,10 @@ export function SkuConfigurationDetails({
   companyName,
   issues,
   administrator,
+  editButtonRef,
   isSaving,
   hasDraft,
   hasUnfinishedEdit,
-  onEdit,
   onDiscardDraft,
   onShowTransactions,
   schedules,
@@ -24,54 +28,46 @@ export function SkuConfigurationDetails({
   companyName: string;
   issues: readonly SkuFormIssue[];
   administrator: boolean;
+  /** Edit sits in the drawer header; focus continues there when this content replaces the editor. */
+  editButtonRef: RefObject<HTMLButtonElement | null>;
   isSaving: boolean;
   hasDraft: boolean;
   hasUnfinishedEdit: boolean;
-  onEdit: () => void;
   onDiscardDraft: () => void;
   onShowTransactions: (sku: string) => void;
   schedules: ReactNode;
 }) {
-  const editButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (
       document.activeElement === document.body ||
       document.activeElement === document.documentElement
     )
-      editButton.current?.focus({ preventScroll: true });
-  }, []);
+      editButtonRef.current?.focus({ preventScroll: true });
+  }, [editButtonRef]);
   return (
-    <div className="fee-details fee-panel-enter">
+    <div className="editing-drawer-details drawer-panel-enter">
       <Stack gap="lg">
-        <Group justify="space-between" align="flex-start">
-          <div className="fee-details-identity">
-            <Title order={3} size="h4">
-              <SkuTransactionLink sku={item.sku} onShowTransactions={onShowTransactions} />
-            </Title>
-            <Text size="sm" c="dimmed" mt={4}>
-              {companyName}
-            </Text>
-            {hasUnfinishedEdit ? (
-              <Text size="sm" c="dimmed" mt={4}>
-                Unfinished edit saved
-              </Text>
-            ) : null}
+        {hasUnfinishedEdit ? (
+          <div>
+            <StatusBadge tone={FEE_STATUS_TONES.unfinished}>
+              {FEE_STATUS_LABELS.unfinished}
+            </StatusBadge>
           </div>
-          {administrator ? (
-            <Button
-              ref={editButton}
-              aria-label={`Edit ${item.sku}`}
-              disabled={isSaving}
-              onClick={onEdit}
-            >
-              Edit
-            </Button>
-          ) : null}
-        </Group>
+        ) : null}
+        <DetailFields
+          fields={[
+            {
+              key: "sku",
+              label: "SKU",
+              value: <SkuTransactionLink sku={item.sku} onShowTransactions={onShowTransactions} />,
+            },
+            { key: "company", label: "Company", value: companyName },
+          ]}
+        />
         {hasDraft ? (
           <Alert color="cyan">
             <Group justify="space-between" gap="sm">
-              <Text size="sm">Showing your draft. Review changes to publish it.</Text>
+              <Text size="sm">Showing your unsaved draft.</Text>
               <Button
                 variant="subtle"
                 color="red"
@@ -79,7 +75,7 @@ export function SkuConfigurationDetails({
                 aria-label={`Discard draft for ${item.sku}`}
                 disabled={isSaving}
                 onClick={() => {
-                  editButton.current?.focus();
+                  editButtonRef.current?.focus();
                   onDiscardDraft();
                 }}
               >
@@ -88,17 +84,7 @@ export function SkuConfigurationDetails({
             </Group>
           </Alert>
         ) : null}
-        {issues.length ? (
-          <Alert color="orange" title="Needs setup">
-            <Stack gap={4}>
-              {issues.map((issue, index) => (
-                <Text key={index} size="sm">
-                  {issue.message}
-                </Text>
-              ))}
-            </Stack>
-          </Alert>
-        ) : null}
+        <SkuConfigurationIssues sku={item.sku} issues={issues} />
       </Stack>
       {schedules}
       {administrator ? <SkuConfigurationMetadata item={savedItem} /> : null}

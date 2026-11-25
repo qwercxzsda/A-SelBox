@@ -1,8 +1,11 @@
 import { DATASET_CONFIG } from "./config.ts";
 import type { CanonicalRow, TableDatasetKey } from "./types.ts";
 import { isJsonObject } from "./validation.ts";
+import { validateAccountDirectoryRow } from "./account-directory.ts";
 import { payoutMarketplace } from "../payout-report-scope.ts";
 import { parseRecordTimestamp } from "../date-display.ts";
+import { isRawReport } from "../raw-data-view.ts";
+import { checkRawReportRow } from "../raw-report-rows.ts";
 
 export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): CanonicalRow[] {
   const config = DATASET_CONFIG[dataset];
@@ -22,6 +25,8 @@ export function mapDatasetRows(dataset: TableDatasetKey, records: unknown[]): Ca
       }
     }
     if (dataset === "payouts") payoutMarketplace(row);
+    if (dataset === "accounts") validateAccountDirectoryRow(row);
+    if (isRawReport(dataset)) checkRawReportRow(dataset, row);
     if (
       (dataset === "live" || dataset === "finances") &&
       (!row.activity_at || !parseRecordTimestamp(row.activity_at))

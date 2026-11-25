@@ -138,7 +138,7 @@ for (const [role, width] of [
       .filter({ has: page.getByRole("heading", { name: "June 2026", exact: true }) });
     await expect
       .poll(async () =>
-        Number(await monthGroup.locator(".month-group-cell").getAttribute("rowspan")),
+        Number(await monthGroup.locator(".group-header-cell").getAttribute("rowspan")),
       )
       .toBe(await monthGroup.locator(":scope > tr").count());
     await expect
@@ -182,7 +182,7 @@ test("column filters and historical selection survive F5 without returning to th
   drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toBeVisible();
   await expect(drawer).toContainText("Created 2026-09-20 12:30:00 UTC");
-  await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
+  await drawer.getByRole("button", { name: "Close payout report details", exact: true }).click();
   await expect(payoutHistoryRows(page, scope)).toBeVisible();
   await expect(page.getByRole("group", { name: "Applied table filters" })).toContainText(
     "2 filters applied",
@@ -210,7 +210,7 @@ test("several expanded scopes share the original headings and month group withou
   const previous = payoutHistoryRows(page, scope);
   await expect(previous).toHaveCount(1);
   await expect(june.locator(":scope > tr")).toHaveCount(baselineRows + 1);
-  await expect(june.locator(".month-group-cell")).toHaveAttribute(
+  await expect(june.locator(".group-header-cell")).toHaveAttribute(
     "rowspan",
     String(baselineRows + 1),
   );
@@ -243,9 +243,9 @@ test("several expanded scopes share the original headings and month group withou
   }
   const otherScope = `${COMPANY_NAME} · June 2026 · Amazon.com · EUR`;
   await page.getByRole("button", { name: `Show versions for ${otherScope}`, exact: true }).click();
-  await expect(payoutHistoryControls(page, otherScope)).toContainText("No previous versions.");
+  await expect(payoutHistoryControls(page, otherScope)).toContainText("No previous versions");
   await expect(june.locator(":scope > tr")).toHaveCount(baselineRows + 2);
-  await expect(june.locator(".month-group-cell")).toHaveAttribute(
+  await expect(june.locator(".group-header-cell")).toHaveAttribute(
     "rowspan",
     String(baselineRows + 2),
   );
@@ -273,7 +273,7 @@ test("several expanded scopes share the original headings and month group withou
   await expect(previous).toHaveAttribute("aria-selected", "true");
   await expect(payoutLatestRow(page, scope)).toHaveAttribute("aria-selected", "false");
   await expect(payoutLatestRow(page, otherScope)).toHaveAttribute("aria-selected", "false");
-  await page.getByRole("button", { name: "Close row details", exact: true }).click();
+  await page.getByRole("button", { name: "Close payout report details", exact: true }).click();
   await payoutLatestRow(page, scope).press("Space");
   await expect(payoutLatestRow(page, scope)).toHaveAttribute("aria-selected", "true");
   await expect(previous).toHaveAttribute("aria-selected", "false");
@@ -282,7 +282,7 @@ test("several expanded scopes share the original headings and month group withou
       "background-color",
       "rgb(255, 255, 255)",
     );
-  await page.getByRole("button", { name: "Close row details", exact: true }).click();
+  await page.getByRole("button", { name: "Close payout report details", exact: true }).click();
   await page.getByRole("button", { name: `Hide versions for ${scope}`, exact: true }).click();
   await expect(previous).toHaveCount(0);
   await expect(payoutLatestRow(page, scope).locator('[data-column="company_id"]')).toHaveAttribute(
@@ -292,7 +292,7 @@ test("several expanded scopes share the original headings and month group withou
   await expect(
     payoutLatestRow(page, scope).locator('[data-column="marketplace_name"]'),
   ).toHaveAttribute("rowspan", "1");
-  await expect(june.locator(".month-group-cell")).toHaveAttribute(
+  await expect(june.locator(".group-header-cell")).toHaveAttribute(
     "rowspan",
     String(baselineRows + 1),
   );
@@ -361,7 +361,7 @@ test("version pagination reads only the requested scope and restores an older pa
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
   await page.reload();
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
-  await drawer.getByRole("button", { name: "Close row details", exact: true }).click();
+  await drawer.getByRole("button", { name: "Close payout report details", exact: true }).click();
   await expect(history.getByRole("form", { name: "Page 2 of 2", exact: true })).toBeVisible();
   await history.getByRole("button", { name: "Previous", exact: true }).click();
   await expect(payoutHistoryRows(page, scope)).toHaveCount(49);
@@ -426,7 +426,7 @@ test("an inspected version stays open when publication shifts it beyond the hist
   await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
   await page.getByRole("button", { name: `Show versions for ${scope}`, exact: true }).click();
   const history = payoutHistoryControls(page, scope);
-  await payoutHistoryRows(page, scope).filter({ hasText: "2026-09-27 00:00:01 UTC" }).click();
+  await payoutHistoryRows(page, scope).filter({ hasText: "2026-09-27 00:00:01" }).click();
   const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
   await expect(drawer).toContainText("Created 2026-09-27 00:00:01 UTC");
   const completedPolls = () => fixture.revisionRequests.filter(({ completed }) => completed).length;

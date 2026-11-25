@@ -4,6 +4,7 @@ import { createReplies, trackRequests } from "./mocks/http.mjs";
 import { ACCOUNT_PATHS, createAccountHandlers } from "./mocks/accounts.mjs";
 import { respondWithCount } from "./mocks/counts.mjs";
 import { respondWithSourceRows } from "./mocks/source-rows.mjs";
+import { RAW_DATA_PATHS, respondWithRawData } from "./mocks/raw-data.mjs";
 import { respondWithLatestDate, respondWithSummary } from "./mocks/summaries.mjs";
 import { respondWithTransactions } from "./mocks/transactions.mjs";
 import { respondWithOptions } from "./mocks/options.mjs";
@@ -11,7 +12,9 @@ import { respondWithWorkspaceLists } from "./mocks/workspace-lists.mjs";
 import { transactionPageParams } from "./transaction-page-fixtures.mjs";
 import { respondWithPayouts } from "./mocks/payouts.mjs";
 import { respondWithPayoutReadiness } from "./mocks/payout-readiness.mjs";
+import { REVIEW_PATHS, respondWithFinancialReview } from "./mocks/financial-review.mjs";
 import { respondWithSkuConfiguration } from "./mocks/sku-configuration.mjs";
+import { ASSIGNMENT_PATHS, respondWithAssignments } from "./mocks/assignments.mjs";
 
 export function deferred() {
   let resolve;
@@ -51,14 +54,8 @@ export async function mockSupabase(page) {
       ["/rest/v1/rpc/payout_readiness", "/rest/v1/rpc/payout_setup_blockers"].includes(url.pathname)
     )
       return respondWithPayoutReadiness(fixture, context);
-    if (
-      [
-        "/rest/v1/rpc/financial_outcome_page",
-        "/rest/v1/rpc/financial_review_month_page",
-        "/rest/v1/assignment_status",
-      ].includes(url.pathname)
-    )
-      return context.csvReply(url.searchParams.get("select").split(","), []);
+    if (REVIEW_PATHS.has(url.pathname)) return respondWithFinancialReview(fixture, context);
+    if (ASSIGNMENT_PATHS.has(url.pathname)) return respondWithAssignments(fixture, context);
     if (
       [
         "/rest/v1/rpc/sku_configuration",
@@ -97,6 +94,7 @@ export async function mockSupabase(page) {
       return respondWithWorkspaceLists(fixture, context);
     if (url.pathname === "/rest/v1/rpc/source_transaction_page")
       return respondWithSourceRows(fixture, context);
+    if (RAW_DATA_PATHS.has(url.pathname)) return respondWithRawData(fixture, context);
     if (url.pathname !== "/rest/v1/rpc/transaction_page")
       throw new Error(`Unexpected test API request: ${url.pathname}`);
     const args = request.postDataJSON();

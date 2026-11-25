@@ -25,6 +25,19 @@ class Read:
     missing: str = "skipped_no_visible_report"
 
 
+# For each outcome in one marketplace-year: the month with most records, then its largest
+# reason or group.
+_BUSIEST_REVIEW_MONTHS: LiteralString = (
+    "with months as (select * from public.financial_review_months(%s,%s) "
+    "where measure in ('DIFFERENCE','SELBOX')), "
+    "busiest as (select distinct on(measure) measure,month from months "
+    "group by 1,2 order by measure,sum(amount_count) desc,month) "
+    "select distinct on(measure) measure,month,reason,selbox_group "
+    "from months join busiest using(measure,month) "
+    "order by measure,amount_count desc,reason,selbox_group"
+)
+
+
 def _workspace_reads(connection: Connection, role: str) -> list[Read]:
     report = connection.execute(
         "select id,start_date,company_id from public.latest_company_payout_reports "
@@ -46,6 +59,7 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
             (sku[0],) if sku else None,
             "skipped_no_visible_sku",
         ),
+        Read("assignments", "select public.reference_assignments()"),
         Read(
             "inventory_captures",
             "select * from public.latest_inventory_captures "
@@ -77,20 +91,21 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
     ]
     if role == "administrator":
         reads.extend(_review_reads(connection))
+        reads.extend(_raw_data_reads(connection))
+        assignment = connection.execute(
+            "select id from public.assignment_keys where kind<>'SKU' order by id limit 1"
+        ).fetchone()
         reads.extend(
             [
                 Read(
                     "account_directory", "select * from public.account_directory() order by user_id"
                 ),
                 Read(
-                    "assignments",
-                    "select * from public.assignment_status "
-                    "order by kind,seller_namespace,amazon_scope,native_key limit 51",
-                ),
-                Read(
-                    "assignment_warnings",
-                    "select * from public.assignment_status where warning is not null "
-                    "order by kind,seller_namespace,amazon_scope,native_key limit 51",
+                    "assignment_history",
+                    "select * from public.assignment_versions where key_id=%s "
+                    "order by version_number desc",
+                    (assignment[0],) if assignment else None,
+                    "skipped_no_visible_assignment",
                 ),
                 Read(
                     "payout_setup_blockers",
@@ -103,42 +118,77 @@ def _workspace_reads(connection: Connection, role: str) -> list[Read]:
 
 
 def _review_reads(connection: Connection) -> list[Read]:
-    # Find an actual marketplace/month for each outcome to avoid timing empty pages.
-    scopes = {
-        outcome: (month, market)
-        for outcome, month, market in connection.execute(
-            "select distinct on(outcome) outcome, "
-            "date_trunc('month',posted_date)::date,marketplace_name "
-            "from public.financial_outcomes order by outcome,posted_date desc,marketplace_name"
-        )
-    }
+    """The busiest marketplace-year, then each outcome's busiest month and reason or group."""
+    scope: tuple[object, ...] | None = connection.execute(
+        "select marketplace_name,extract(year from posted_date)::int "
+        "from public.financial_outcomes group by 1,2 order by count(*) desc,1,2 limit 1"
+    ).fetchone()
+    busiest: dict[str, tuple[object, ...]] = {}
+    if scope is not None:
+        for outcome, month, reason, group in connection.execute(_BUSIEST_REVIEW_MONTHS, scope):
+            busiest[outcome] = (outcome, month, scope[0], reason, group)
     reads = [
-        Read("review_months", "select * from public.financial_review_month_page()"),
         Read(
-            "review_months_filtered",
-            "select * from public.financial_review_month_page(%s,%s)",
-            next(iter(scopes.values()), None),
+            "review_months",
+            "select * from public.financial_review_months(%s,%s)",
+            scope,
             "skipped_no_visible_outcome",
-        ),
+        )
     ]
-    for outcome in ("COMPANY", "DIFFERENCE", "SELBOX"):
-        scope = scopes.get(outcome)
+    for outcome in ("DIFFERENCE", "SELBOX"):
+        found = busiest.get(outcome)
         reads.extend(
             [
                 Read(
                     f"review_{outcome.lower()}",
-                    "select * from public.financial_outcome_page(%s)",
-                    (outcome,),
+                    "select * from public.financial_outcome_page(%s,%s,%s)",
+                    found[:3] if found else None,
+                    "skipped_no_visible_outcome",
                 ),
                 Read(
                     f"review_{outcome.lower()}_filtered",
-                    "select * from public.financial_outcome_page(%s,%s,%s)",
-                    (outcome, *scope) if scope else None,
+                    "select * from public.financial_outcome_page(%s,%s,%s,%s,%s)",
+                    found,
                     "skipped_no_visible_outcome",
                 ),
             ]
         )
     return reads
+
+
+def _raw_data_reads(connection: Connection) -> list[Read]:
+    """Each Raw data report's first page in its default order, and the largest invoice's lines."""
+    invoice = connection.execute(
+        "select version_id from public.current_ad_invoices order by line_count desc,id limit 1"
+    ).fetchone()
+    return [
+        Read(
+            "raw_ad_invoices",
+            "select * from public.current_ad_invoices order by invoice_date desc,id limit 25",
+        ),
+        Read(
+            "raw_ad_invoice_lines",
+            "select * from public.current_ad_invoice_lines where version_id=%s "
+            "order by line_number",
+            (invoice[0],) if invoice else None,
+            "skipped_no_visible_invoice",
+        ),
+        Read(
+            "raw_storage",
+            "select * from public.current_storage_rows order by month_of_charge desc,id limit 25",
+        ),
+        Read("raw_storage_count", "select count(*) from public.current_storage_rows"),
+        Read(
+            "raw_aged_storage",
+            "select * from public.current_aged_storage_rows "
+            "order by snapshot_month desc,id limit 25",
+        ),
+        Read(
+            "raw_removal_orders",
+            "select * from public.current_removal_order_rows "
+            "order by request_date desc,id limit 25",
+        ),
+    ]
 
 
 def measure_workspace(connection: Connection, repeat: int) -> Record:

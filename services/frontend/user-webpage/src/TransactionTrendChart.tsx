@@ -14,6 +14,7 @@ import {
 import { describeTrendAmounts, trendAmountText } from "./transaction-trend-labels";
 import { TransactionTrendInspection } from "./TransactionTrendInspection";
 import { TransactionTrendViewport, type TrendRevealRequest } from "./TransactionTrendViewport";
+import { MissingFeeRateNote } from "./FinancialAmounts";
 import "./TransactionTrendChart.css";
 
 function readPoints(
@@ -54,7 +55,7 @@ export function TransactionTrendChart({
   const periodName = granularity === "day" ? "day" : "week";
   const title = granularity === "day" ? "Daily" : "Weekly";
   const scope = `${marketplace} (${currency})`;
-  const missing = rows.some((row) => row.missingFeeCount > 0);
+  const missingFeeCount = points.reduce((count, point) => count + point.missingFeeCount, 0);
   const groupLabels = new Map(TRANSACTION_TYPE_GROUPS.map((group) => [group.id, group.label]));
   function navigate(id: string) {
     setInspectedPeriod(id);
@@ -78,7 +79,7 @@ export function TransactionTrendChart({
   if (!inspected)
     return (
       <Text size="sm" c="dimmed">
-        No matching transactions.
+        No matching transactions
       </Text>
     );
   const plotted: AmountTrendPoint[] = (chart?.points ?? []).map((point) => ({
@@ -104,12 +105,7 @@ export function TransactionTrendChart({
       className="transaction-trend-chart"
       aria-label={`${title} company amount trend for ${scope}`}
     >
-      {missing ? (
-        <Text size="xs" className="transaction-trend-warning">
-          The chart includes calculated company amounts only. Reported amount below includes all
-          matching transactions. Periods without a known company amount remain gaps.
-        </Text>
-      ) : null}
+      <MissingFeeRateNote count={missingFeeCount} mb={6} />
       {chart ? (
         <TransactionTrendViewport
           chart={chart}
@@ -126,7 +122,7 @@ export function TransactionTrendChart({
         />
       ) : (
         <Text size="sm" c="dimmed">
-          Chart unavailable for these amounts. Exact values are shown below.
+          Chart unavailable. Exact values are below.
         </Text>
       )}
       {chart?.points.some((point) =>

@@ -133,6 +133,31 @@ async function assertHoverScrolling(page, menu, column) {
   expect(await page.evaluate(() => globalThis.scrollY)).toBe(pageTop);
 }
 
+/** Options apply immediately; the column heading and the open menu stay under the pointer. */
+async function expectTickKeepsPlace(page, menu, column) {
+  const choice = menu.getByRole("checkbox").first();
+  await expect(choice).toBeInViewport({ ratio: 1 });
+  const trigger = page
+    .getByRole("table", { name: "Financial records", exact: true })
+    .getByRole("button", { name: new RegExp(`^${column}( \\d+ selected)?$`) });
+  const before = { menu: await menu.boundingBox(), trigger: await trigger.boundingBox() };
+  for (const checked of [true, false]) {
+    // Click in place; Playwright's click would scroll the target first.
+    const box = await choice.boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await expect(choice).toBeChecked({ checked });
+    await expect(trigger).toHaveAccessibleName(
+      checked ? new RegExp(`^${column} \\d+ selected$`) : column,
+    );
+    await expect(page.locator(".table-card[data-placeholder]")).toHaveCount(0);
+    const after = { menu: await menu.boundingBox(), trigger: await trigger.boundingBox() };
+    // Only vertical movement is checked: the heading's count badge can rebalance column widths.
+    for (const target of ["trigger", "menu"]) {
+      expect(Math.abs(after[target].y - before[target].y), target).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
 for (const column of ["SKU", "Type"]) {
   test(`${column} popup scrolls on hover over its search, heading, and choices without scrolling the page`, async ({
     page,
@@ -147,6 +172,7 @@ for (const column of ["SKU", "Type"]) {
     expect(await preventedBrowserGestures(menu.locator("input").first())).toEqual(
       UNPREVENTED_BROWSER_GESTURES,
     );
+    await expectTickKeepsPlace(page, menu, column);
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
     await expect(button(page, column)).toBeFocused();

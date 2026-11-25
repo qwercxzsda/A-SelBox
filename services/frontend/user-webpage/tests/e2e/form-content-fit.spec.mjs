@@ -149,9 +149,7 @@ for (const [width, textSize] of [
     await expectActionFits(
       page.getByRole("button", { name: "Request a new recovery link", exact: true }),
     );
-    await expectActionFits(
-      page.getByRole("button", { name: "Cancel and return to sign in", exact: true }),
-    );
+    await expectActionFits(page.getByRole("button", { name: "Back to sign in", exact: true }));
     await expectContained(page, panel);
   });
 
@@ -174,7 +172,7 @@ for (const [width, textSize] of [
       .getByRole("row")
       .filter({ has: page.getByText("qa-member@example.test", { exact: true }) })
       .click();
-    const drawer = page.getByRole("dialog", { name: "Company membership", exact: true });
+    const drawer = page.getByRole("dialog", { name: "User access details", exact: true });
     await page.screenshot({
       path: testInfo.outputPath("membership-company-name.png"),
       animations: "disabled",
@@ -210,9 +208,8 @@ test("fee details and review wrap company names without hiding actions on a phon
     state.companyNames[OTHER_COMPANY] = next;
   });
   await feeRow(page, "S1").press("Enter");
-  const company = feeDetails(page)
-    .locator(".fee-details-identity")
-    .getByText(previous, { exact: true });
+  const company = feeDetails(page).locator(".field-value").getByText(previous, { exact: true });
+  await expectContained(page, feeDetails(page).locator(".detail-drawer-context"));
   await company.scrollIntoViewIfNeeded();
   await expectFullyInViewport(company);
   await expectContained(page, company);

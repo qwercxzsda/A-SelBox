@@ -1,13 +1,14 @@
-import { Alert, Button, Group, Tabs } from "@mantine/core";
+import { Tabs } from "@mantine/core";
 import { useEffect, type SetStateAction } from "react";
 import type { TableDatasetKey } from "./api";
+import { ErrorAlert } from "./ErrorAlert";
 import { FinanceDataset } from "./FinanceDataset";
-import { DATASET_PRESENTATION, companyLabel } from "./view-model";
 import type { Identity } from "./auth-session";
 import { CurrentFees } from "./CurrentFees";
 import { Inventory } from "./Inventory";
 import { Assignments } from "./Assignments";
 import { FinancialReview } from "./FinancialReview";
+import { RawData } from "./RawData";
 import { useSkuConfiguration } from "./use-sku-configuration";
 import {
   createDatasetViewState,
@@ -24,22 +25,10 @@ import {
 } from "./workspace-view-codec";
 import { normalizeDatasetFilters } from "./dataset-filters";
 import { Companies } from "./Companies";
+import { decodeCompanyReturnTab, type CompanyReturnTab } from "./companies-view";
 import { useWorkspaceNavigationFocus } from "./use-workspace-navigation-focus";
-
-const TAB_GROUPS = [
-  ["live", "inventory", "payouts", "fees"],
-  ["accounts", "companies", "assignments"],
-  ["finances", "financial-review"],
-] as const;
-type WorkspaceTab = (typeof TAB_GROUPS)[number][number];
-
-function tabLabel(tab: WorkspaceTab) {
-  if (tab === "inventory") return "Inventory";
-  if (tab === "assignments") return "Assignments";
-  if (tab === "companies") return "Companies";
-  if (tab === "financial-review") return "Financial review";
-  return DATASET_PRESENTATION[tab].label;
-}
+import { workspaceDocumentTitle, type WorkspaceTab } from "./workspace-tabs";
+import { WorkspaceTabList } from "./WorkspaceTabList";
 
 interface WorkspaceProps {
   identity: Identity;
@@ -55,17 +44,14 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     (value) => decodeWorkspaceTab(value, props.identity.account),
   );
   const activeTab = useWorkspaceNavigationFocus(dataset);
-  const [companyReturnTo, setCompanyReturnTo] = useWorkspacePreference<"fees" | "accounts" | null>(
+  const [companyReturnTo, setCompanyReturnTo] = useWorkspacePreference<CompanyReturnTab | null>(
     "companies:return-to",
     () => null,
-    (value) => (value === "fees" || value === "accounts" ? value : null),
+    decodeCompanyReturnTab,
   );
-  const [inventoryViewState, setInventoryViewState] = useWorkspacePreference(
-    "inventory",
-    createInventoryViewState,
-    decodeInventoryView,
-  );
-  const [datasetViews, setDatasetViews] = useWorkspacePreference<
+  const [inventoryViewState, setInventoryViewState, correctInventoryViewState] =
+    useWorkspacePreference("inventory", createInventoryViewState, decodeInventoryView);
+  const [datasetViews, setDatasetViews, correctDatasetViews] = useWorkspacePreference<
     Partial<Record<TableDatasetKey, DatasetViewState>>
   >("datasets", () => ({}), decodeDatasetViews);
   const [feeViewState, setFeeViewState] = useWorkspacePreference(
@@ -80,34 +66,30 @@ export function FinanceWorkspace(props: WorkspaceProps) {
     setFeeViewState,
     dataset === "fees",
   );
-  const tabGroups =
-    props.identity.account.access_role === "administrator" ? TAB_GROUPS : TAB_GROUPS.slice(0, 1);
-  const workspaceTitle = tabLabel(dataset);
-  const accountTitle =
-    props.identity.account.access_role === "administrator"
-      ? "Administrator"
-      : companyLabel(
-          props.identity.account.company_id,
-          new Map(props.identity.companies.map(({ id, name }) => [id, name])),
-        );
+  const documentTitle = workspaceDocumentTitle(dataset, props.identity);
   useEffect(() => {
-    document.title = `${workspaceTitle} · ${accountTitle} · A-SelBox`;
-  }, [workspaceTitle, accountTitle]);
+    document.title = documentTitle;
+  }, [documentTitle]);
 
-  function addCompany(from: "fees" | "accounts") {
+  function addCompany(from: CompanyReturnTab) {
     setCompanyReturnTo(from);
     setDataset("companies");
   }
 
-  function updateDatasetView(dataset: TableDatasetKey, update: SetStateAction<DatasetViewState>) {
-    setDatasetViews((current) => {
-      const previous = current[dataset] ?? createDatasetViewState(dataset);
-      return {
-        ...current,
-        [dataset]: typeof update === "function" ? update(previous) : update,
-      };
-    });
+  /** Updates one dataset's view through `write`: a user's change, or a correction. */
+  function datasetViewWriter(write: typeof setDatasetViews) {
+    return (dataset: TableDatasetKey, update: SetStateAction<DatasetViewState>) => {
+      write((current) => {
+        const previous = current[dataset] ?? createDatasetViewState(dataset);
+        return {
+          ...current,
+          [dataset]: typeof update === "function" ? update(previous) : update,
+        };
+      });
+    };
   }
+  const updateDatasetView = datasetViewWriter(setDatasetViews);
+  const correctDatasetView = datasetViewWriter(correctDatasetViews);
 
   function showCompanyMembers(companyId: string) {
     updateDatasetView("accounts", (previous) => ({
@@ -134,18 +116,21 @@ export function FinanceWorkspace(props: WorkspaceProps) {
   return (
     <>
       {props.updateError ? (
-        <Alert role="alert" color="red" mb="sm">
-          <Group justify="space-between">
-            <span>{props.updateError}</span>
-            {dataset === "inventory" ? (
-              <span>Updates retry automatically.</span>
-            ) : (
-              <Button variant="subtle" onClick={() => void props.onRetry()}>
-                Retry update
-              </Button>
-            )}
-          </Group>
-        </Alert>
+        dataset === "inventory" ? (
+          // Inventory is a daily snapshot: its check repeats on its own, with no manual retry.
+          <ErrorAlert
+            title="Could not check for updates"
+            detail={props.updateError}
+            retriesAutomatically
+          />
+        ) : (
+          <ErrorAlert
+            title="Could not check for updates"
+            detail={props.updateError}
+            // A Retry during a running check is queued, never ignored, so it stays enabled.
+            onRetry={() => void props.onRetry()}
+          />
+        )
       ) : null}
       <Tabs
         value={dataset}
@@ -157,20 +142,7 @@ export function FinanceWorkspace(props: WorkspaceProps) {
         }}
         className="dataset-tabs"
       >
-        <Tabs.List aria-label="Workspace data">
-          {tabGroups.flatMap((group, groupIndex) =>
-            group.map((key, index) => (
-              <Tabs.Tab
-                key={key}
-                value={key}
-                ref={dataset === key ? activeTab : undefined}
-                data-group-start={groupIndex > 0 && index === 0 ? true : undefined}
-              >
-                {tabLabel(key)}
-              </Tabs.Tab>
-            )),
-          )}
-        </Tabs.List>
+        <WorkspaceTabList identity={props.identity} active={dataset} activeTabRef={activeTab} />
         <Tabs.Panel value={dataset} pt="md">
           {dataset === "companies" ? (
             <Companies
@@ -190,10 +162,28 @@ export function FinanceWorkspace(props: WorkspaceProps) {
               identity={props.identity}
               viewState={inventoryViewState}
               onViewStateChange={setInventoryViewState}
+              onViewStateCorrect={correctInventoryViewState}
               onShowTransactions={showSkuTransactions}
             />
           ) : dataset === "assignments" ? (
-            <Assignments identity={props.identity} />
+            <Assignments
+              updating={props.isUpdating}
+              identity={props.identity}
+              onShowTransactions={showSkuTransactions}
+              onAddCompany={() => {
+                addCompany("assignments");
+              }}
+            />
+          ) : dataset === "raw-data" ? (
+            <RawData
+              updating={props.isUpdating}
+              identity={props.identity}
+              onRetry={props.onRetry}
+              views={datasetViews}
+              onViewChange={updateDatasetView}
+              onViewCorrect={correctDatasetView}
+              onShowTransactions={showSkuTransactions}
+            />
           ) : dataset === "financial-review" ? (
             <FinancialReview identity={props.identity} />
           ) : dataset === "fees" ? (
@@ -216,11 +206,15 @@ export function FinanceWorkspace(props: WorkspaceProps) {
               onAddCompany={() => {
                 addCompany("accounts");
               }}
+              onShowTransactions={showSkuTransactions}
               identity={props.identity}
               onRetry={props.onRetry}
               viewState={datasetViews[dataset] ?? createDatasetViewState(dataset)}
               onViewStateChange={(update) => {
                 updateDatasetView(dataset, update);
+              }}
+              onViewStateCorrect={(update) => {
+                correctDatasetView(dataset, update);
               }}
             />
           )}

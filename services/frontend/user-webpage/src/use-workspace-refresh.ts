@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, fetchWorkspaceRevisions } from "./api";
 import type { Identity, IdentityRefreshOptions } from "./auth-session";
-import { getErrorMessage } from "./view-model";
+import { loadErrorDetail } from "./load-error";
 import {
   activeRevisionSources,
   changedRevisionSources,
@@ -89,11 +89,10 @@ export function useWorkspaceRefresh(
             try {
               await checkIdentity({ forceCatalog: force || retryRequested() });
             } catch (identityError) {
-              if (current())
-                setUpdateError(`Could not check for updates: ${getErrorMessage(identityError)}`);
+              if (current()) setUpdateError(loadErrorDetail(identityError));
             }
           } else {
-            setUpdateError(`Could not check for updates: ${getErrorMessage(error)}`);
+            setUpdateError(loadErrorDetail(error));
           }
         } finally {
           if (current()) {

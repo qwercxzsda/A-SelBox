@@ -171,6 +171,48 @@ test("rows return without requesting or awaiting an exact count", async () => {
   }
 });
 
+test("a changed page keeps the previous rows only within the same account and dataset", async () => {
+  const client = createQueryClient();
+  const pending = deferred();
+  const page = (identity, options, fetchPage = () => pending.promise) =>
+    datasetQueryOptions(identity, { ...OPTIONS, ...options }, fetchPage);
+  const loaded = { rows: [{ id: "first-page-row" }], totalCount: null };
+  const observer = new QueryObserver(
+    client,
+    page(IDENTITY, {}, async () => loaded),
+  );
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    await observer.refetch();
+    for (const options of [
+      { pageIndex: 1 },
+      { search: "SKU_100" },
+      { sort: { ...OPTIONS.sort, direction: "asc" } },
+      { filters: { ...normalizeDatasetFilters(), marketplaces: ["Amazon.com"] } },
+    ]) {
+      observer.setOptions(page(IDENTITY, options));
+      const result = observer.getCurrentResult();
+      assert.equal(result.isPlaceholderData, true, JSON.stringify(options));
+      assert.equal(result.data, loaded);
+    }
+    for (const [identity, options] of [
+      [IDENTITY, { dataset: "finances" }],
+      [{ ...IDENTITY, account: { ...IDENTITY.account, company_id: "company-b" } }, {}],
+      [{ ...IDENTITY, session: { ...IDENTITY.session, user: { id: "user-b" } } }, {}],
+    ]) {
+      observer.setOptions(page(IDENTITY, {}, async () => loaded));
+      observer.setOptions(page(identity, options));
+      const result = observer.getCurrentResult();
+      assert.equal(result.isPlaceholderData, false, JSON.stringify(options));
+      assert.equal(result.data, undefined);
+    }
+  } finally {
+    unsubscribe();
+    pending.resolve(loaded);
+    client.clear();
+  }
+});
+
 test("financial counts are shared across pages and ordering until an explicit revision invalidation", async (context) => {
   let now = Date.now();
   context.mock.method(Date, "now", () => now);

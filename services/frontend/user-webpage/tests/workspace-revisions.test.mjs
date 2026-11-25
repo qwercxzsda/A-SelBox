@@ -109,7 +109,14 @@ test("pages, choices, counts, cards and fees carry the correct source dependenci
       "references",
       "fees",
     ]);
+    // Advertising invoices and warehouse reports refresh when reference sources change.
+    for (const dataset of ["ad_invoices", "storage", "aged_storage", "removal_orders"])
+      assert.deepEqual(queryRevisionSources([family, "u", "administrator", null, dataset]), [
+        "references",
+      ]);
   }
+  // An invoice version's lines never change; a newer version is a different invoice row.
+  assert.deepEqual(queryRevisionSources(["ad-invoice-lines", "u", "version"]), []);
   assert.deepEqual(
     queryRevisionSources(["dataset-count", "u", "administrator", null, "finances"]),
     ["finances"],

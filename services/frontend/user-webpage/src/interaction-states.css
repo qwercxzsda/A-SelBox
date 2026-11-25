@@ -5,6 +5,8 @@
   .ui-close-button,
   .ui-surface-action,
   .ui-text-action,
+  .ui-link,
+  .ui-disclosure,
   .ui-tabs-tab,
   .ui-accordion-control,
   .ui-choice-option,
@@ -18,16 +20,49 @@
     color 120ms ease;
 }
 
-.ui-text-action {
+/* Underlined accent text only navigates to another tab. */
+.ui-link {
   font-weight: 500;
   text-underline-offset: 3px;
   border-radius: var(--ui-radius-sm);
 }
 
-.ui-text-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]) {
+.ui-link:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]) {
   color: var(--ui-accent);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Accent text without an underline acts on this page, such as opening a drawer. */
+.ui-text-action {
+  font-weight: 500;
+  border-radius: var(--ui-radius-sm);
+}
+
+.ui-text-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]) {
+  color: var(--ui-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Disclosures show or hide content in place: chevron plus plain text. */
+.ui-disclosure {
+  border-radius: var(--ui-radius-sm);
+  text-decoration: none;
+}
+
+.ui-button.ui-disclosure:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]) {
+  color: var(--ui-text);
+}
+
+.ui-disclosure-chevron {
+  flex-shrink: 0;
+  color: var(--ui-text-muted);
+  transition: transform 120ms ease;
+}
+
+.ui-disclosure-chevron[data-expanded="true"] {
+  transform: rotate(90deg);
 }
 
 .ui-checkbox {
@@ -40,6 +75,8 @@
     .ui-close-button,
     .ui-surface-action,
     .ui-text-action,
+    .ui-link,
+    .ui-disclosure,
     .ui-tabs-tab,
     .ui-accordion-control
   ):not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):focus-visible {
@@ -83,10 +120,37 @@
   color: var(--ui-accent);
 }
 
-.ui-text-action:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):hover {
+.ui-link:not(:disabled, [data-disabled], [aria-disabled="true"], [data-loading]):hover {
   background-color: transparent;
   color: var(--ui-accent);
   text-decoration-thickness: 2px;
+}
+
+:is(.ui-text-action, .ui-disclosure):not(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"],
+    [data-loading]
+  ):hover {
+  background-color: var(--ui-hover-tint);
+}
+
+.ui-button.ui-text-action:not(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"],
+    [data-loading]
+  ):hover {
+  color: var(--ui-accent);
+}
+
+.ui-button.ui-disclosure:not(
+    :disabled,
+    [data-disabled],
+    [aria-disabled="true"],
+    [data-loading]
+  ):hover {
+  color: var(--ui-text);
 }
 
 .ui-table .inspectable-row:hover {
@@ -130,6 +194,9 @@
     .ui-close-button,
     .ui-surface-action,
     .ui-text-action,
+    .ui-link,
+    .ui-disclosure,
+    .ui-disclosure-chevron,
     .ui-tabs-tab,
     .ui-accordion-control,
     .ui-choice-option,

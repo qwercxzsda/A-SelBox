@@ -33,7 +33,7 @@ export function RecoveryRequestPanel({
         Reset your password
       </Title>
       <Text size="sm" c="dimmed">
-        Enter your account email to request a password recovery link.
+        Enter your email to get a recovery link.
       </Text>
       {error ? (
         <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">

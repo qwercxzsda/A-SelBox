@@ -3,6 +3,12 @@ import { expect, test } from "@playwright/test";
 import { deferred, mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { liveRow, skuAssignment } from "./api-fixtures.mjs";
 
+/** The count's own Retry, beside (and described by) "Count unavailable". */
+const retryCount = (page) =>
+  page
+    .getByText("Count unavailable", { exact: true })
+    .locator("xpath=following-sibling::button[1]");
+
 const pagination = (page, number, total) =>
   page.getByRole("form", { name: `Page ${number} of ${total}`, exact: true });
 
@@ -35,8 +41,8 @@ test("rows load before their exact count and remain inspectable and navigable wh
     await expect(pageNumber).toHaveAttribute("readonly", "");
     await rowWithSku(page, "ALPHA-002").click();
     const details = page.getByRole("dialog", { name: "Transaction details", exact: true });
-    await expect(details.getByRole("heading", { name: "ALPHA-002", exact: true })).toBeVisible();
-    await details.getByRole("button", { name: "Close row details", exact: true }).click();
+    await expect(details.locator(".detail-drawer-context")).toContainText("ALPHA-002");
+    await details.getByRole("button", { name: "Close transaction details", exact: true }).click();
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
     await expect(pagination(page, 2, "—")).toBeVisible();
@@ -65,8 +71,9 @@ test("a count failure preserves rows and the count-only retry does not fetch the
   fixture.countStatusForRequest = () => 403;
   await signIn(page);
   await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-  const retry = page.getByRole("button", { name: "Retry count", exact: true });
-  await expect(retry).toBeVisible();
+  const retry = retryCount(page);
+  await expect(retry).toHaveAccessibleName("Retry");
+  await expect(retry).toHaveAccessibleDescription("Count unavailable");
   await expect(pagination(page, 1, "—")).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(rowWithSku(page, "ALPHA-026")).toBeVisible();
@@ -116,7 +123,7 @@ for (const recovery of ["revision", "forced refresh"]) {
     fixture.countStatusForRequest = () => 403;
     fixture.revisions.finances = "1";
     await page.clock.fastForward(60_000);
-    await expect(page.getByRole("button", { name: "Retry count", exact: true })).toBeVisible();
+    await expect(retryCount(page)).toBeVisible();
     await expect(pagination(page, 1, "—")).toBeVisible();
     await expect(page.getByText("Updating…", { exact: true })).toBeHidden();
     expect(fixture.countRequests).toHaveLength(2);
@@ -128,14 +135,17 @@ for (const recovery of ["revision", "forced refresh"]) {
     } else {
       fixture.revisionStatus = 503;
       await page.clock.fastForward(60_000);
-      const retry = page.getByRole("button", { name: "Retry update", exact: true });
+      const retry = page
+        .getByRole("alert")
+        .filter({ hasText: "Could not check for updates" })
+        .getByRole("button", { name: "Retry", exact: true });
       await expect(retry).toBeVisible();
       fixture.revisionStatus = 200;
       await retry.click();
     }
     await expect(pagination(page, 1, 3)).toBeVisible();
     await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry count", exact: true })).toHaveCount(0);
+    await expect(retryCount(page)).toHaveCount(0);
     expect(fixture.countRequests).toHaveLength(3);
   });
 }
@@ -317,6 +327,57 @@ for (const width of [320, 1280]) {
     }
   });
 }
+
+test("a changed page keeps the previous rows, dimmed and closed, until it loads", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const fixture = await mockSupabase(page);
+  fixture.totalCount = 60;
+  let gate = null;
+  fixture.beforeDataset = async () => {
+    const current = gate;
+    if (!current) return;
+    current.started.resolve();
+    await current.release.promise;
+  };
+  const table = page.getByRole("table", { name: "Financial records", exact: true });
+  const card = page.locator(".table-card").filter({ has: table });
+  const nav = page.getByRole("navigation", { name: "Pagination", exact: true });
+  const details = page.getByRole("dialog", { name: "Transaction details", exact: true });
+  try {
+    await signIn(page);
+    await expect(pagination(page, 1, 3)).toBeVisible();
+    for (const change of [
+      () => sortBy(page, "Date (UTC)", "Oldest first"),
+      () => page.getByLabel("Rows", { exact: true }).selectOption("50"),
+      () => nav.getByRole("button", { name: "Next", exact: true }).click(),
+    ]) {
+      gate = { started: deferred(), release: deferred() };
+      await change();
+      await gate.started.promise;
+      await expect(card).toHaveAttribute("data-placeholder", "true");
+      await expect(card).toHaveAttribute("aria-busy", "true");
+      await expect(nav.locator(".pagination-summary")).toHaveText("Updating…");
+      const previousRow = table.locator("tbody tr").first();
+      await expect(previousRow).toBeVisible();
+      await previousRow.scrollIntoViewIfNeeded();
+      const box = await previousRow.boundingBox();
+      await page.mouse.click(box.x + 40, box.y + box.height / 2);
+      await previousRow.focus();
+      await page.keyboard.press("Enter");
+      await expect(details).toHaveCount(0);
+      gate.release.resolve();
+      gate = null;
+      await expect(card).not.toHaveAttribute("data-placeholder");
+      await expect(nav.locator(".pagination-summary")).not.toHaveText("Updating…");
+      await expect(details).toHaveCount(0);
+    }
+    await expect(nav.locator(".pagination-summary")).toHaveText("51–60 of 60 transactions");
+  } finally {
+    gate?.release.resolve();
+  }
+});
 
 test("an empty next page cancels an older pending count before accepting the new bound", async ({
   page,

@@ -1,7 +1,8 @@
-import { Drawer, Text, Title } from "@mantine/core";
 import type { InventoryRow } from "./api/inventory";
 import { DetailSection } from "./DetailSection";
 import { AdditionalDetails } from "./AdditionalDetails";
+import { DetailDrawer } from "./DetailDrawer";
+import { DetailFields } from "./DetailFields";
 import {
   InventoryHealthLabel,
   InventoryMetrics,
@@ -28,34 +29,37 @@ export function InventoryDetail({
   administrator: boolean;
 }) {
   return (
-    <Drawer
+    <DetailDrawer
       id="inventory-details"
       opened={row !== null}
       onClose={onClose}
-      position="right"
-      size="min(1000px, 100vw)"
-      padding="lg"
+      width="wide"
       title="Inventory details"
-      closeButtonProps={{ "aria-label": "Close inventory details" }}
+      context={row ? `${row.sku} · ${row.marketplace_name}` : ""}
     >
       {row ? (
         <div className="inventory-detail">
-          <Title order={3} className="inventory-detail-title">
-            <SkuTransactionLink sku={row.sku} onShowTransactions={onShowTransactions} />
-          </Title>
-          <Text size="sm" c="dimmed" mt={4}>
-            {row.marketplace_name}
-          </Text>
-          <InventorySourceDate
-            snapshotDate={row.snapshot_date}
-            reportCreatedAt={row.report_created_at}
-            marketplace={row.marketplace_name}
-            now={now}
+          <DetailFields
+            fields={[
+              {
+                key: "sku",
+                label: "SKU",
+                value: <SkuTransactionLink sku={row.sku} onShowTransactions={onShowTransactions} />,
+              },
+              {
+                key: "stock-date",
+                label: "Stock date",
+                value: (
+                  <InventorySourceDate
+                    snapshotDate={row.snapshot_date}
+                    reportCreatedAt={row.report_created_at}
+                    marketplace={row.marketplace_name}
+                    now={now}
+                  />
+                ),
+              },
+            ]}
           />
-          <Text size="sm" c="dimmed" mt="xs" mb="lg">
-            Latest imported snapshot. Quantities are reported estimates; unavailable values appear
-            as —.
-          </Text>
           <div className="inventory-detail-grid">
             <DetailSection title="Sales · last 90 days">
               <InventoryMetrics row={row} fields={INVENTORY_METRICS.sales} />
@@ -90,12 +94,18 @@ export function InventoryDetail({
                 : []),
               { field: "Capture date", value: row.capture_date },
               { field: "Snapshot date", value: row.snapshot_date },
-              { field: "Report created", value: formatRecordDate(row.report_created_at) },
-              { field: "Processed", value: formatRecordDate(row.preprocessed_at) },
+              {
+                field: "Report created (UTC)",
+                value: formatRecordDate(row.report_created_at, { includeTimeZone: false }),
+              },
+              {
+                field: "Processed (UTC)",
+                value: formatRecordDate(row.preprocessed_at, { includeTimeZone: false }),
+              },
             ]}
           />
         </div>
       ) : null}
-    </Drawer>
+    </DetailDrawer>
   );
 }

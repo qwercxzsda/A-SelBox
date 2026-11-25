@@ -106,8 +106,15 @@ for (const width of [1440, 390]) {
     await expect(table.getByRole("row")).toHaveCount(3);
     await expect(table.getByRole("cell", { name: "0%", exact: true })).toBeVisible();
     await expect(table.getByRole("cell", { name: "6.123456%", exact: true })).toBeVisible();
-    await expect(table).toContainText("2026-10-01 (exclusive)");
-    await expect(table).toContainText("No end date");
+    await expect(table.getByRole("columnheader")).toHaveText([
+      "Marketplace",
+      "Fee rate",
+      "Effective from (inclusive)",
+      "Effective until (exclusive)",
+    ]);
+    await expect(table.getByRole("row").nth(1).getByRole("cell").nth(2)).toHaveText("2026-09-01");
+    await expect(table.getByRole("row").nth(1).getByRole("cell").nth(3)).toHaveText("2026-10-01");
+    await expect(table.getByRole("cell", { name: "No end date", exact: true })).toBeVisible();
     await expect(saved.getByRole("button", { name: /^Edit / })).toHaveCount(0);
     await previous.scrollIntoViewIfNeeded();
     await page.screenshot({
@@ -121,7 +128,7 @@ for (const width of [1440, 390]) {
     ).toBeVisible();
     await expect(
       saved.getByRole("article", { name: "Saved fee version 1", exact: true }),
-    ).toContainText("No marketplace fee periods are available for this SKU.");
+    ).toContainText("No fee periods");
     await expect(
       saved.getByRole("button", { name: "Next saved versions", exact: true }),
     ).toBeDisabled();
@@ -168,7 +175,7 @@ test("a failed historical read preserves the current configuration and supports 
     feeDetails(page).getByRole("button", { name: "Edit S1", exact: true }),
   ).toBeEnabled();
   history.status = 200;
-  await saved.getByRole("button", { name: "Retry saved versions", exact: true }).click();
+  await saved.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(saved.getByRole("article")).toHaveCount(10);
   expect(fixture.configurationSaves).toHaveLength(0);
 });

@@ -31,6 +31,10 @@ Unrecognized fee paths, contradictory identifiers, unsupported tax rates and uns
 
 French inbound transportation and transportation program fees use a zero tax rate. Singapore aged-storage reports combine the two fee tiers on each product row before calculating 9% tax in SGD.
 
+Monthly storage rows keep Amazon's average quantity on hand, product size tier, estimated total item volume with its volume units, and the storage rate in the report's own form. Australian and Singapore reports state one `storage_rate`; European, Japanese and North American reports state a `base_rate` and a `utilization_surcharge_rate`. A two-rate report also states the `storage_utilization_ratio` in weeks, as a decimal or `>52`, and splits the fee into `est_base_msf` and `est_sus`, with `est_vol_for_sus` as the volume the surcharge applies to. In every archived report the two parts add up to the fee within 0.0001. A one-rate report prints all three as zero, and they are not kept. A report with neither form or both, an unknown volume unit, a blank size tier, a negative or non-decimal figure, an unrecognized ratio or a split that does not add up fails preprocessing. These figures are shown to administrators and take no part in calculations.
+
+Removal order rows keep the quantity of their order type. In every archived report Amazon fills `disposed-quantity` for a Disposal and `shipped-quantity` for a Return or a Liquidations order, and leaves the other blank. A row that breaks this fails preprocessing.
+
 Warehouse allocation resolves ownership through FNSKU and the dated inventory ledger. The warehouse report’s printed SKU is retained as descriptive source data. Report and ledger availability varies by account and date.
 
 Lightning-deal payments require a consistent item `DEAL_ID` for promotion lookup.

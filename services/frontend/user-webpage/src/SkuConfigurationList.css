@@ -18,7 +18,6 @@
 .fee-configurations-table td {
   white-space: normal;
   overflow-wrap: anywhere;
-  vertical-align: top;
 }
 
 .fee-sku-label {
@@ -77,15 +76,8 @@
   background: var(--ui-surface);
 }
 
-.fee-period-table th,
-.fee-period-table td {
-  overflow-wrap: anywhere;
-  vertical-align: top;
-}
-
-.fee-period-marketplace,
-.fee-period-date,
-.fee-period-rate {
+/* Marketplaces, rates and dates keep one line; headings wrap between words. */
+:is(.fee-period-table, .fee-change-table) td {
   white-space: nowrap;
 }
 
@@ -93,4 +85,9 @@
   .fee-period-table {
     table-layout: auto;
   }
+}
+
+/* Badges and dates keep their width; narrow screens scroll the table instead of squeezing it. */
+.fee-change-table {
+  min-width: 560px;
 }

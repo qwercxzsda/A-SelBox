@@ -92,6 +92,7 @@ test("closed unfinished fee editors retain incomplete inputs and a pending rate 
       feeRatePercent: "0.000001",
       previewRequested: true,
     },
+    visited: ["company_id", "periods.0.fee_rate_percent"],
   };
   const decoded = decodeFeeView({ ...createFeeViewState(), editorDrafts: [unfinished] });
   assert.equal(decoded.editing, null);
@@ -115,8 +116,26 @@ test("fee editor restoration rejects malformed identity without normalizing unfi
       { marketplace_name: "", valid_from: "", valid_to: null, fee_rate_percent: "unfinished" },
     ],
   };
-  const editor = { sku: form.sku, isNew: false, form, submitError: null, rateChange: null };
+  const editor = {
+    sku: form.sku,
+    isNew: false,
+    form,
+    submitError: null,
+    rateChange: null,
+    visited: ["periods.0.valid_from"],
+  };
   assert.deepEqual(decodeFeeView({ editing: editor }).editing, editor);
+  // Visited paths name the form's own fields; others are dropped, not the editor.
+  assert.deepEqual(
+    decodeFeeView({
+      editing: {
+        ...editor,
+        visited: ["periods.1.valid_from", "periods.00.valid_to", "periods.0.other", 1, "sku"],
+      },
+    }).editing.visited,
+    ["sku"],
+  );
+  assert.deepEqual(decodeFeeView({ editing: { ...editor, visited: "sku" } }).editing.visited, []);
   const newEditor = { ...editor, sku: "", isNew: true };
   assert.deepEqual(decodeFeeView({ editing: newEditor }).editing, newEditor);
   for (const invalid of [
@@ -383,6 +402,26 @@ test("interrupted saves preserve drafts and optimistic versions without replayin
   assert.equal(value.reviewing, true);
   assert.equal(value.requiresReload, true);
   assert.equal(value.savePending, false);
-  assert.match(value.saveProblem, /before the save was confirmed/);
+  assert.deepEqual(value.saveProblem, {
+    title: "Could not save the fees",
+    detail: "The page reloaded during the save. Refresh saved settings first.",
+  });
   assert.deepEqual(decodeFeeView({ drafts: [{ sku: "missing expected version" }] }).drafts, []);
+});
+
+test("a stored fee save failure keeps its title and detail; malformed values are dropped", () => {
+  const problem = {
+    title: "Could not save the fees",
+    detail: "Result unknown. Refresh saved settings first.",
+  };
+  assert.deepEqual(decodeFeeView({ saveProblem: problem }).saveProblem, problem);
+  for (const saveProblem of [
+    "Could not save the fees. Result unknown. Refresh saved settings first.",
+    { ...problem, title: "Could not save the assignment" },
+    { ...problem, detail: " " },
+    { ...problem, detail: 1 },
+    { detail: problem.detail },
+    [],
+  ])
+    assert.equal(decodeFeeView({ saveProblem }).saveProblem, null);
 });

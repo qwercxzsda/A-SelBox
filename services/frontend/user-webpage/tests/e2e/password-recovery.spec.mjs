@@ -127,9 +127,7 @@ test("forgot password requests a generic recovery email once and F5 never resend
   await expect(page.getByLabel(/^Email/)).toBeDisabled();
   await expect(page.getByRole("button", { name: "Back to sign in", exact: true })).toBeDisabled();
   pending.resolve();
-  await expect(page.getByRole("status")).toContainText(
-    "If an account exists for this email address",
-  );
+  await expect(page.getByRole("status")).toContainText("If the account exists, we sent a link.");
   expect(state.requests).toHaveLength(1);
   expect(state.requests[0].body).toEqual({ email: "unknown@example.test" });
   expect(state.requests[0].params.get("redirect_to")).toBe(new URL("/", page.url()).href);
@@ -182,7 +180,7 @@ test("recovery verifies identity before showing a password form and only explici
     authorization: "Bearer token-member-a",
   });
   pending.resolve();
-  await expect(page.getByRole("status")).toContainText("Your password has been updated");
+  await expect(page.getByRole("status")).toContainText("Password updated");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByLabel(/^Password(?:\s*\*)?$/)).toHaveValue("");
   expect(await page.evaluate((key) => sessionStorage.getItem(key), SESSION_KEY)).toBeNull();
@@ -211,12 +209,16 @@ test("expired links and rejected recovery tokens offer a new link without exposi
   await expect(
     page.getByRole("heading", { name: "Reset your password", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText("invalid or has expired");
+  await expect(page.getByRole("alert")).toContainText(
+    "Recovery link expired. Request a new one below.",
+  );
   await expect(page.getByRole("alert")).not.toContainText("private-account-detail");
   expect(new URL(page.url()).hash).toBe("");
   fixture.sessionUserStatus = 401;
   await page.goto(`/#${recoveryHash()}`);
-  await expect(page.getByRole("alert")).toContainText("invalid or has expired");
+  await expect(page.getByRole("alert")).toContainText(
+    "Recovery link expired. Request a new one below.",
+  );
   await expect(passwordForm(page)).toHaveCount(0);
   expect(state.requests).toHaveLength(0);
   expect(state.updates).toHaveLength(0);
@@ -288,7 +290,9 @@ test("recovery renewal cannot switch to a different token user", async ({ page }
   await expect(
     page.getByRole("heading", { name: "Reset your password", exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("alert")).toContainText("invalid or has expired");
+  await expect(page.getByRole("alert")).toContainText(
+    "Recovery link expired. Request a new one below.",
+  );
   await expect(passwordForm(page)).toHaveCount(0);
   expect(state.updates).toHaveLength(0);
   expect(fixture.revisionRequests).toHaveLength(0);
@@ -328,7 +332,7 @@ test("update errors permit correction and cancellation clears the recovery sessi
   await expect(page.getByRole("alert")).toContainText("Could not update your password");
   await expect(page.getByRole("alert")).not.toContainText("private-password-detail");
   await expect(page.getByLabel(/^New password/)).toBeEnabled();
-  await page.getByRole("button", { name: "Cancel and return to sign in", exact: true }).click();
+  await page.getByRole("button", { name: "Back to sign in", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   expect(await page.evaluate((key) => sessionStorage.getItem(key), SESSION_KEY)).toBeNull();
   await page.reload();
@@ -349,7 +353,9 @@ for (const status of [401, 403]) {
     await expect(
       page.getByRole("heading", { name: "Reset your password", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("alert")).toContainText("Request a new link below");
+    await expect(page.getByRole("alert")).toHaveText(
+      "Recovery link expired. Request a new one below.",
+    );
     await expect(page.getByLabel(/^Email/)).toHaveValue("member-a@example.test");
     await expect(page.getByRole("button", { name: "Send recovery link" })).toBeEnabled();
     expect(await page.evaluate((key) => sessionStorage.getItem(key), SESSION_KEY)).toBeNull();

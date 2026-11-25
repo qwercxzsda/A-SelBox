@@ -69,10 +69,10 @@ test("administrator explicitly deletes an unused company and all company pickers
   await expect(editor(page).getByRole("combobox", { name: "Company", exact: true })).toHaveValue(
     COMPANY,
   );
-  await button(editor(page), "Close SKU editor").click();
+  await button(editor(page), "Close fee editor").click();
   await tab(page, "User access").click();
   await page.getByRole("row").filter({ hasText: "member-b@example.test" }).click();
-  const membership = page.getByRole("dialog", { name: "Company membership", exact: true });
+  const membership = page.getByRole("dialog", { name: "User access details", exact: true });
   await membership.getByRole("combobox", { name: "Company", exact: true }).fill("Unused Company");
   await expect(page.getByRole("option", { name: "Unused Company", exact: true })).toHaveCount(0);
   expect(fixture.membershipRequests).toHaveLength(0);
@@ -106,13 +106,19 @@ test("historical fee versions and every linked-record reason block deletion even
   ])
     await expect(error).toContainText(label);
   await expect(error).toContainText("7");
-  await expect(error.locator("li")).toHaveText([
-    "Members: 2",
-    "Assigned SKUs: 3",
-    "Fee versions (including history): 7",
-    "Payout reports: 5",
-    "Payout refreshes: 1",
-  ]);
+  // Linked records read as an aligned table, not one sentence each.
+  const blockers = error.getByRole("table", { name: "Linked records of Unused Company" });
+  await expect(blockers.getByRole("columnheader")).toHaveText(["Linked record", "Count"]);
+  const rows = blockers.locator("tbody tr");
+  for (const [index, cells] of [
+    ["Members", "2"],
+    ["Assigned SKUs", "3"],
+    ["Fee versions (including history)", "7"],
+    ["Payout reports", "5"],
+    ["Payout refreshes", "1"],
+  ].entries())
+    await expect(rows.nth(index).getByRole("cell")).toHaveText(cells);
+  await expect(rows).toHaveCount(5);
   await expect(row(page)).toBeVisible();
   expect(fixture.companyNames[UNUSED]).toBe("Unused Company");
   expect(fixture.membershipRequests).toHaveLength(0);
@@ -180,7 +186,14 @@ test("an uncertain deletion keeps the row until an explicit safe retry confirms 
   fixture.companyDeletionNetworkFailure = true;
   await askToDelete(page);
   await button(confirmation(page), "Delete permanently").click();
-  await expect(confirmation(page).getByRole("alert")).toBeVisible();
+  // The one failure format: ErrorAlert's title, the reason beneath it, and no Retry in the alert.
+  const problem = confirmation(page).getByRole("alert");
+  await expect(problem.locator(".mantine-Alert-title")).toHaveText("Could not delete the company");
+  await expect(problem.locator(".mantine-Alert-message")).toHaveText(
+    "Could not confirm the deletion. Retry to check.",
+  );
+  await expect(problem.getByRole("button")).toHaveCount(0);
+  await expect(problem).toBeFocused();
   await expect(row(page)).toBeVisible();
   expect(fixture.companyDeletionRequests).toHaveLength(1);
   expect(fixture.companyNames[UNUSED]).toBeUndefined();
@@ -239,8 +252,10 @@ test("deleting a company used only by unfinished drafts keeps the drafts but blo
   await expect(editor(page).getByLabel("Fee rate 1 (%)", { exact: true })).toHaveValue("6.25");
   await button(editor(page), "Keep draft").click();
   await button(page, "Review changes (1)").click();
-  const review = page.getByRole("dialog", { name: "Review configuration changes", exact: true });
-  await expect(review.getByRole("button", { name: /Save/ })).toBeDisabled();
+  const review = page.getByRole("dialog", { name: "Review changes", exact: true });
+  await expect(
+    review.getByRole("button", { name: "Save all changes", exact: true }),
+  ).toBeDisabled();
   await button(review, "Complete S1").click();
   await expect(
     editor(page).getByText("This company is no longer available. Choose another company.", {

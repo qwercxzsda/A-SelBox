@@ -1,21 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, Group, Modal, Text } from "@mantine/core";
+import { Alert, Button, Group, Text } from "@mantine/core";
 import type { Company } from "./api";
 import type { Identity } from "./auth-session";
-import { CompanyCreateForm } from "./CompanyCreateForm";
+import { CompanyCreateModal } from "./CompanyCreateModal";
 import { useCompanyDirectory } from "./company-directory-context";
 import { ListToolbar } from "./ListToolbar";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
-import { lastPageIndex } from "./pagination";
+import { lastPageIndex, showsBottomPager } from "./pagination";
 import { CompanyTable } from "./CompanyTable";
 import { CompanyDetails } from "./CompanyDetails";
 import { DetailDrawer } from "./DetailDrawer";
-import { DrawerHeading } from "./DrawerHeading";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { useDrawerFocusReturn } from "./use-drawer-focus-return";
 import { WorkspaceHeader } from "./WorkspaceHeader";
-import { decodeCompanyList, orderCompanies, type CompanyListState } from "./companies-view";
+import {
+  COMPANY_RETURN_TABS,
+  decodeCompanyList,
+  companyPageIndex,
+  orderCompanies,
+  type CompanyListState,
+  type CompanyReturnTab,
+} from "./companies-view";
 import "./Companies.css";
 
 export function Companies({
@@ -27,7 +33,7 @@ export function Companies({
   updating = false,
 }: {
   identity: Identity;
-  returnTo: "fees" | "accounts" | null;
+  returnTo: CompanyReturnTab | null;
   onReturn: () => void;
   onShowMembers: (companyId: string) => void;
   onShowTransactions: (sku: string) => void;
@@ -54,8 +60,7 @@ export function Companies({
   useEffect(() => {
     if (returnTo !== null) setCreating(true);
   }, [returnTo, setCreating]);
-  const returnLabel =
-    returnTo === "fees" ? "Current fees" : returnTo === "accounts" ? "User access" : null;
+  const returnLabel = returnTo ? COMPANY_RETURN_TABS[returnTo] : null;
   const assignments = useMemo(() => {
     const grouped = new Map<string, Set<string>>();
     for (const assignment of identity.assignments) {
@@ -89,9 +94,6 @@ export function Companies({
   function showControls() {
     revealSection(controlsRef.current);
   }
-  function closeCreation() {
-    if (!isCreating) setCreating(false);
-  }
   function returnToOrigin() {
     if (isCreating) return;
     setCreating(false);
@@ -99,14 +101,10 @@ export function Companies({
   }
   function revealCompany(company: Company) {
     setNotice(null);
-    const updated = [...companies.filter(({ id }) => id !== company.id), company];
     setState((current) => ({
       ...current,
       search: "",
-      pageIndex: Math.floor(
-        orderCompanies(updated, assignments, current).findIndex(({ id }) => id === company.id) /
-          current.pageSize,
-      ),
+      pageIndex: companyPageIndex(companies, company, assignments, current),
       selected: company.id,
     }));
   }
@@ -143,8 +141,7 @@ export function Companies({
         <Alert color="cyan" mb="md">
           <Group justify="space-between" gap="sm" align="center">
             <Text size="sm" className="company-return-guide">
-              Add a company, then return to {returnLabel} to select it. Your draft is kept while you
-              switch tabs.
+              Add a company, then return to {returnLabel}.
             </Text>
             <Button variant="light" onClick={returnToOrigin}>
               Return to {returnLabel}
@@ -207,7 +204,7 @@ export function Companies({
         onChange={change}
         searchInput={searchInput}
       />
-      {visible.length > 10 || pageIndex > 0 ? (
+      {showsBottomPager(visible.length, pageIndex) ? (
         <ListPageNavigation
           labels={{
             navigation: "Company list navigation at bottom",
@@ -227,9 +224,22 @@ export function Companies({
       ) : null}
       <DetailDrawer
         opened={selected !== null && !creating}
-        title={<DrawerHeading title="Company details" context={selected?.name ?? ""} />}
-        closeLabel="Close company details"
-        size="min(720px, 100vw)"
+        title="Company details"
+        context={selected?.name ?? ""}
+        width="record"
+        headerActions={
+          selected ? (
+            <Button
+              size="xs"
+              onClick={() => {
+                change({ selected: null });
+                onShowMembers(selected.id);
+              }}
+            >
+              View members
+            </Button>
+          ) : undefined
+        }
         returnFocus={false}
         onClose={() => {
           change({ selected: null });
@@ -241,10 +251,6 @@ export function Companies({
             key={selected.id}
             company={selected}
             skus={assignments.get(selected.id) ?? []}
-            onShowMembers={(id) => {
-              change({ selected: null });
-              onShowMembers(id);
-            }}
             onShowTransactions={(sku) => {
               change({ selected: null });
               onShowTransactions(sku);
@@ -258,30 +264,16 @@ export function Companies({
           />
         ) : null}
       </DetailDrawer>
-      <Modal
+      <CompanyCreateModal
         opened={creating}
-        onClose={closeCreation}
-        centered
-        size="min(560px, calc(100vw - 32px))"
-        padding="lg"
-        title="Add company"
+        returnLabel={returnLabel}
         returnFocus={selected === null}
-        closeButtonProps={{ "aria-label": "Close company creation", disabled: isCreating }}
-        closeOnEscape={!isCreating}
-        closeOnClickOutside={!isCreating}
-      >
-        <CompanyCreateForm returnLabel={returnLabel} onCreated={revealCompany} />
-        <Group justify="flex-end" mt="lg">
-          <Button variant="default" disabled={isCreating} onClick={closeCreation}>
-            Done
-          </Button>
-          {returnLabel ? (
-            <Button disabled={isCreating} onClick={returnToOrigin}>
-              Return to {returnLabel}
-            </Button>
-          ) : null}
-        </Group>
-      </Modal>
+        onClose={() => {
+          setCreating(false);
+        }}
+        onReturn={returnToOrigin}
+        onCreated={revealCompany}
+      />
     </div>
   );
 }

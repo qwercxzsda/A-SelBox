@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Alert, Badge, Paper, Stack, Text, Title } from "@mantine/core";
+import { Paper, Stack, Text, Title } from "@mantine/core";
+import { ErrorAlert } from "./ErrorAlert";
+import { StatusBadge } from "./StatusBadge";
 import type { Identity, IdentityRefreshOptions } from "./auth-session";
 import { FinanceWorkspace } from "./FinanceWorkspace";
 import { createQueryClient } from "./query-client";
@@ -23,19 +25,18 @@ function WorkspaceContent({ identity, onRefreshIdentity }: AuthenticatedProps) {
     return (
       <Paper withBorder p="xl" maw={640} mx="auto">
         <Stack gap="md">
-          <Badge variant="light" color="gray" w="fit-content">
-            Unassigned
-          </Badge>
+          <StatusBadge tone="neutral">Unassigned</StatusBadge>
           <Title order={2}>Awaiting company access</Title>
-          <Text>Your account is ready. Ask an administrator to assign you to your company.</Text>
+          <Text>Ask an administrator to assign you to a company.</Text>
           <Text size="sm" c="dimmed">
-            This page checks for access changes automatically. Your workspace will appear here once
-            membership is granted.
+            This page updates automatically once you have access.
           </Text>
           {updateError ? (
-            <Alert color="red" role="alert">
-              {updateError} Updates retry automatically.
-            </Alert>
+            <ErrorAlert
+              title="Could not check for updates"
+              detail={updateError}
+              retriesAutomatically
+            />
           ) : null}
         </Stack>
       </Paper>

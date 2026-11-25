@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isFeeRate } from "../src/api/sku-configuration-codec.ts";
 import {
-  createSkuDraft,
   clearSubmittedDrafts,
+  createSkuDraft,
+  formPaths,
+  movePeriodPaths,
   newSkuItem,
   resolveSkuConfiguration,
+  showsFieldError,
   validateSkuItem,
 } from "../src/sku-configuration-form.ts";
 
@@ -63,7 +66,9 @@ test("coverage accepts adjoining and open-ended rates but identifies exact half-
     item({ periods: [period("2026-01-01", "2026-01-15"), period("2026-01-16", null)] }),
   );
   assert.equal(gaps.length, 1);
-  assert.match(gaps[0].message, /2026-01-15 \(inclusive\) to 2026-01-16 \(exclusive\)/);
+  assert.deepEqual(gaps[0].gap, required("2026-01-15", "2026-01-16"));
+  assert.equal(gaps[0].field, undefined);
+  assert.doesNotMatch(gaps[0].message, /inclusive|exclusive/);
 });
 test("dates, marketplace overlap, and invalid rates cannot provide required coverage", () => {
   assert.ok(
@@ -148,10 +153,9 @@ test("source refresh adds new coverage requirements and stale drafts cannot sile
     requirements: [required("2026-01-01", "2026-03-01")],
   };
   const issues = resolveSkuConfiguration([refreshed], [draft]).issues;
-  assert.ok(
-    issues.some((issue) =>
-      issue.message.includes("2026-02-01 (inclusive) to 2026-03-01 (exclusive)"),
-    ),
+  assert.deepEqual(
+    issues.filter((issue) => issue.gap).map((issue) => issue.gap),
+    [{ marketplace_name: "Amazon.com", valid_from: "2026-02-01", valid_to: "2026-03-01" }],
   );
   assert.ok(issues.some((issue) => issue.message.includes("Saved settings changed")));
 });
@@ -182,7 +186,7 @@ test("out-of-order overlapping rates are rejected even when their union covers a
   );
   assert.ok(issues.some((issue) => issue.message.includes("overlap")));
   assert.equal(
-    issues.some((issue) => issue.message.includes("needs a fee rate")),
+    issues.some((issue) => issue.gap),
     false,
   );
 });
@@ -225,4 +229,102 @@ test("clearing a saved owner permits unassigned amounts without a fee rate", () 
   const saved = item({ periods: [] });
   const clear = { ...createSkuDraft(saved), company_id: null, periods: [] };
   assert.deepEqual(resolveSkuConfiguration([saved], [clear]).draftIssues, []);
+});
+
+const shownErrors = (opened, values, visited = []) =>
+  validateSkuItem({ ...opened, ...values })
+    .filter((issue) => issue.field && showsFieldError(issue, values, visited))
+    .map(({ message, periodIndex }) => [periodIndex, message]);
+
+test("a blank field shows its error only after a visit; a filled-in value at once", () => {
+  const saved = item({ requirements: [required("2026-01-01", "2026-02-01", "Amazon.de")] });
+  const draft = createSkuDraft(saved);
+  // The pre-added gap period starts with an empty rate: no error before the user reaches it.
+  assert.equal(draft.periods[1].fee_rate_percent, "");
+  assert.deepEqual(shownErrors(saved, draft), []);
+  assert.deepEqual(shownErrors(saved, draft, ["periods.1.fee_rate_percent"]), [
+    [1, "Enter 0–100, up to 6 decimals."],
+  ]);
+  // Clearing a saved rate types into it, so the field is visited; an invalid value shows at once.
+  const cleared = { ...draft, periods: [{ ...draft.periods[0], fee_rate_percent: "" }] };
+  assert.deepEqual(shownErrors(saved, cleared), []);
+  assert.deepEqual(shownErrors(saved, cleared, ["periods.0.fee_rate_percent"]), [
+    [0, "Enter 0–100, up to 6 decimals."],
+  ]);
+  const typed = { ...draft, periods: [{ ...draft.periods[0], valid_to: "2025-01-01" }] };
+  assert.deepEqual(shownErrors(saved, typed), [
+    [0, "Effective until must be after Effective from."],
+  ]);
+  // A new SKU's blank company and added period stay quiet until visited.
+  const opened = newSkuItem("S2");
+  const added = { ...createSkuDraft(opened), periods: [period("", null, "", "")] };
+  assert.deepEqual(shownErrors(opened, added), []);
+  assert.deepEqual(shownErrors(opened, added, ["company_id", "periods.0.marketplace_name"]), [
+    [undefined, "Choose a company."],
+    [0, "Choose a marketplace."],
+  ]);
+});
+
+test("blank periods stay quiet when removing a period shifts them onto a saved period's index", () => {
+  // Remove period 2 of two saved periods, then add a blank period at index 1.
+  const twoPeriods = item({
+    requirements: [],
+    periods: [period("2026-01-01", "2026-02-01"), period("2026-02-01", null, "6")],
+  });
+  const draft = createSkuDraft(twoPeriods);
+  const visited = movePeriodPaths([], 1, -1);
+  const added = { ...draft, periods: [draft.periods[0], period("", null, "", "")] };
+  assert.deepEqual(shownErrors(twoPeriods, added, visited), []);
+  // Removing period 1 moves the pre-added gap period (blank rate) from index 2 to index 1.
+  const withGap = item({
+    requirements: [required("2026-01-01", "2026-04-01")],
+    periods: [period("2026-01-01", "2026-02-01"), period("2026-03-01", null, "6")],
+  });
+  const gapDraft = createSkuDraft(withGap);
+  assert.equal(gapDraft.periods.length, 3);
+  assert.deepEqual(shownErrors(withGap, gapDraft), []);
+  const removed = { ...gapDraft, periods: gapDraft.periods.slice(1) };
+  assert.deepEqual(shownErrors(withGap, removed, movePeriodPaths([], 0, -1)), []);
+  // A visited field keeps its error on its period after the move.
+  assert.deepEqual(
+    shownErrors(withGap, removed, movePeriodPaths(["periods.2.fee_rate_percent"], 0, -1)),
+    [[1, "Enter 0–100, up to 6 decimals."]],
+  );
+});
+
+test("visited period paths follow their periods when periods are removed or inserted", () => {
+  const paths = [
+    "company_id",
+    "periods.0.valid_to",
+    "periods.1.fee_rate_percent",
+    "periods.2.valid_from",
+  ];
+  assert.deepEqual(movePeriodPaths(paths, 1, -1), [
+    "company_id",
+    "periods.0.valid_to",
+    "periods.1.valid_from",
+  ]);
+  assert.deepEqual(movePeriodPaths(paths, 1, 1), [
+    "company_id",
+    "periods.0.valid_to",
+    "periods.2.fee_rate_percent",
+    "periods.3.valid_from",
+  ]);
+  assert.deepEqual(movePeriodPaths(paths, 0, 0), paths);
+});
+
+test("a kept draft reopens with every field visited, so all of its errors show", () => {
+  const saved = item({ company_id: null, requirements: [required("2026-01-01", "2026-03-01")] });
+  const kept = { ...createSkuDraft(saved), periods: [period("2026-01-01", null, "")] };
+  assert.deepEqual(formPaths(kept), [
+    "company_id",
+    "periods.0.marketplace_name",
+    "periods.0.fee_rate_percent",
+    "periods.0.valid_from",
+    "periods.0.valid_to",
+  ]);
+  assert.deepEqual(shownErrors(saved, kept, formPaths(kept)), [
+    [undefined, "Choose a company."],
+    [0, "Enter 0–100, up to 6 decimals."],
+  ]);
 });

@@ -18,7 +18,7 @@ const view = (page, title, currency = "USD") =>
   });
 
 async function closeBreakdown(page) {
-  await drawer(page).getByRole("button", { name: "Close breakdown", exact: true }).click();
+  await drawer(page).getByRole("button", { name: "Close transaction totals", exact: true }).click();
   await expect(drawer(page)).toHaveCount(0);
 }
 
@@ -131,7 +131,7 @@ test("breakdowns load lazily for the chosen period and matching types with sourc
   await expect(summaryAmount(total, "Reported amount")).toHaveText("97.12 USD");
   await expect(summaryAmount(total, "Known company amount")).toHaveText("85.00 USD");
   await expect(total).toContainText("5 records across 3 types");
-  await expect(total).toContainText("2 transactions have uncalculated amounts.");
+  await expect(total.getByRole("note")).toHaveText("2 missing fee rates");
   expect(fixture.breakdownRequests).toHaveLength(1);
   expect(fixture.breakdownRequests[0].includeCount).toBe(false);
   expect(fixture.breakdownRequests[0].args).not.toHaveProperty("p_limit");
@@ -257,7 +257,7 @@ test("a forbidden breakdown is not retried automatically and the explicit retry 
   await expect(drawer(page).getByRole("alert")).toContainText("HTTP 403");
   expect(fixture.breakdownRequests).toHaveLength(1);
   fixture.breakdownStatus = 200;
-  await drawer(page).getByRole("button", { name: "Retry breakdown", exact: true }).click();
+  await drawer(page).getByRole("button", { name: "Retry", exact: true }).click();
   await expandGroups(page);
   await expect(
     drawer(page).getByRole("row", { name: "Principal amounts", exact: true }),

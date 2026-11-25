@@ -54,23 +54,18 @@ test("removing an inventory health chip restores keyboard focus and keeps other 
   await sortBy(page, "SKU", "Z to A");
   await selectColumnOptions(page, "Inventory health status", ["Low stock"]);
   const filters = page.getByRole("group", { name: "Applied inventory filters", exact: true });
+  // The search box shows the term; only column filters get chips.
+  await expect(filters.getByRole("button", { name: /^Remove Search/ })).toHaveCount(0);
   await filters.getByRole("button", { name: "Remove Health: Low stock", exact: true }).focus();
   await page.keyboard.press("Enter");
+  await expect(filters).toHaveCount(0);
   await expect(search).toBeFocused();
   await expect(search).toHaveValue("QA");
-  await expect(
-    filters.getByRole("button", { name: "Remove Search: QA", exact: true }),
-  ).toBeVisible();
   await expect(page.getByLabel("Rows", { exact: true })).toHaveValue("50");
   await expect(columnHeader(page, "SKU")).toHaveAttribute("aria-sort", "descending");
   await expect(
     page.getByRole("button", { name: "Show transactions for QA-002", exact: true }),
   ).toBeVisible();
-  await filters.getByRole("button", { name: "Remove Search: QA", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  await expect(filters).toHaveCount(0);
-  await expect(search).toBeFocused();
-  await expect(search).toHaveValue("");
 });
 
 test("clearing the last payout month chip returns keyboard focus to its search", async ({
@@ -85,7 +80,7 @@ test("clearing the last payout month chip returns keyboard focus to its search",
   await applyReportMonth(page, "2026-06");
   const filters = page.getByRole("group", { name: "Applied table filters", exact: true });
   await filters
-    .getByRole("button", { name: "Report month: 2026-06. Clear filter.", exact: true })
+    .getByRole("button", { name: "Report month: June 2026. Clear filter.", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect(filters).toHaveCount(0);

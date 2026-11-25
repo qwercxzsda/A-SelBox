@@ -100,7 +100,7 @@ test("column filters combine with search and inclusive dates, reset the page, an
   await restoredDates.getByLabel("From date", { exact: true }).fill("2026-09-10");
   await restoredDates.getByLabel("To date", { exact: true }).fill("2026-09-11");
   await restoredDates.getByRole("button", { name: "Apply dates", exact: true }).click();
-  await expect(page.getByText("No matching records", { exact: true })).toBeVisible();
+  await expect(page.getByText("No matching transactions", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await expect(table.getByRole("row")).toHaveCount(26);
   await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();

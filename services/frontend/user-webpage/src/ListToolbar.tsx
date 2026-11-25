@@ -11,13 +11,15 @@ interface ListToolbarProps {
   controlsRef?: Ref<HTMLDivElement>;
   className?: string;
   style?: CSSProperties;
-  search: {
+  search?: {
     value: string;
     placeholder: string;
     onChange: (value: string) => void;
     inputRef?: RefObject<HTMLInputElement | null>;
     ariaLabel?: string;
   };
+  /** Scope fields shown before Rows when a list has no server-side text search. */
+  filters?: ReactNode;
   pageSize: number;
   onPageSizeChange: (value: number) => void;
   pagination: Omit<PaginationBarProps, "summary">;
@@ -25,6 +27,8 @@ interface ListToolbarProps {
   totalCount: number | null;
   items: string;
   message?: string;
+  /** The previous result is shown while the next one loads, so its range is no longer current. */
+  updating?: boolean;
   extraControls?: ReactNode;
 }
 
@@ -34,6 +38,7 @@ export function ListToolbar({
   className,
   style,
   search,
+  filters,
   pageSize,
   onPageSizeChange,
   pagination,
@@ -41,6 +46,7 @@ export function ListToolbar({
   totalCount,
   items,
   message,
+  updating = false,
   extraControls,
 }: ListToolbarProps) {
   return (
@@ -55,15 +61,18 @@ export function ListToolbar({
       align="end"
     >
       <Group align="end" className="table-toolbar-fields">
-        <SearchInput
-          inputRef={search.inputRef}
-          className="search-field"
-          type="search"
-          aria-label={search.ariaLabel}
-          value={search.value}
-          placeholder={search.placeholder}
-          onChange={search.onChange}
-        />
+        {search ? (
+          <SearchInput
+            inputRef={search.inputRef}
+            className="search-field"
+            type="search"
+            aria-label={search.ariaLabel}
+            value={search.value}
+            placeholder={search.placeholder}
+            onChange={search.onChange}
+          />
+        ) : null}
+        {filters}
         <RowsSelect value={pageSize} onChange={onPageSizeChange} />
         {extraControls ? (
           <Group align="end" gap="xs" className="list-toolbar-extra">
@@ -74,7 +83,10 @@ export function ListToolbar({
       <PaginationBar
         {...pagination}
         summary={
-          message ?? pageRangeSummary(pagination.pageIndex, pageSize, rowCount, totalCount, items)
+          message ??
+          (updating
+            ? "Updating…"
+            : pageRangeSummary(pagination.pageIndex, pageSize, rowCount, totalCount, items))
         }
       />
     </Group>

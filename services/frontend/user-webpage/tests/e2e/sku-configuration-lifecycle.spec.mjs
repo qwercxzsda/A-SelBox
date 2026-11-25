@@ -35,7 +35,7 @@ test("a save completing after token renewal refreshes only with current credenti
   const configurationBeforeCompletion = fixture.configurationRequests.length;
   await page.getByRole("tab", { name: "Current fees", exact: true }).click();
   pending.resolve();
-  await expect(page.getByRole("status").filter({ hasText: "1 SKU change saved." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^Fees saved: [^,]+$/ })).toBeVisible();
   await expect(
     page.getByRole("status").filter({ hasText: "Refreshing saved settings…" }),
   ).toBeHidden();

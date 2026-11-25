@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
 import { sortBy } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 for (const [dataset, tab, dateColumn, amountColumn] of [
   ["live", "Transactions", "activity_date", "source_amount"],
@@ -34,7 +35,7 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
     else fixture.financesRows = rows;
 
     await signIn(page);
-    if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+    if (dataset !== "live") await openWorkspaceTab(page, tab);
     const table = page.getByRole("table", { name: "Financial records", exact: true });
     const firstRow = table.getByRole("row").nth(1);
     await expect(page.getByRole("form", { name: "Page 1 of 2", exact: true })).toBeVisible();
@@ -51,7 +52,10 @@ for (const [dataset, tab, dateColumn, amountColumn] of [
       const amount = firstRow.locator(`[data-column="${amountColumn}"]`);
       await expect(
         dataset === "live" ? amount.locator(".stacked-cell-primary") : amount,
-      ).toHaveText(`${direction === "asc" ? "-" : ""}9,007,199,254,740,993.00 USD`);
+      ).toHaveText(
+        // Transactions rounds to cents; Raw data shows the exact amount.
+        `${direction === "asc" ? "-" : ""}9,007,199,254,740,993.${dataset === "live" ? "00" : "000000000000000002"} USD`,
+      );
       expect(fixture.requests.at(-1).transport).toBe("rpc");
       expect(fixture.requests.at(-1).args).toMatchObject({
         p_order_by: "amount",

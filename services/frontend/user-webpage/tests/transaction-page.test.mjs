@@ -226,7 +226,7 @@ test("source tabs use their date columns for date RPCs and reject lossy source a
           await client.fetchDatasetPage(
             request({
               dataset,
-              sort: { column: DATASET_CONFIG[dataset].dateColumn, direction },
+              sort: { column: DATASET_CONFIG[dataset].dateFilter.column, direction },
             }),
           )
         ).totalCount,

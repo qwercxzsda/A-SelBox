@@ -53,7 +53,7 @@ export function PasswordRecoveryPanel({
         Choose a new password
       </Title>
       <Text size="sm" c="dimmed">
-        {email ? `Resetting the password for ${email}.` : "Your recovery link has been verified."}
+        {email ? `Resetting the password for ${email}.` : "Recovery link verified."}
       </Text>
       {error && !invalidField ? (
         <Alert ref={serverErrorRef} tabIndex={-1} color="red" role="alert">
@@ -110,14 +110,11 @@ export function PasswordRecoveryPanel({
           </Button>
         </Stack>
       </form>
-      <Text size="xs" c="dimmed">
-        Your password changes only when you choose Update password. Reloading clears these fields.
-      </Text>
       <Button variant="subtle" disabled={pending} onClick={onRequestLink}>
         Request a new recovery link
       </Button>
       <Button variant="subtle" disabled={pending} onClick={onCancel}>
-        Cancel and return to sign in
+        Back to sign in
       </Button>
     </AuthPanel>
   );

@@ -34,9 +34,16 @@ export async function toggleFeePeriods(page, sku) {
     .click();
 }
 export const feeDetails = (page) => page.getByRole("dialog", { name: "Fee details", exact: true });
-export const editor = (page) => page.getByRole("dialog", { name: /^Edit |^Add SKU$/ });
-export const review = (page) =>
-  page.getByRole("dialog", { name: "Review configuration changes", exact: true });
+export const editor = (page) => page.getByRole("dialog", { name: "Fee editor", exact: true });
+export const review = (page) => page.getByRole("dialog", { name: "Review changes", exact: true });
+
+/** A save outcome alert: its title, the detail beneath it, and "Refresh saved settings". */
+export async function expectSavedSettingsAlert(scope, title, detail = "") {
+  const alert = scope.getByRole("alert").filter({ hasText: title });
+  await expect(alert.locator(".mantine-Alert-title")).toHaveText(title);
+  await expect(alert.locator(".mantine-Alert-message .mantine-Text-root")).toHaveText(detail);
+  await expect(alert.getByRole("button", { name: "Refresh saved settings" })).toBeVisible();
+}
 
 export async function setup(
   page,

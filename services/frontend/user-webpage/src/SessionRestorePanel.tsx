@@ -1,5 +1,6 @@
-import { Alert, Button, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import { AuthPanel } from "./AuthPanel";
+import { ErrorAlert } from "./ErrorAlert";
 
 export function SessionRestorePanel({
   pending,
@@ -8,6 +9,7 @@ export function SessionRestorePanel({
   onSignIn,
 }: {
   pending: boolean;
+  /** The short cause of a failed restore (`loadErrorDetail`). */
   error: string | null;
   onRetry: () => void;
   onSignIn: () => void;
@@ -17,9 +19,8 @@ export function SessionRestorePanel({
       {pending ? <Text role="status">Restoring session…</Text> : null}
       {error ? (
         <>
-          <Alert color="red" role="alert">
-            {error}
-          </Alert>
+          {/* The panel's own buttons recover: Retry session, or Sign in instead. */}
+          <ErrorAlert title="Could not restore your session" detail={error} mb={0} />
           <Button loading={pending} onClick={onRetry}>
             Retry session
           </Button>

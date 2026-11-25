@@ -5,8 +5,6 @@ import shutil
 import subprocess
 from datetime import date
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 from services.db.supabase.tests.e2e.fixtures import (
     MARKETPLACE_ID,
@@ -14,14 +12,16 @@ from services.db.supabase.tests.e2e.fixtures import (
     archived_finances,
     company_with_fees,
     fixture_sku,
+    publish_ad_invoice,
     publish_inventory,
+    publish_named_reference,
     publish_removal_reference,
+    publish_storage_references,
 )
 from services.db.supabase.tests.e2e.workflow_support import LocalWorkflowCase
 from services.sync.src.database.payout_reports import publish_company_payout_report
 from services.sync.src.finances.workflow import preprocess_finances_acquisition
-from services.sync.src.reference.acquisition import ReferenceRequest, download_reference
-from services.sync.src.reference.publication import preprocess_reference
+from services.sync.src.reference.acquisition import ReferenceRequest
 
 
 class FrontendClientTests(LocalWorkflowCase):
@@ -35,24 +35,12 @@ class FrontendClientTests(LocalWorkflowCase):
             "promotionType": "COUPON",
             "status": "EXPIRED",
         }
-        answer = {
-            "source": "PROMOTION",
-            "native_id": "coupon",
-            "marketplace_id": MARKETPLACE_ID,
-            "body": json.dumps(raw),
-        }
-        request = ReferenceRequest(
-            "PROMOTION", "NA", MARKETPLACE_ID, self.seller, native_id="coupon"
+        publish_named_reference(
+            self.database,
+            self.storage,
+            ReferenceRequest("PROMOTION", "NA", MARKETPLACE_ID, self.seller, native_id="coupon"),
+            {"body": json.dumps(raw)},
         )
-        with (
-            TemporaryDirectory() as directory,
-            patch(
-                "services.sync.src.reference.named_client.download_named",
-                return_value=json.dumps(answer).encode(),
-            ),
-        ):
-            receipt = download_reference(request, self.storage, Path(directory))
-            preprocess_reference(self.database, self.storage, receipt)
 
     def test_authenticated_client_contract(self) -> None:
         month_end = date(2026, 8, 31)
@@ -76,6 +64,9 @@ class FrontendClientTests(LocalWorkflowCase):
             )
         publish_inventory(self.database, self.storage, self.seller, items)
         self.seed_promotion()
+        # Every Raw data view lists at least one current row for the administrator.
+        publish_storage_references(self.database, self.storage, self.seller)
+        publish_ad_invoice(self.database, self.storage, self.seller)
         for index, member in enumerate(members):
             other = members[1 - index]
             other["foreignReport"] = publish_company_payout_report(

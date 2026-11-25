@@ -11,3 +11,8 @@ export function financialAmountLabel(
 ): string {
   return key === "companyAmount" && incomplete ? "Known company amount" : label;
 }
+
+/** The one wording for transactions whose company amount is unknown. */
+export function missingFeeRateCount(count: number): string {
+  return `${count.toLocaleString("en-US")} missing fee ${count === 1 ? "rate" : "rates"}`;
+}

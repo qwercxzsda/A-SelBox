@@ -13,13 +13,21 @@ for (const width of [320, 1280]) {
     const trigger = columnTrigger(page, "Marketplace");
     const menu = await openColumn(page, "Marketplace");
     await expect(menu.getByText("Changes apply immediately.", { exact: true })).toBeVisible();
+    // The filtered rows arrive without moving the trigger, so the open menu stays put too.
+    const triggerTop = (await trigger.boundingBox()).y;
+    const expectTriggerInPlace = async () => {
+      await expect(page.locator(".table-card[data-placeholder]")).toHaveCount(0);
+      expect(Math.abs((await trigger.boundingBox()).y - triggerTop)).toBeLessThanOrEqual(1);
+    };
     await menu.getByRole("checkbox", { name: "Amazon.com", exact: true }).check();
     await expect(menu).toBeVisible();
+    await expectTriggerInPlace();
     const done = menu.getByRole("button", { name: "Done", exact: true });
     await expect(done).toBeInViewport({ ratio: 1 });
     await done.click();
     await expect(menu).toBeHidden();
     await expect(trigger).toBeFocused();
+    await expectTriggerInPlace();
     await trigger.press("Enter");
     await expect(menu.getByRole("checkbox", { name: "Amazon.com", exact: true })).toBeChecked();
     await menu.getByRole("button", { name: "Clear marketplace", exact: true }).click();

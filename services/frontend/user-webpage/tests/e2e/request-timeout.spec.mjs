@@ -45,7 +45,8 @@ test("a stalled session restore preserves credentials and recovers through Retry
     await page.reload();
     await started.promise;
     await page.clock.fastForward(30_001);
-    await expect(page.getByRole("alert")).toContainText("Session verification timed out");
+    await expect(page.getByRole("alert")).toContainText("Could not restore your session");
+    await expect(page.getByRole("alert")).toContainText("The request timed out.");
     await expect(page.getByRole("tab")).toHaveCount(0);
     expect(
       await page.evaluate(() =>

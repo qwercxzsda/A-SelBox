@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 const FINANCES_TYPES = [
   {
@@ -57,7 +58,7 @@ for (const dataset of DATASETS) {
         component_type: code,
       }));
       await signIn(page);
-      await page.getByRole("tab", { name: dataset.label, exact: true }).click();
+      await openWorkspaceTab(page, dataset.label);
       const table = page.getByRole("table", { name: "Financial records", exact: true });
       await expect(table.locator("tbody tr")).toHaveCount(dataset.types.length);
       for (const [index, type] of dataset.types.entries()) {
@@ -140,7 +141,7 @@ for (const dataset of DATASETS) {
           ),
         )
         .toBe(true);
-      await details.getByRole("button", { name: "Close row details", exact: true }).click();
+      await details.getByRole("button", { name: /^Close .+ details$/ }).click();
       await columnTrigger(page, "Type").click();
       const menu = page.getByRole("dialog", { name: "Type options", exact: true });
       const filteredType = dataset.types[0];

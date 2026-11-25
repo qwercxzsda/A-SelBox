@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, signIn } from "./fixtures.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
-for (const tab of ["Transactions", "Finances"]) {
-  for (const action of ["Back to filters", "Next records"]) {
+for (const [tab, items] of [
+  ["Transactions", "transactions"],
+  ["Finances", "breakdowns"],
+]) {
+  for (const action of ["Back to filters", `Next ${items}`]) {
     test(`${tab} bottom ${action} returns keyboard focus to the visible controls`, async ({
       page,
     }, testInfo) => {
@@ -14,7 +18,7 @@ for (const tab of ["Transactions", "Finances"]) {
       fixture.financesRows = Array.from({ length: 105 }, (_, index) => financesRow(index + 1));
 
       await signIn(page);
-      await page.getByRole("tab", { name: tab, exact: true }).click();
+      await openWorkspaceTab(page, tab);
       await page.getByLabel("Rows", { exact: true }).selectOption("100");
       const rows = page
         .getByRole("table", { name: "Financial records", exact: true })
@@ -26,7 +30,7 @@ for (const tab of ["Transactions", "Finances"]) {
       });
       await bottom.getByRole("button", { name: action, exact: true }).focus();
       await page.keyboard.press("Enter");
-      await expect(rows).toHaveCount(action === "Next records" ? 5 : 100);
+      await expect(rows).toHaveCount(action === "Back to filters" ? 100 : 5);
       const controls = page.locator(".table-toolbar");
       await expect(controls).toBeFocused();
       await expect(page.getByRole("searchbox", { name: "Search", exact: true })).toBeInViewport();
@@ -119,8 +123,11 @@ for (const tab of ["Transactions", "Payout reports"]) {
       );
     }
     await signIn(page);
-    await page.getByRole("tab", { name: tab, exact: true }).click();
-    const retry = page.getByRole("button", { name: "Retry count", exact: true });
+    await openWorkspaceTab(page, tab);
+    // The count's own Retry sits beside its "Count unavailable" status.
+    const retry = page
+      .getByText("Count unavailable", { exact: true })
+      .locator("xpath=following-sibling::button[1]");
     await expect(retry).toBeVisible();
     const dataset = tab === "Transactions" ? "live" : "payouts";
     const rowReads = () => fixture.requests.filter((entry) => entry.dataset === dataset).length;

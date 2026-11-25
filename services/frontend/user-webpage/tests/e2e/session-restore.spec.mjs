@@ -67,7 +67,7 @@ for (const originalRole of ["member", "administrator"]) {
       await expect(rowWithSku(page, "ALPHA-001")).toBeVisible();
       await expect(
         page.getByRole("tablist", { name: "Workspace data", exact: true }).getByRole("tab"),
-      ).toHaveCount(nextRole === "administrator" ? 9 : 4);
+      ).toHaveCount(nextRole === "administrator" ? 9 : 5);
       await expect(page.getByRole("tab", { name: "Financial review", exact: true })).toHaveCount(
         nextRole === "administrator" ? 1 : 0,
       );
@@ -221,8 +221,17 @@ for (const failure of ["server", "offline"]) {
     fixture.sessionUserStatus = failure === "server" ? 503 : 200;
     fixture.sessionUserNetworkFailure = failure === "offline";
     await page.reload();
-    await expect(page.getByRole("alert")).toContainText("Could not restore your session:");
+    // The failed read's format: a title and the short cause, with the panel's own recovery.
+    const problem = page.getByRole("alert");
+    await expect(problem.locator(".mantine-Alert-title")).toHaveText(
+      "Could not restore your session",
+    );
+    await expect(problem.locator(".mantine-Alert-message")).toHaveText(
+      failure === "server" ? "The server returned HTTP 503." : "No response from the server.",
+    );
+    await expect(problem.getByRole("button")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Retry session", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in instead", exact: true })).toBeVisible();
     await expect(page.getByRole("tab")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Sign in", exact: true })).toHaveCount(0);
     expect(await storedSession(page)).toEqual(saved);
@@ -353,8 +362,8 @@ test("a failed identity lookup retains rotated tokens and retry verifies the new
   });
   fixture.revisionStatus = 503;
   await page.reload();
-  await expect(page.getByRole("alert")).toContainText("Could not restore your session:");
-  await expect(page.getByRole("alert")).toContainText("HTTP 503");
+  await expect(page.getByRole("alert")).toContainText("Could not restore your session");
+  await expect(page.getByRole("alert")).toContainText("The server returned HTTP 503.");
   await expect(page.getByRole("tab")).toHaveCount(0);
   const rotated = await storedSession(page);
   expect(rotated.access_token).toBe("retained-rotated-access");

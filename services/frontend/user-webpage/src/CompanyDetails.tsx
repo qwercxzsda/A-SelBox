@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text, Title } from "@mantine/core";
+import { Stack, Text } from "@mantine/core";
 import type { Company } from "./api";
 import { DeleteCompanyControl } from "./DeleteCompanyControl";
 import { SkuTransactionLink } from "./SkuTransactionLink";
@@ -11,13 +11,11 @@ export function CompanyDetails({
   skus,
   onDeleted,
   onShowTransactions,
-  onShowMembers,
 }: {
   company: Company;
   skus: string[];
   onDeleted: (company: Company, deleted: boolean) => void;
   onShowTransactions: (sku: string) => void;
-  onShowMembers: (companyId: string) => void;
 }) {
   return (
     <Stack
@@ -26,21 +24,6 @@ export function CompanyDetails({
       gap={0}
       className="company-details"
     >
-      <Group justify="space-between" gap="md" align="flex-start">
-        <div className="company-details-identity">
-          <Title order={3} className="company-list-name">
-            {company.name}
-          </Title>
-        </div>
-        <Button
-          variant="light"
-          onClick={() => {
-            onShowMembers(company.id);
-          }}
-        >
-          View members
-        </Button>
-      </Group>
       <DetailSection
         title="Assigned SKUs"
         actions={
@@ -59,7 +42,7 @@ export function CompanyDetails({
           </ul>
         ) : (
           <Text size="sm" c="dimmed">
-            No SKUs are assigned to this company.
+            No assigned SKUs
           </Text>
         )}
       </DetailSection>
@@ -72,8 +55,10 @@ export function CompanyDetails({
         rows={[
           { field: "Company ID", value: company.id },
           {
-            field: "Created",
-            value: company.created_at ? formatRecordDate(company.created_at) : null,
+            field: "Created (UTC)",
+            value: company.created_at
+              ? formatRecordDate(company.created_at, { includeTimeZone: false })
+              : null,
           },
         ]}
       />

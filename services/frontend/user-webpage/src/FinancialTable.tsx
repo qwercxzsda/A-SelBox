@@ -10,14 +10,18 @@ export function FinancialTable({
   dataset,
   table,
   isBusy,
+  isPlaceholderData,
   renderColumnHeader,
+  appliedFilters,
   status,
   children,
 }: {
   dataset: TableDatasetKey;
   table: ReturnType<typeof useFinanceTable>["table"];
   isBusy: boolean;
+  isPlaceholderData: boolean;
   renderColumnHeader: (columnId: string) => ReactNode;
+  appliedFilters: ReactNode;
   status: ReactNode;
   children: ReactNode;
 }) {
@@ -26,6 +30,8 @@ export function FinancialTable({
       label={dataset === "accounts" ? "Account table" : "Financial table"}
       dataset={dataset}
       isBusy={isBusy}
+      isPlaceholderData={isPlaceholderData}
+      appliedFilters={appliedFilters}
       status={status}
     >
       <Table

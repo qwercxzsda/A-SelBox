@@ -15,9 +15,8 @@ export function ConnectionStatus() {
   return (
     <Alert color="orange" title="Offline" role="status" mb="md">
       {loadedAt
-        ? `Showing previously loaded information. Last successful read: ${new Date(loadedAt).toLocaleString("en-US", { timeZone: "UTC" })} UTC. `
-        : "No information has been loaded in this session. "}
-      New views are waiting for a connection. Updates resume automatically when you reconnect.
+        ? `Showing data from ${new Date(loadedAt).toLocaleString("en-US", { timeZone: "UTC" })} UTC. Reconnect to update.`
+        : "Nothing loaded yet. Reconnect to load data."}
     </Alert>
   );
 }

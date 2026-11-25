@@ -121,9 +121,7 @@ test("accessibility: source lookup and retained source detail", async ({
   const { opener } = await openSourceLookup(page);
   await expectAccessible("source-lookup");
   await opener.click();
-  await expect(
-    sourceDetail(page).getByRole("heading", { name: "RETAINED-00", exact: true }),
-  ).toBeVisible();
+  await expect(sourceDetail(page).locator(".detail-drawer-context")).toContainText("RETAINED-00");
   await expectAccessible("retained-source-detail");
 });
 
@@ -154,7 +152,9 @@ test("accessibility: fee editor and change review on a phone", async ({
     .getByRole("button", { name: "Change rate from date for period 1", exact: true })
     .click();
   const preview = editor(page).getByRole("region", { name: "Change rate from date", exact: true });
-  await preview.getByLabel("New rate effective date", { exact: true }).fill("2026-09-02");
+  await preview
+    .getByLabel("New rate effective from (inclusive)", { exact: true })
+    .fill("2026-09-02");
   await preview.getByLabel("New fee rate (%)", { exact: true }).fill("6.25");
   await preview.getByRole("button", { name: "Preview rate change", exact: true }).click();
   const apply = preview.getByRole("button", { name: "Use rate change in draft", exact: true });
@@ -193,7 +193,7 @@ test("accessibility: companies and member assignment", async ({ page, expectAcce
   await expect(member).toBeVisible();
   await expectAccessible("user-access");
   await member.click();
-  const membership = page.getByRole("dialog", { name: "Company membership", exact: true });
+  const membership = page.getByRole("dialog", { name: "User access details", exact: true });
   await expect(membership.getByRole("combobox", { name: "Company", exact: true })).toBeVisible();
   await expectAccessible("membership-editor");
 });
@@ -224,7 +224,7 @@ for (const width of [1440, 390]) {
     await expect(table.getByRole("button", { name: /^Filter transactions to / })).toHaveCount(0);
     await expect(
       totals.getByRole("article", { name: "Last day totals", exact: true }).getByRole("button", {
-        name: "Filter transactions to Jun 29, 2026 · UTC",
+        name: "Filter transactions to 2026-06-29 · UTC",
         exact: true,
       }),
     ).toHaveCount(1);
@@ -280,10 +280,10 @@ for (const width of [1440, 390]) {
     await chooser.getByRole("button", { name: "Apply dates", exact: true }).click();
     await expect(chooser).toBeHidden();
     const compactControl = selectedCard.getByRole("button", {
-      name: "Change dates: Jun 1–30, 2026 · UTC",
+      name: "Change dates: 2026-06-01 – 2026-06-30 · UTC",
       exact: true,
     });
-    await expect(compactControl).toHaveText("Jun 1–30, 2026 · UTC");
+    await expect(compactControl).toHaveText("2026-06-01 – 2026-06-30 · UTC");
     await expect(compactControl).toBeFocused();
     await compactControl.press("Enter");
     await expect(chooser).toBeVisible();
@@ -292,10 +292,10 @@ for (const width of [1440, 390]) {
     await chooser.getByRole("button", { name: "Apply dates", exact: true }).click();
     await expect(chooser).toBeHidden();
     const changedControl = selectedCard.getByRole("button", {
-      name: "Change dates: Dec 31, 2025 – Nov 6, 2026 · UTC",
+      name: "Change dates: 2025-12-31 – 2026-11-06 · UTC",
       exact: true,
     });
-    await expect(changedControl).toHaveText("Dec 31, 2025 – Nov 6, 2026 · UTC");
+    await expect(changedControl).toHaveText("2025-12-31 – 2026-11-06 · UTC");
     await expect(changedControl).toBeFocused();
     const bounds = await changedControl.boundingBox();
     const cardBounds = await selectedCard.boundingBox();

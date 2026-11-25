@@ -16,7 +16,6 @@
   min-width: 1300px;
 }
 .inventory-table-card td {
-  vertical-align: top;
   white-space: normal;
 }
 .inventory-table [data-column="sku"] {
@@ -51,26 +50,6 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.inventory-health-label {
-  width: fit-content;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--ui-radius-sm);
-  background: var(--ui-surface-header);
-  color: var(--ui-text);
-  font-size: var(--ui-font-data);
-}
-.inventory-health-label[data-tone="critical"] {
-  background: var(--mantine-color-red-0);
-  color: var(--mantine-color-red-9);
-}
-.inventory-health-label[data-tone="attention"] {
-  background: #fff4da;
-  color: #8a5000;
-}
-.inventory-health-label[data-tone="healthy"] {
-  background: #edf6e9;
-  color: #386515;
-}
 .inventory-action-label {
   width: fit-content;
   border-inline-start: 3px solid currentColor;
@@ -80,15 +59,16 @@
   color: var(--ui-text);
   overflow-wrap: anywhere;
 }
+/* Recommendations share the status tones: replenishment danger, attention warning, listing info. */
 .inventory-action-label[data-tone="replenishment"] {
-  background: var(--mantine-color-red-0);
-  color: var(--mantine-color-red-9);
+  background: var(--ui-status-danger-bg);
+  color: var(--ui-status-danger-text);
 }
 .inventory-action-label[data-tone="attention"] {
-  background: #fff4da;
-  color: #805000;
+  background: var(--ui-status-warning-bg);
+  color: var(--ui-status-warning-text);
 }
 .inventory-action-label[data-tone="listing"] {
-  background: var(--mantine-color-blue-0);
-  color: var(--mantine-color-blue-9);
+  background: var(--ui-status-info-bg);
+  color: var(--ui-status-info-text);
 }

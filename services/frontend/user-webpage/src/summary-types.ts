@@ -4,6 +4,7 @@ import type { PeriodDefinition, TotalsPeriod } from "./summary-periods";
 export interface SummaryState {
   definition: PeriodDefinition | null;
   pending: boolean;
+  /** The short cause of a failed read (`loadErrorDetail`). */
   error: string | null;
 }
 

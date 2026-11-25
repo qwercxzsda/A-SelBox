@@ -7,12 +7,35 @@ import { mapDatasetRows } from "../src/api/row-mappers.ts";
 import { buildSearchFilter } from "../src/api/search.ts";
 import { datasetRecord } from "./api-fixtures.mjs";
 
-test("datasets use current source, payout, and application-account APIs", () => {
-  assert.deepEqual(Object.keys(DATASET_CONFIG), ["live", "finances", "payouts", "accounts"]);
+test("datasets use current source, payout, application-account and raw report APIs", () => {
+  assert.deepEqual(Object.keys(DATASET_CONFIG), [
+    "live",
+    "finances",
+    "payouts",
+    "accounts",
+    "ad_invoices",
+    "storage",
+    "aged_storage",
+    "removal_orders",
+  ]);
   for (const dataset of ["live", "finances"])
     assert.equal(Object.hasOwn(DATASET_CONFIG[dataset], "endpoint"), false);
   assert.equal(DATASET_CONFIG.payouts.endpoint, "latest_company_payout_reports");
   assert.equal(DATASET_CONFIG.accounts.endpoint, "rpc/account_directory");
+  for (const [dataset, endpoint] of [
+    ["ad_invoices", "current_ad_invoices"],
+    ["storage", "current_storage_rows"],
+    ["aged_storage", "current_aged_storage_rows"],
+    ["removal_orders", "current_removal_order_rows"],
+  ]) {
+    assert.equal(DATASET_CONFIG[dataset].endpoint, endpoint);
+    assert.deepEqual(DATASET_CONFIG[dataset].idColumns, ["id"]);
+    for (const column of ["seller_namespace", "amazon_scope", "version_id", "processed_at"])
+      assert.ok(DATASET_CONFIG[dataset].selectColumns.includes(column), `${dataset}: ${column}`);
+  }
+  // Amazon gives no marketplace for a removal order, so it cannot be filtered by one.
+  assert.equal(DATASET_CONFIG.removal_orders.selectColumns.includes("marketplace_name"), false);
+  assert.deepEqual(DATASET_CONFIG.removal_orders.filterColumns, []);
   assert.deepEqual(DATASET_CONFIG.live.idColumns, ["source", "source_row_id"]);
   assert.deepEqual(DATASET_CONFIG.accounts.idColumns, ["user_id"]);
 });
@@ -52,6 +75,14 @@ test("search uses visible transaction text and excludes hidden or computed field
       "marketplace_name",
     ]);
   assert.deepEqual(DATASET_CONFIG.accounts.searchColumns, ["email"]);
+  assert.deepEqual(DATASET_CONFIG.ad_invoices.searchColumns, ["invoice_id"]);
+  assert.deepEqual(DATASET_CONFIG.storage.searchColumns, ["fnsku", "asin"]);
+  assert.deepEqual(DATASET_CONFIG.aged_storage.searchColumns, ["fnsku", "asin", "sku_printed"]);
+  assert.deepEqual(DATASET_CONFIG.removal_orders.searchColumns, [
+    "removal_order_id",
+    "fnsku",
+    "sku_printed",
+  ]);
 });
 
 test("Content-Range supports successful, empty, unknown, and out-of-range counts", () => {

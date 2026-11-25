@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
-import { Alert, Button, Drawer, Group, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, Stack, Text, TextInput } from "@mantine/core";
 import type { SkuConfigurationChange, SkuConfigurationItem } from "./api";
+import type { SaveError } from "./save-error";
 import type { SkuFormIssue } from "./sku-configuration-form";
 import { SkuConfigurationReviewCard } from "./SkuConfigurationReviewCard";
+import { DetailDrawer } from "./DetailDrawer";
+import { HelpPopover } from "./HelpPopover";
+import { SavedSettingsAlert } from "./SavedSettingsAlert";
+import { FEE_STATUS_LABELS } from "./fee-status";
+import "./EditingDrawer.css";
 import "./SkuConfigurationDrawer.css";
 
 const GAP_SHORTCUT_LIMIT = 5;
@@ -35,7 +41,7 @@ export function SkuConfigurationReview({
   onReasonChange: (value: string) => void;
   isSaving: boolean;
   blocked: boolean;
-  saveProblem: string | null;
+  saveProblem: SaveError | null;
   isReloading: boolean;
   onReloadSaved: () => void;
   onSave: () => void;
@@ -45,6 +51,7 @@ export function SkuConfigurationReview({
   onClose: () => void;
 }) {
   const incomplete = [...new Set(issues.map((issue) => issue.sku))];
+  const needsSetup = `${String(incomplete.length)} ${incomplete.length === 1 ? "SKU needs" : "SKUs need"} setup`;
   const savedBySku = new Map(savedItems.map((item) => [item.sku, item]));
   const issuesRef = useRef<HTMLDivElement>(null);
   const editButtons = useRef(new Map<string, HTMLButtonElement>());
@@ -64,46 +71,46 @@ export function SkuConfigurationReview({
     onDiscard(sku);
   }
   return (
-    <Drawer
+    <DetailDrawer
       opened
-      title="Review configuration changes"
-      position="right"
-      size={960}
+      title="Review changes"
+      context={`Current fees · ${String(drafts.length)} SKU ${drafts.length === 1 ? "change" : "changes"}`}
+      width="wide"
       classNames={{
-        content: "sku-configuration-drawer-content",
-        body: "sku-configuration-drawer-body",
-        title: "sku-configuration-drawer-title",
+        content: "editing-drawer-content",
+        body: "editing-drawer-body",
       }}
       onClose={onClose}
       closeOnEscape={!isSaving}
       closeOnClickOutside={!isSaving}
-      closeButtonProps={{ disabled: isSaving, "aria-label": "Close configuration review" }}
+      closeDisabled={isSaving}
     >
-      <div className="sku-configuration-drawer-layout">
-        <Stack gap="md" className="sku-configuration-drawer-scroll">
-          <Text>
-            {drafts.length
-              ? `${String(drafts.length)} SKU ${drafts.length === 1 ? "change" : "changes"} ready for review. All changes will be saved together.`
-              : "No drafts remain. Return to editing to make changes."}
-          </Text>
-          <Text size="sm" c="dimmed">
-            Company assignments apply to all live transaction history for each SKU. Fee rates follow
-            their configured dates. Previously saved payout reports keep their original values.
-          </Text>
+      <div className="editing-drawer-layout">
+        <Stack gap="md" className="editing-drawer-scroll">
+          {drafts.length === 0 ? <Text>No changes to save</Text> : null}
+          <Group gap={6} wrap="nowrap">
+            <Text size="sm" c="dimmed">
+              Company changes also apply to past transactions.
+            </Text>
+            <HelpPopover label="Save help">
+              Fee rates follow their dates. Saved payout reports keep their values.
+            </HelpPopover>
+          </Group>
           {unfinishedCount ? (
             <Alert color="orange">
-              {unfinishedCount} unfinished {unfinishedCount === 1 ? "edit is" : "edits are"} not
-              part of this save. Return to editing and choose Keep draft to include{" "}
-              {unfinishedCount === 1 ? "it" : "them"}.
+              {unfinishedCount} unfinished {unfinishedCount === 1 ? "edit" : "edits"} not included.
             </Alert>
           ) : null}
           {saveProblem ? (
-            <Alert role="alert" color="red">
-              <Text size="sm">{saveProblem}</Text>
-              <Button variant="subtle" loading={isReloading} onClick={onReloadSaved}>
-                Refresh saved settings
-              </Button>
-            </Alert>
+            <SavedSettingsAlert
+              color="red"
+              title={saveProblem.title}
+              inline
+              refreshing={isReloading}
+              onRefresh={onReloadSaved}
+            >
+              {saveProblem.detail}
+            </SavedSettingsAlert>
           ) : null}
           {drafts.map((draft) => (
             <SkuConfigurationReviewCard
@@ -125,18 +132,15 @@ export function SkuConfigurationReview({
               ref={issuesRef}
               tabIndex={-1}
               color="orange"
-              title={`${String(incomplete.length)} ${incomplete.length === 1 ? "SKU needs" : "SKUs need"} setup before saving`}
+              title={FEE_STATUS_LABELS["needs-setup"]}
             >
-              <Text size="sm">
-                Assigned SKUs need all required fee periods. Setup gaps in other SKUs do not block
-                this draft.
-              </Text>
-              <Stack gap="xs" mt="sm">
+              <Stack gap={4} align="flex-start">
                 {incomplete.slice(0, GAP_SHORTCUT_LIMIT).map((sku) => (
                   <Button
                     key={sku}
                     className="sku-configuration-setup-shortcut"
-                    variant="light"
+                    size="compact-sm"
+                    variant="subtle"
                     disabled={isSaving}
                     onClick={() => {
                       onEdit(sku);
@@ -146,29 +150,35 @@ export function SkuConfigurationReview({
                   </Button>
                 ))}
                 {incomplete.length > GAP_SHORTCUT_LIMIT ? (
-                  <Button variant="subtle" disabled={isSaving} onClick={onShowIncomplete}>
-                    View all setup gaps in Current fees
+                  <Button
+                    size="compact-sm"
+                    variant="subtle"
+                    disabled={isSaving}
+                    onClick={onShowIncomplete}
+                  >
+                    View all in Current fees
                   </Button>
                 ) : null}
               </Stack>
             </Alert>
           ) : null}
         </Stack>
-        <Stack gap="sm" className="sku-configuration-drawer-actions">
+        <Stack gap="sm" className="editing-drawer-actions">
           {incomplete.length ? (
             <Group justify="space-between" gap="xs">
-              <Text size="sm" c="orange.9">
-                Complete fee setup before saving.
+              <Text size="sm" c="var(--ui-status-warning-text)">
+                {needsSetup}
               </Text>
               <Button
                 size="compact-sm"
                 variant="subtle"
+                aria-label="Show SKUs that need setup"
                 onClick={() => {
                   issuesRef.current?.scrollIntoView({ block: "start" });
                   issuesRef.current?.focus({ preventScroll: true });
                 }}
               >
-                Show setup issues ({incomplete.length})
+                Show SKUs
               </Button>
             </Group>
           ) : null}
@@ -194,6 +204,6 @@ export function SkuConfigurationReview({
           </Group>
         </Stack>
       </div>
-    </Drawer>
+    </DetailDrawer>
   );
 }

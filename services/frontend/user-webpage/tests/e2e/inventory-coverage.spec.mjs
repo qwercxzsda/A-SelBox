@@ -46,7 +46,7 @@ test("old inventory exposes source age before opening metadata and separates pro
   await expect(coverage(page)).toHaveCount(0);
   await expect(page.getByText("Latest imported reports", { exact: true })).toHaveCount(0);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "2026-10-03 · 15d ago · Out of date",
+    "2026-10-03 · 15 days old · Out of date",
   );
   await expect(items(page).locator(".inventory-source-date .mantine-Badge-root")).toHaveCount(0);
   await expect(items(page).getByText("Available", { exact: true }).locator("..")).toHaveText(
@@ -54,17 +54,22 @@ test("old inventory exposes source age before opening metadata and separates pro
   );
   await items(page).locator("tbody tr").first().click();
   const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
-  await expect(detail).toContainText("Stock as of 2026-10-03 · 15 days old · Out of date");
+  const stockDate = detail.locator(".inventory-source-date");
+  await expect(stockDate).toHaveText("2026-10-03 · 15 days old · Out of date");
+  await expect(stockDate).toHaveAttribute(
+    "title",
+    "Out of date: more than 2 days old in the marketplace's time zone.",
+  );
   const additional = detail.getByRole("button", { name: "Additional details", exact: true });
   await expect(additional).toHaveAttribute("aria-expanded", "false");
   await expect(detail.getByText("Processed", { exact: true })).toHaveCount(0);
   await additional.click();
   const metadata = detail.getByRole("table", { name: "Additional record details", exact: true });
   await expect(metadata.getByRole("row").filter({ hasText: "Report created" })).toContainText(
-    "2026-10-03 14:00:00 UTC",
+    "2026-10-03 14:00:00",
   );
   await expect(metadata.getByRole("row").filter({ hasText: "Processed" })).toContainText(
-    "2026-10-17 04:00:00 UTC",
+    "2026-10-17 04:00:00",
   );
   await page.screenshot({
     path: testInfo.outputPath("inventory-age-desktop.png"),
@@ -86,14 +91,11 @@ test("empty imported reports and unavailable marketplace coverage have different
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(
-    page.getByText(
-      "The latest imported snapshots contain no inventory items in this marketplace scope.",
-      { exact: true },
-    ),
+    page.getByText("The latest snapshots have no items here", { exact: true }),
   ).toBeVisible();
   await selectColumnOptions(page, "Marketplace", ["Amazon.de — no snapshot"]);
   await expect(
-    page.getByText("No inventory snapshot has been imported for Amazon.de.", { exact: true }),
+    page.getByText("No inventory snapshot for Amazon.de yet", { exact: true }),
   ).toBeVisible();
   const marketplaceMenu = await openColumn(page, "Marketplace");
   await expect(
@@ -103,10 +105,7 @@ test("empty imported reports and unavailable marketplace coverage have different
   await marketplaceMenu.getByRole("button", { name: "Close options", exact: true }).click();
   await selectColumnOptions(page, "Marketplace", ["Amazon.com"]);
   await expect(
-    page.getByText(
-      "The latest imported snapshots contain no inventory items in this marketplace scope.",
-      { exact: true },
-    ),
+    page.getByText("The latest snapshots have no items here", { exact: true }),
   ).toBeVisible();
 });
 
@@ -120,12 +119,9 @@ test("members see authorized-item availability without a global stock-empty clai
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(
-    page.getByText(
-      "An inventory snapshot is available, but no items from it are assigned to your company.",
-      { exact: true },
-    ),
+    page.getByText("No inventory for your company's SKUs", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/snapshots contain no inventory items/)).toHaveCount(0);
+  await expect(page.getByText(/latest snapshots have no items/)).toHaveCount(0);
   await expect(coverage(page)).toHaveCount(0);
 });
 
@@ -139,9 +135,7 @@ test("active filters show each value, survive F5 and clear individually without 
   ]);
   await filter(page, "Inventory health status", "Out of stock");
   await filter(page, "Recommendation", "Edit listing");
-  await expect(
-    page.getByText("No inventory matches these filters.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("No matching inventory", { exact: true })).toBeVisible();
   await expect(chips(page)).toContainText("Health: Out of stock");
   await expect(chips(page)).toContainText("Recommendation: Edit listing");
   expect(inventory.requests).toHaveLength(1);
@@ -186,16 +180,13 @@ test("availability failures do not become a no-snapshot claim and retry with lig
   inventory.captures = [capture()];
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Could not check inventory availability");
-  await expect(page.getByText(/No inventory snapshot has been imported/)).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText("Could not load inventory availability");
+  await expect(page.getByText(/No inventory snapshot for/)).toHaveCount(0);
   inventory.coverageFailed = false;
   await page.clock.fastForward(60_000);
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(
-    page.getByText(
-      "An inventory snapshot is available, but no items from it are assigned to your company.",
-      { exact: true },
-    ),
+    page.getByText("No inventory for your company's SKUs", { exact: true }),
   ).toBeVisible();
   const reads = inventory.captureRequests.length;
   await page.clock.fastForward(60_000);
@@ -215,13 +206,13 @@ test("visible inventory keeps its own date warning when the capture lookup fails
   await signIn(page);
   await page.getByRole("tab", { name: "Inventory", exact: true }).click();
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "2026-10-03 · 15d ago · Out of date",
+    "2026-10-03 · 15 days old · Out of date",
   );
   await page.clock.fastForward(2_000);
   await expect.poll(() => inventory.captureRequests.length).toBeGreaterThanOrEqual(2);
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(coverage(page)).toHaveCount(0);
-  await expect(page.getByText("Checking inventory availability…", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Checking inventory…", { exact: true })).toHaveCount(0);
 });
 
 test("age updates at marketplace midnight without reloading successful inventory pages", async ({
@@ -233,14 +224,14 @@ test("age updates at marketplace midnight without reloading successful inventory
   ]);
   await expect(coverage(page)).toHaveCount(0);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Report 2026-10-03 · 2d ago",
+    "Report 2026-10-03 · 2 days old",
   );
   await expect(items(page)).not.toContainText("Out of date");
   const reads = inventory.requests.length;
   const captureReads = inventory.captureRequests.length;
   await page.clock.fastForward(61_000);
   await expect(items(page).locator(".inventory-source-date")).toHaveText(
-    "Report 2026-10-03 · 3d ago · Out of date",
+    "Report 2026-10-03 · 3 days old · Out of date",
   );
   expect(inventory.requests).toHaveLength(reads);
   expect(inventory.captureRequests).toHaveLength(captureReads);
@@ -285,14 +276,14 @@ test("phone inventory keeps next-local-day stock fresh while warning about genui
   });
   await items(page).locator("tbody tr").filter({ hasText: "LOCAL-JP" }).click();
   const detail = page.getByRole("dialog", { name: "Inventory details", exact: true });
-  await expect(detail).toContainText("Stock as of 2026-11-06 · Today");
+  await expect(detail.locator(".inventory-source-date")).toHaveText("2026-11-06 · Today");
   await detail.getByRole("button", { name: "Additional details", exact: true }).click();
   await expect(
     detail
       .getByRole("table", { name: "Additional record details", exact: true })
       .getByRole("row")
       .filter({ hasText: "Report created" }),
-  ).toContainText("2026-11-05 17:15:00 UTC");
+  ).toContainText("2026-11-05 17:15:00");
   await page.screenshot({
     path: testInfo.outputPath("inventory-local-day-details-phone.png"),
     animations: "disabled",

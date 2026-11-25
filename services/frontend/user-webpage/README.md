@@ -14,17 +14,20 @@ and API contracts are [access control](../../../docs/access_control.md),
 
 ## Workspace
 
-| Tab              | Purpose                                                 | Access                                                        |
-| ---------------- | ------------------------------------------------------- | ------------------------------------------------------------- |
-| Transactions     | Current company amounts, fees, and current totals       | Members see their company; administrators see all companies   |
-| Current fees     | SKU assignments, fee periods, and batch editing         | Members read their settings; administrators edit              |
-| Inventory        | Latest daily inventory captures and recommendations     | Members see their assigned SKUs; administrators see all items |
-| Finances         | Retained source components and provenance               | Administrators                                                |
-| Payout reports   | Latest saved reports and earlier versions               | Members see their company; administrators see all companies   |
-| Financial review | Monthly allocations, SelBox types and differences       | Administrators                                                |
-| Companies        | Company creation, assignments, and restricted deletion  | Administrators                                                |
-| Assignments      | Campaign, promotion and shipment ownership and warnings | Administrators                                                |
-| User access      | Company membership and revocation                       | Administrators; administrator roles remain DB-only            |
+| Tab              | Purpose                                                | Access                                                        |
+| ---------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| Transactions     | Current company amounts, fees, and current totals      | Members see their company; administrators see all companies   |
+| Inventory        | Latest daily inventory captures and recommendations    | Members see their assigned SKUs; administrators see all items |
+| Payout reports   | Latest saved reports and earlier versions              | Members see their company; administrators see all companies   |
+| Current fees     | SKU companies, fee periods, and batch editing          | Members read their settings; administrators edit              |
+| Assignments      | Campaign, promotion and shipment ownership             | Members read their company's IDs; administrators assign       |
+| User access      | Company membership and revocation                      | Administrators; administrator roles remain DB-only            |
+| Companies        | Company creation, assignments, and restricted deletion | Administrators                                                |
+| Raw data         | Finances and Amazon's reports, with SelBox's tax split | Administrators                                                |
+| Financial review | Finances by month: company, SelBox and differences     | Administrators                                                |
+
+The tabs appear in this order, in three groups: the first five, which members also see; User access
+and Companies; Raw data and Financial review.
 
 New accounts are Unassigned until an administrator assigns a company. They see an access-pending
 screen without company data. Signup supports immediate sessions or email confirmation according to
@@ -38,10 +41,13 @@ scope. Session storage belongs to this browser tab and Supabase project. Storage
 warning; editing remains available in memory.
 
 Supported read-only state also appears in the URL: tab, filters/search, ordering/page, selected
-record and exact report identity. Back/Forward restores that state while retaining scoped drafts.
-URL values are validated against the current account's permissions. Drafts, passwords, tokens, and
-financial amounts do not enter workspace links. Initial sign-in preserves a report link; explicit
-sign-out clears workspace navigation fields.
+record (`row=`, including Current fees, Companies and Assignments) and exact report identity.
+Back/Forward restores that state while retaining scoped drafts. A linked or restored value the
+loaded data lacks (a page past the end, a stale `row=`, reason or group) is corrected by replacing
+the history entry, so Back still leaves the page. URL values are validated against the current
+account's permissions. Drafts, passwords, tokens, and financial amounts do not enter workspace
+links. Initial sign-in preserves a report link; explicit sign-out clears workspace navigation
+fields.
 
 Selections are alternatives within one filter; different filters intersect. Table and option
 searches are literal and case-insensitive. Search fields use one visible Search label and a
@@ -50,12 +56,15 @@ names distinguish fields for assistive technology. Type menus and current-total 
 Amounts by type use the seven browsing groups from the
 [type groups](src/transaction-type-families.ts). Type menus show readable exact types; Select
 matches and Deselect matches affect only visible matches. Selection filters apply immediately.
-Applied chips expose the active values and support individual removal. Clearing an empty filtered
-result preserves ordering and page size.
+Applied chips expose the active values and support individual removal; every chip row ends with
+Clear filters. A search term stays in the search box and never becomes a chip. Chips sit on one line
+in the table's status row, which keeps its height with or without chips. An empty result offers
+Reset search and filters (Reset filters without a search) and preserves ordering and page size.
 
 List-based tabs share [ListToolbar](src/ListToolbar.tsx) for Search, Rows, pagination, spacing, and
 visible-range summaries such as `1–25 of 159 inventory items`. Contextual actions use its
-extra-controls area. Inactive status messages do not reserve a blank line above the toolbar.
+extra-controls area. Inactive status messages do not reserve a blank line above the toolbar. Lists
+that stop counting at the next page show `—` as their total until the last page.
 
 Type cells use a compact column, with the readable type first and its broad group beneath in
 smaller, muted text. The original type code remains available on hover. SKU values use the same
@@ -65,11 +74,22 @@ The Service fee heading retains applicability filtering; Reported amount retains
 Raw-source tables and record details keep their separate fields.
 
 Financial paging and factual sorting run on the server. Inventory filters, sorts, and pages its
-complete loaded snapshot in the browser; Current fees pages its loaded configuration. Previous/Next
-remains available while a separate financial count loads; page-number entry becomes editable when a
-bound is known. Enter applies a page number and Escape cancels the edit. Changing search or filters
-returns to page one. Clicking a record or pressing Enter/Space opens its details. Long lists have
-navigation at both ends; bottom paging returns to the list controls.
+complete loaded snapshot in the browser; Current fees and Assignments load their complete lists once
+and search, filter and page them in the browser with exact totals. Previous/Next remains available
+while a separate financial count loads; page-number entry becomes editable when a bound is known.
+Enter applies a page number and Escape cancels the edit. Changing search or filters returns to page
+one. Clicking a record or pressing Enter/Space opens its details. Lists with more than 10 rows, or a
+later page, also have navigation below the list; bottom paging returns to the list controls. Each
+range summary names what one row is: transactions, users, companies, SKUs, assignments, inventory
+items, latest reports, and in Raw data Amazon's own units: Finances breakdowns (one amount Amazon
+breaks a transaction into), invoices, storage fees, aged storage fees and removal order lines (one
+FNSKU and disposition of an order). A failed read shows its red alert under the page header, above
+the list controls, on every list.
+
+Filtering, searching, ordering, or paging never moves a list on screen. While the next server page
+loads, the previous rows stay in place, dimmed and closed to row activation, and the range summary
+reads `Updating…`. When a result is shorter, TableFrame adds only the missing space at the end of
+the page, so the scroll position stays reachable, and releases it as the page scrolls up.
 
 Wide tables keep horizontal scrolling and Left/Right column controls near the table start.
 Transactions pins Company amount at desktop widths of at least 1100px. Long lists retain visual
@@ -93,7 +113,11 @@ all three cards even when currency counts differ, and stack on narrower screens.
 Current totals, type breakdowns, and their record lists sum the same eligible transactions as the
 main list. This includes administrator-visible `SELBOX` entries; their company amounts and service
 fees remain zero under the allocation rules. Company rows retain exact amounts and partial sums when
-fee rates are missing.
+fee rates are missing. Current totals rows, type rows, the Transaction totals Total card and the
+trend charts mark them with the same one-line "N missing fee rates" label in the warning tone; the
+Current totals, Total and trends help explain that the company amount leaves those records out.
+Current totals count the records of each currency ("2 records"), like the Transaction totals they
+open. The company column keeps room for that label at every width.
 
 An empty Marketplace filter means all marketplaces in that filter's catalog. An explicit selection
 lists exactly those marketplaces, including markets with no matching transactions. Empty markets
@@ -163,8 +187,9 @@ and focusing the matching Amounts by type group. Records retain that scope. Empt
 activity, and the selected-period group table includes only groups with transactions, including real
 zero-amount rows. Transaction trends display signed changes in each reporting period.
 
-Transactions and Finances support Date or Reported amount ordering. Amount ordering is bounded to
-10,000 matching rows; larger scopes explain how to narrow the result or use date order. The
+Transactions and Raw data › Finances support Date or Reported amount ordering. Amount ordering is
+bounded to 10,000 matching rows; above that the column menu names the count in the list's own noun
+("10,001 transactions match") and the limit. The
 [query contract](../../../docs/transaction_query_contracts.md) defines exact request fields,
 search/count semantics, ordering, fee applicability, source authority, and amount limits.
 
@@ -178,34 +203,39 @@ position. Both lists reserve their columns for record information.
 
 Current fees groups rows by SKU, like the month groups in Payout reports. Marketplace fee periods
 are folded by default; the disclosure shows or hides each period as a separate row with its
-marketplace, rate, and effective dates. The SKU, company, and status belong to the whole group. The
-Fee periods column contains the period count with its Show/Hide control beneath; the Marketplace
-column contains the marketplace summary while folded and each period's marketplace while expanded.
-SKU headings reuse the Payout reports group typography and spacing. Selecting its summary or any
-period opens the same SKU details and highlights every row in that group. Folding is independent of
-selection, and counts and pagination remain based on SKUs. Folding choices survive navigation and
-reloads. Current fees and Payout reports use the shared [TableDisclosure](src/TableDisclosure.tsx)
-for their Show/Hide controls, including the same chevron, spacing, hover/focus feedback, and
-reduced-motion behavior.
+marketplace, rate, and effective dates. A folded SKU shows its one current rate (in effect on the
+UTC day) with its dates, "N rates" when several apply, or "No current rate". The SKU, company, and
+status belong to the whole group. The Fee periods column contains the period count with its
+Show/Hide control beneath; the Marketplace column contains the marketplace summary while folded and
+each period's marketplace while expanded. SKU headings reuse the Payout reports group typography and
+spacing. Selecting its summary or any period opens the same SKU details and highlights every row in
+that group. Folding is independent of selection, and counts and pagination remain based on SKUs.
+Folding choices survive navigation and reloads. Current fees and Payout reports use the shared
+[TableDisclosure](src/TableDisclosure.tsx) for their Show/Hide controls, including the same chevron,
+spacing, hover/focus feedback, and reduced-motion behavior.
 
 Fee details use one Marketplace fee periods section for the current schedule and saved history. Each
-published version includes its assignment, save time, reason, and complete period table, newest
-first, with ten saved versions per page. One request retrieves the page and all of its periods under
-the same database snapshot. History loads only after opening details for an administrator. A staged
-draft appears as a separately labelled schedule, keeping proposed values distinct from published
-versions. Historical versions remain read-only, and Edit always starts from the current
-configuration or the existing draft. Additional details follows the complete section and its
-pagination at the bottom of the panel.
+saved version includes its company, save time, reason, and complete period table, newest first, with
+ten saved versions per page. One request retrieves the page and all of its periods under the same
+database snapshot. History loads only after opening details for an administrator. A staged draft
+appears as a separately labelled schedule, keeping proposed values distinct from saved versions.
+Historical versions remain read-only, and Edit always starts from the current configuration or the
+existing draft. Additional details follows the complete section and its pagination at the bottom of
+the panel.
 
-Fee details contain the full period table and setup issues. Administrators select Edit to switch the
-same drawer into the editor, or discard a staged draft from its details. Additional details is
-integrated below the editable periods and shows saved identifiers; draft actions remain reachable at
-the bottom of the drawer. Back to details returns within the same drawer and keeps unfinished input;
-Edit resumes it. Keep draft stages the change and returns to the list; dismissing the editor keeps
-unfinished inputs. Company rows show assigned-SKU counts. Company details contain the assignment
-list, View members, and Delete company. Assigned SKUs use aligned columns that stack on narrow
-screens. Company and user identifiers appear in collapsed Additional details sections, using the
-same field/value table as other record drawers. Company metadata includes its creation time. User
+Fee details contain the full period table and setup issues. Administrators select Edit, in the
+drawer header beside the close button, to switch the same drawer into the editor, or discard a
+staged draft from its details. Additional details is integrated below the editable periods and shows
+saved identifiers; draft actions remain reachable at the bottom of the drawer. Back to details
+returns within the same drawer and keeps unfinished input; Edit resumes it. Keep draft stages the
+change and returns to the list; dismissing the editor keeps unfinished inputs. Company rows show
+assigned-SKU counts and creation times (UTC). User access rows show each email, whether it is
+confirmed, the role, company and joined time; the email and company name are the row names, set in
+the cell's size and line height so they line up with the rest of the row. Company details contain
+the assignment list and Delete company; View members sits in the drawer header beside the close
+button, like Edit in Fee details. Assigned SKUs use aligned columns that stack on narrow screens.
+Company and user identifiers appear in collapsed Additional details sections, using the same
+field/value table as other record drawers. Company metadata includes its creation time. User
 metadata includes the saved company ID, joined time, and email-confirmation status. Timestamps use
 UTC, and unavailable values display a dash. SKU, company, marketplace, and status filters live in
 the Current fees column menus. The SKU filter supports exact-value multi-selection and literal
@@ -213,9 +243,9 @@ option search, includes available staged SKUs, and preserves the spelling and wh
 SKU. SKU selections intersect with text search and the other filters before pagination. Changes
 return to page one while retaining drafts and folding choices; applied chips remove selections
 individually. Marketplace matches include both configured periods and required coverage; details
-retain the full configuration. Companies supports search and ordering by name or assigned-SKU count.
-Its column menus contain ordering controls only. Search and ordering apply before pagination and
-persist through tab changes and reloads.
+retain the full configuration. Companies supports search and ordering by name, assigned-SKU count or
+creation time. Its column menus contain ordering controls only. Search and ordering apply before
+pagination and persist through tab changes and reloads.
 
 Add company opens a compact dialog from the page header or an existing setup shortcut. Entered names
 remain available across navigation, creation feedback stays in the dialog, and returning to the
@@ -223,26 +253,45 @@ originating editor remains explicit. The dialog cannot be dismissed while creati
 sticky fee-change summary appears only when drafts or unfinished edits exist; setup counts remain
 visible in a compact notice with further explanation in header help.
 
-Administrators stage multiple SKU changes, inspect Review changes, and publish one atomic batch.
-Administrators can clear an existing SKU assignment. Assigned SKUs need the required fee coverage.
+Administrators stage multiple SKU changes, inspect Review changes, and save one atomic batch.
+Administrators can clear an existing SKU's company. Assigned SKUs need the required fee coverage.
 Unrelated setup gaps remain visible without blocking a valid batch. Payout generation retains
-completeness checks for its full scope. Members can inspect only their own assignments and periods.
+completeness checks for its full scope. Members can inspect only their own SKUs' companies and
+periods. Current fees says "company" for a SKU's owner; "assignment" means a Reference ID's company
+in the Assignments tab only.
+
+Every fee period table (the list, Fee schedule, saved versions and both Review changes tables) shows
+the dates in two columns, "Effective from (inclusive)" and "Effective until (exclusive)", with "No
+end date" for an open end; the editor names its inputs "Effective from N (inclusive)" and "Effective
+until N (exclusive)", and Change rate from date names its date "New rate effective from (inclusive)"
+([fee-period-labels](src/fee-period-labels.ts)). The Needs setup table of missing fee rates keeps
+plain "Effective from" and "Effective until". Editor validation messages are short ("Enter 0–100, up
+to 6 decimals.", "Choose a valid date.", "Effective until must be after Effective from."). A blank
+field shows its error only after the user typed into or left it; those visited fields follow their
+periods when a period is removed or a rate change splits one, and survive reloads and closed
+editors. Pre-added missing-rate periods therefore open without errors, while a kept draft reopens
+with all of its errors shown. Review changes still blocks Save and names the count in its footer.
+Its Needs setup alert lists one compact "Complete SKU" action per SKU.
 
 X, Escape, and backdrop dismissal retain unfinished inputs separately from staged drafts. Resume
 unfinished edit restores them; Discard edits removes the unfinished form; Keep draft stages it for
 review. Drafts, open review, and reasons survive tab changes and reloads. Change rate from date
 previews a period split while preserving the original end and exact rate precision. Applying that
-preview changes only the editor. Publication remains an explicit Save all changes action.
+preview changes only the editor. Saving remains an explicit Save all changes action.
 
-Stale or uncertain writes preserve the draft and require explicit recovery. Reloads never replay a
-save, and publication is not automatically retried. Confirmed saves refresh affected reads; a failed
-refresh is distinguished from a failed save. Source revisions can make earlier configuration
-incomplete, so coverage is rechecked without hiding the saved settings.
+Stale or uncertain writes preserve the draft and require explicit recovery: a failed save is titled
+"Could not save the fees" with the cause beneath it ("Result unknown. Refresh saved settings first."
+when the answer never arrived, "The page reloaded during the save. Refresh saved settings first."
+after a reload) and Refresh saved settings on the right. Reloads never replay a save, and a save is
+not automatically retried. Confirmed saves refresh affected reads; a failed refresh is distinguished
+from a failed save. Source revisions can make earlier configuration incomplete, so coverage is
+rechecked without hiding the saved settings.
 
-SKU links in fee details, Inventory, and Companies, and View transactions in the fee editor, open
-Transactions with that exact SKU, clear other filters/search, and preserve ordering, page size, and
-drafts. Exact SKU text is shared across source namespaces. Add SKU suggests existing authorized
-values by literal prefix and preserves the spelling and whitespace of new values.
+SKU links in Transactions, Finances, fee, Inventory, and Company details, Inventory rows, and View
+transactions in the fee editor, open Transactions with that exact SKU, clear other filters/search,
+and preserve ordering, page size, and drafts. Exact SKU text is shared across source namespaces. Add
+SKU suggests existing authorized values by literal prefix and preserves the spelling and whitespace
+of new values.
 
 After creating a company from an editor shortcut, return with the draft intact and explicitly select
 and save the new company there. Delete company requires confirmation and reports linked-record
@@ -250,10 +299,11 @@ blockers. It never removes linked records. A confirmed deletion marks affected u
 unavailable until corrected.
 
 Membership editing distinguishes saved access from an unsaved selection. Saving checks the expected
-role/company atomically; revocation needs explicit confirmation. A pending operation remains tracked
-across drawer and tab changes. Administrator accounts are read-only here. The
-[access contract](../../../docs/access_control.md#permissions) defines creation, deletion,
-membership, and publication permissions and retry rules.
+role/company atomically; revocation needs explicit confirmation. A successful save closes the
+drawer, names the account in a green page notice, and returns focus to its row; failures stay in the
+drawer. A pending operation remains tracked across drawer and tab changes. Administrator accounts
+are read-only here. The [access contract](../../../docs/access_control.md#permissions) defines
+creation, deletion, membership, and publication permissions and retry rules.
 
 ## Inventory
 
@@ -298,21 +348,106 @@ a changed or removed capture closes the drawer. Paging, filtering, and sorting c
 Inventory and ownership revisions refresh affected reads. Unchanged revision checks do not reload
 inventory. Recommendations are informational, with no shipment or listing actions.
 
+## Raw data
+
+Raw data replaces the former Finances tab and is for administrators only. Its sub-tabs are Finances
+(the default), Advertising invoice, Monthly storage report, Aged storage report and Removal order
+report; the open sub-tab is `raw=` in the URL and a saved preference, and each sub-tab keeps its own
+search, filters, ordering, page and open row (`row=`). The page header shows one loading status for
+the open sub-tab ([RawData](src/RawData.tsx) embeds [FinanceDataset](src/FinanceDataset.tsx)), and
+its "?" help gives one line per source.
+
+Finances is the Finances table as before, every version included; rows of a superseded version say
+"Earlier version" under their date. The four reports read the current version of each report through
+administrator views (`current_ad_invoices`, `current_storage_rows`, `current_aged_storage_rows`,
+`current_removal_order_rows`) with the same REST CSV path, exact HEAD counts and literal search as
+payout reports; members get no rows. There is no Seller account column: seller account and region
+are in the drawer's Additional details. A removal order names no marketplace, so that table shows
+the seller account's Region ("North America", "Europe", "Japan", "Singapore" or "Australia") and has
+no marketplace filter. Its rows of one order and FNSKU differ by Disposition, and the line under
+Requested quantity is what the order type did: "Disposed" for Disposal, "Shipped" for Return and
+Liquidations. Amazon fills that quantity and leaves the other blank; a row without it fails the
+page. A Monthly storage report row shows Amazon's average quantity on hand; its drawer adds the
+product size tier, the estimated total item volume with its unit, and the rate in the form the
+report printed: one storage rate (Australia, Singapore) or a base rate with a utilization surcharge
+rate (Europe, Japan, North America), each per cubic foot or cubic meter. The two-rate form also
+shows the storage utilization ratio in weeks (">52" as Amazon prints it), the estimated volume for
+the surcharge, and Amazon's split of the fee into an estimated base storage fee and an estimated
+utilization surcharge. A row with neither form, both forms, an unknown volume unit, a negative
+figure or an incomplete split fails the page.
+
+| Source                 | One row is                       | Default order   | Filters                      | Search               |
+| ---------------------- | -------------------------------- | --------------- | ---------------------------- | -------------------- |
+| Advertising invoice    | An invoice                       | Invoice date    | Invoice date, marketplace    | Invoice ID           |
+| Monthly storage report | An FNSKU at a fulfillment center | Month of charge | Month of charge, marketplace | FNSKU, ASIN          |
+| Aged storage report    | An FNSKU in a monthly snapshot   | Snapshot month  | Snapshot month, marketplace  | FNSKU, ASIN, SKU     |
+| Removal order report   | An order × FNSKU × disposition   | Request date    | Request date (UTC)           | Order ID, FNSKU, SKU |
+
+Amounts show every digit, padded to the currency's minor units. Amazon prints no tax on the three
+warehouse reports: SelBox splits each fee into base and tax, and the line beneath the fee says "Tax
+included: y" when the fee is base plus tax or "Tax added: y" when the fee is the base alone (an
+exact decimal comparison; any other split fails the page). Each report row opens a record drawer
+listing the fields Amazon printed, in its column order, then a "Calculated by SelBox" section (the
+marketplace from the country code, base, tax, the inventory ledger months that find the SKU, and an
+invoice's tax rate as a percentage). A printed SKU that is exactly a catalog SKU links to
+Transactions. An invoice drawer also reads its lines (`current_ad_invoice_lines` by `version_id`, in
+Amazon's order) and shows them with exact cost and SelBox's per-line tax ("Tax, calculated"); a line
+count that differs from the invoice's is an error with Retry. Regions, invoice statuses, ad
+programs, invoice line kinds and removal order types are fixed lists
+([amazon-codes](src/amazon-codes.ts), [raw-report-rows](src/raw-report-rows.ts)); an unknown code
+fails the read with an error instead of showing the code. Preprocessing rejects the same unknown
+invoice statuses and ad programs before they are stored. Reference revisions refresh the four
+reports.
+
 ## Payout reports and Financial review
 
 Payout reports show each company’s monthly activity and its SelBox service fees. Open a report to
 inspect the contributing records and amounts by type. Historical versions retain the source and
 ownership versions used to calculate them.
 
-Financial review opens on differences. Each record shows the Finances posting date, marketplace,
-currency, base, tax, reason and available reference or SKU. Choose Company amounts or SelBox types
-to inspect other activity. Monthly totals show Finances activity beside all three outcomes by seller
-account, marketplace and currency. Select a month to check payout readiness and missing fee rates.
+Financial review covers one marketplace and one year, chosen from constant options: the generated
+marketplace list (Amazon.com by default) and the years from 2024, the earliest Finances activity
+Amazon returns, to the current UTC year. Each marketplace has one currency
+([marketplace-currencies](src/api/marketplace-currencies.ts)); a row in any other currency, an
+unknown reason, SelBox group or record source, or a month whose Finances differ from its Company
+amounts, SelBox types and Differences (base or tax, exactly) shows a red alert with Retry. Four
+cards show the year's Finances, Company amounts, SelBox types and Differences, each including tax
+with the tax beneath; amounts keep every digit, padded to the currency's minor units.
 
-Assignments shows campaigns, promotions and shipments. Warnings identify blank assignments and
-conflicts with the current product ownership. Open the Amazon ID to see its product hints. Record a
-reason when assigning or clearing the company. An explicit clear persists until an administrator
-assigns a company. SKU assignments and product service-fee rates are managed in Current fees.
+Differences by month reuses [AmountTrendPlot](src/AmountTrendPlot.tsx): each month's differences
+stack up or down by reason, one fixed color per reason
+([financial-review-chart](src/financial-review-chart.ts)), with one running-difference line from
+January. Months without activity are labelled gaps; the legend lists each reason's year total,
+largest first. Selecting a month (click, Enter, or arrow keys between months) or a Months table row
+opens the month drawer; a reason segment opens it with that reason selected. Previous month and Next
+month in the drawer header step through the months with activity. The drawer shows the month's
+totals, Differences by reason and SelBox types by group (collapsed). Selecting a reason or group
+narrows its records, 50 per page with the exact total from the months' record counts, and a chip
+clears it. Another month, reason or group starts its records on page 1, also a month seen before;
+another month starts payout readiness on page 1 too. Finances records, and the balancing entries
+computed from a Finances charge, show the source "Finances" and open that charge's source record.
+Payout readiness, collapsed by default, shows each company's report state, and blocked companies
+list their missing fee rates. Marketplace, year, the open month (`row=`), reason and group are in
+the URL. An opened Finances record belongs to the records list that opened it: it closes when that
+month, reason or group closes (also by Back or a link) and never reopens over another month.
+
+Assignments lists campaigns, promotions and shipments like Current fees: one read
+(`rpc/reference_assignments`) loads the complete list, ordered by Reference ID. Columns are
+Reference ID, Source, Company, Marketplace and Status; members see only their company's IDs, without
+Company, Status or editing. Marketplace shows Amazon's own record for a campaign or promotion and
+the marketplace of the Finances charges that name a shipment (one name, `N marketplaces` with the
+list on hover, or `—`), and its menu lists the constant marketplaces. Status is Needs setup (no
+company), Products disagree or Saved; administrators also get an `N IDs need setup` alert whose
+Assign next ID opens the first such ID in the editor. Search, filters, page, Rows and the open row
+are in the URL. Assignment details show the facts; for administrators also the warning, Product
+ownership (SKUs link to Transactions), Assignment history and Additional details. Edit, in the
+drawer header, swaps the drawer to the company editor with Add company and an optional reason (a
+blank reason saves "Administrator updated assignment"). The editor keeps the version it started
+from, also through reloads, and the save expects it: when another administrator saves first, an
+orange "Assignment changed elsewhere" alert keeps the choice and blocks Save until Load latest
+restarts from the newer version. Saving closes the drawer, names the ID in a notice
+(`Assignment saved: <ID> · <company>`) and returns focus to its row. SKU ownership and fee rates are
+managed in Current fees.
 
 ## Design conventions
 
@@ -322,51 +457,82 @@ matching its tab label, with related actions aligned in the same header. Semanti
 accessible names follow the content structure.
 
 List views share [TableFrame](src/TableFrame.tsx) for borders, horizontal scrolling, floating
-headings, and column controls; their row renderers own grouping and selection.
+headings, column controls, the fixed applied-filter row, the dimmed loading state, and the
+[scroll reserve](src/scroll-reserve.ts); their row renderers own grouping and selection.
 [AppliedFilterChips](src/AppliedFilterChips.tsx) handles removable filter chips, tooltips, and
-keyboard focus while each view supplies its filter values. Fee and company panels use
-[DetailDrawer](src/DetailDrawer.tsx) to retain content and labels through closing transitions. Fee
-editor actions, including draft removal and setup navigation, live in
-[useFeeEditor](src/use-fee-editor.ts).
+keyboard focus while each view supplies its filter values. Empty lists use
+[EmptyState](src/EmptyState.tsx) inside the table frame ("No <items> yet", or "No matching <items>"
+with a Reset action). Every failed read is an [ErrorAlert](src/ErrorAlert.tsx): the title "Could not
+load <thing>", the short cause beneath it ([loadErrorDetail](src/load-error.ts): the HTTP status, no
+response, a timeout, or the error's own sentence) and one Retry. A failed save is the same alert
+without Retry (its Save button tries again): [saveError](src/save-error.ts) titles it "Could not
+<save|add|delete> the <thing>" ("Could not save the assignment", "Could not add the company") with a
+known reason or the same short cause beneath it. A save closes its drawer and shows one green notice
+naming the record: `<Thing> saved: <record>` (`Fees saved`, `Assignment saved`, `Membership saved`;
+`Company added` and `Company deleted` for companies). Every drawer is
+[DetailDrawer](src/DetailDrawer.tsx): one of three width tokens (`record` 720px, `wide` 1000px,
+`full` min(1440px, 100vw)), a [DrawerHeading](src/DrawerHeading.tsx) with the title and an "identity
+· scope" line, a close label derived from the title (`closeLabel` keeps a month's case: "Close
+January 2026"), record actions such as Edit in the header beside the close button (`headerActions`),
+and content retained through closing transitions. The body never repeats the record name or scope;
+record facts use [DetailFields](src/DetailFields.tsx). Fee editor actions, including draft removal
+and setup navigation, live in [useFeeEditor](src/use-fee-editor.ts). The fee and assignment editors
+share [CompanyField](src/CompanyField.tsx), and both lists count what needs setup in
+[NeedsSetupAlert](src/NeedsSetupAlert.tsx).
 
 Record tables share 13px data text, 12px semibold headings, 8px vertical/12px horizontal cell
-spacing, and the same borders and surface colors. Detail tables use the same baseline with wrapping
-for long values. Compact marketplace total cards retain their responsive column padding while using
-the same text sizes. Metric cards and charts retain layouts suited to their summaries.
+spacing, and the same borders and surface colors. The Mantine `xs`/`sm` font sizes are 12px/13px, so
+text, buttons and inputs follow the same tokens; secondary lines use 12px. Every status badge is a
+[StatusBadge](src/StatusBadge.tsx) (sentence case, 12px semibold, tones success, warning, danger,
+info and neutral), including Inventory health; a missing status is the muted dash used for every
+missing value, never an empty badge. Lists show money with two decimals and the currency; Financial
+review and Raw data use `formatExactAmount`/`formatExactMoney`, which pad to the currency's minor
+units without hiding sub-cent digits. Days are YYYY-MM-DD and months "June 2026". Timestamp columns
+and field labels carry "(UTC)"; their values have no suffix. Detail tables use the same baseline
+with wrapping for long values. Compact marketplace total cards retain their responsive column
+padding while using the same text sizes. Metric cards and charts retain layouts suited to their
+summaries.
 
 Saved metadata uses [AdditionalDetails](src/AdditionalDetails.tsx): a collapsed disclosure with the
 same section spacing, explanation, and fixed Field/Value columns. Fields reflect the record's
 available metadata and current permissions. Exact identifiers and source codes are preserved;
-timestamp metadata uses UTC and boolean flags use Yes/No. Saved fee IDs describe published settings
+timestamp labels carry "(UTC)" and boolean flags use Yes/No. Saved fee IDs describe saved settings
 even when a draft is being shown. Administrators can also inspect metadata from normal saved-report
 details.
 
 Page reads use the shared [LoadingStatus](src/LoadingStatus.tsx) beside their titles: Loading for
-initial reads and Updating for background refreshes, including independent row counts. The inline
-space stays stable during updates; there is no separate progress row above the tabs or toolbar.
-Current totals uses the same subdued status text. Errors, offline explanations, save feedback, and
-local detail requests keep their relevant context. Detail refresh status sits beside section
-headings or pagination, without an empty status row above the table. Source record and
-transaction-lookup rows open their exact retained version by click or Enter/Space.
+initial reads and Updating for background refreshes, including independent row counts. A failed
+count shows "Count unavailable" with its own Retry while the rows stay usable. The inline space
+stays stable during updates; there is no separate progress row above the tabs or toolbar. Current
+totals uses the same subdued status text. Errors, offline explanations, save feedback, and local
+detail requests keep their relevant context. Detail refresh status sits beside section headings or
+pagination, without an empty status row above the table. Source record and transaction-lookup rows
+open their exact retained version by click or Enter/Space.
 
 Put optional explanations in [HelpPopover](src/HelpPopover.tsx), reached through a small, muted
-question-circle control beside the relevant title or heading. Popovers show the explanation without
-repeating the page title; their accessible names still identify the context. Help opens on hover or
-keyboard focus, pins on click or tap, and dismisses with Escape, outside interaction, or its close
-button. Keep help text readable and concise. Field labels, units, errors, draft/save feedback, and
-source-age warnings remain visible; do not repeat generic instructional sentences above tables. Use
-sentence case, Previous/Next, Rows, and the source name Finances consistently.
+question-circle control beside the relevant title or heading; drawer sections take it through
+`DetailSection`'s `help` prop. Popovers show the explanation without repeating the page title; their
+accessible names still identify the context. Help opens on hover or keyboard focus, pins on click or
+tap, and dismisses with Escape, outside interaction, or its close button. Keep help text readable
+and concise. Field labels, units, errors, draft/save feedback, and source-age warnings remain
+visible; do not repeat generic instructional sentences above tables. Use sentence case,
+Previous/Next, Rows, and the source name Finances consistently.
 
 Controls expose hover and keyboard-focus feedback without shifting layout. Native `:hover` remains
 available to mouse/trackpad input on touch-capable devices. Disabled controls keep their disabled
-appearance. Text links use the shared accent underline. Narrow/coarse-pointer form controls use at
-least 16px text to avoid automatic focus zoom; manual zoom remains available.
+appearance. Underlined accent text only navigates to another tab (`ui-link`); in-page actions such
+as opening a drawer use accent text without an underline (`ui-text-action`); disclosures
+(TableDisclosure, collapsible section titles) use a chevron and plain text (`ui-disclosure`).
+Narrow/coarse-pointer form controls use at least 16px text to avoid automatic focus zoom; manual
+zoom remains available. Compact buttons are at least 24px tall on coarse pointers. At 720px and
+below the workspace tabs stay on one horizontally scrolling row.
 
-Drawer titles identify their purpose: Transaction totals, Transaction details, Finances record
-details, or Payout report details. Amounts by type is a section within a totals or report drawer.
-Fee details/editing, Inventory details, Company details, Company membership, and Find Amazon
-transaction retain their task-specific titles. Totals, report, and company headers include their
-scope.
+Drawer titles name the record kind: Transaction details, Finances record details, Advertising
+invoice details, Monthly storage fee details, Aged storage fee details, Removal order details,
+Payout report details, User access details, Company details, Fee details, Inventory details and
+Assignment details; working drawers are Fee editor, Review changes, Find transaction and Transaction
+totals. A Financial review month drawer is titled by its month. Amounts by type is a section within
+a totals or report drawer.
 
 Drawers lock the document with CSS while mounted, including exit transitions. Drawer and popover
 scroll containment is vertical only, preserving horizontal browser gestures and pinch zoom. Escape

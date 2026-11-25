@@ -22,8 +22,7 @@ export function SummaryDatePicker({
       centered
     >
       <Text size="sm" c="dimmed" mb="sm">
-        These UTC dates also filter the transaction list. Clear dates to restore the default trend
-        range.
+        Also filters the transaction list. Dates are UTC.
       </Text>
       <DateFilter
         filter={{

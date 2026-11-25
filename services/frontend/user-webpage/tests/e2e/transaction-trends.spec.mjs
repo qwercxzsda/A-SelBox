@@ -254,7 +254,7 @@ test("reported and service fee bars open the scoped totals drawer at their share
     await expect(
       dialog.getByRole("region", { name: "Breakdown total", exact: true }),
     ).toContainText("85.00 USD");
-    await dialog.getByRole("button", { name: "Close breakdown", exact: true }).click();
+    await dialog.getByRole("button", { name: "Close transaction totals", exact: true }).click();
     await expect(dialog).toBeHidden();
   }
 });
@@ -269,7 +269,10 @@ test("unknown company amounts are exposed without drawing them as known zero", a
   fixture.breakdownRows = [unknown];
   await page.getByRole("button", { name: "Daily trends", exact: true }).click();
   const chart = trendChart(page);
-  await expect(chart).toContainText("The chart includes calculated company amounts only");
+  // The short Current totals label; the trends help explains known company amounts.
+  const missing = chart.getByRole("note");
+  await expect(missing).toHaveText("1 missing fee rate");
+  await expect(missing).toHaveCSS("color", "rgb(138, 59, 12)");
   const day = chart.locator('.amount-trend-period[data-period="2026-11-12"]');
   await day.focus();
   await expect(day).toBeFocused();

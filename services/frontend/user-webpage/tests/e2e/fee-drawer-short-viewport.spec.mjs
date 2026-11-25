@@ -17,7 +17,9 @@ test("review setup controls remain fully reachable in a short zoomed viewport", 
   await editor(page).getByLabel("Fee rate 1 (%)", { exact: true }).fill("6");
   await editor(page).getByRole("button", { name: "Keep draft", exact: true }).click();
   await openReview(page);
-  await review(page).getByRole("button", { name: "Show setup issues (1)", exact: true }).click();
+  await review(page)
+    .getByRole("button", { name: "Show SKUs that need setup", exact: true })
+    .click();
   const complete = review(page).getByRole("button", { name: "Complete S1", exact: true });
   await complete.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("short-review.png"), animations: "disabled" });

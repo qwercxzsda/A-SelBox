@@ -1,4 +1,5 @@
-import { Badge, Group, Paper, Skeleton, Text, Title } from "@mantine/core";
+import { Group, Paper, Skeleton, Text, Title } from "@mantine/core";
+import { StatusBadge } from "./StatusBadge";
 import type { SkuConfigurationPeriod } from "./api";
 import { SkuFeePeriods } from "./SkuFeePeriods";
 import { formatRecordDate } from "./date-display";
@@ -50,16 +51,8 @@ export function SkuFeeScheduleCard({
               {title}
             </Title>
           )}
-          {current ? (
-            <Badge variant="light" color="teal" c="#065f46">
-              Current
-            </Badge>
-          ) : null}
-          {schedule.status === "draft" ? (
-            <Badge variant="light" color="cyan">
-              Not published
-            </Badge>
-          ) : null}
+          {current ? <StatusBadge tone="success">Current</StatusBadge> : null}
+          {schedule.status === "draft" ? <StatusBadge tone="info">Unsaved</StatusBadge> : null}
         </Group>
         {schedule.savedAt ? (
           <Text size="xs" c="dimmed">

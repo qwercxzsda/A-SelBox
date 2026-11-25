@@ -50,7 +50,13 @@ test("company catalog reads the saved creation timestamp and requires metadata o
   });
   assert.deepEqual(await client.fetchCompanies("user-access"), [company]);
   assert.equal(requested.searchParams.get("select"), "id,name,created_at");
-  for (const malformed of [COMPANY, { ...COMPANY, created_at: null }]) {
+  for (const malformed of [
+    COMPANY,
+    { ...COMPANY, created_at: null },
+    { ...COMPANY, created_at: "2026-08-01" },
+    { ...COMPANY, created_at: "2026-08-01T12:34:56" },
+    { ...COMPANY, created_at: "August 1, 2026" },
+  ]) {
     const invalid = createApiClient(SETTINGS, async () =>
       Response.json([malformed], { headers: { "Content-Range": "0-0/1" } }),
     );

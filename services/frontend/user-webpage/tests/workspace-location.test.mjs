@@ -187,3 +187,96 @@ test("bare URLs keep local state, and malformed report/month identifiers are ign
   const url = new URL("https://example.test/?tab=payouts&report=invalid&reportFrom=2026-02-30");
   assert.equal(locationPreference(url, admin, "payout-report-history", {}).selected, null);
 });
+
+test("Current fees and Companies put only the open row in the URL", () => {
+  const drafts = [{ sku: "S1", fee_rate_percent: "secret-draft" }];
+  const fees = new Map([
+    ["tab", "fees"],
+    ["fees", { selectedSku: 'a,b " SKU', drafts }],
+  ]);
+  const feeUrl = workspaceLocation(origin, admin, fees);
+  assert.equal(feeUrl.searchParams.get("row"), 'a,b " SKU');
+  assert.equal(feeUrl.href.includes("secret"), false);
+  const restoredFees = locationPreference(feeUrl, admin, "fees", { selectedSku: "S2", drafts });
+  assert.equal(restoredFees.selectedSku, 'a,b " SKU');
+  assert.deepEqual(restoredFees.drafts, drafts);
+  const closedFees = new URL("https://example.test/?tab=fees");
+  assert.equal(
+    locationPreference(closedFees, admin, "fees", { selectedSku: "S2" }).selectedSku,
+    null,
+  );
+  assert.equal(workspaceLocation(closedFees, admin, new Map()).searchParams.has("row"), false);
+
+  const companies = new Map([
+    ["tab", "companies"],
+    ["companies:list", { search: "north", selected: companyId }],
+  ]);
+  const companyUrl = workspaceLocation(origin, admin, companies);
+  assert.equal(companyUrl.searchParams.get("row"), companyId);
+  assert.equal(companyUrl.searchParams.has("search"), false);
+  assert.deepEqual(locationPreference(companyUrl, admin, "companies:list", { search: "north" }), {
+    search: "north",
+    selected: companyId,
+  });
+  assert.equal(
+    workspaceLocation(companyUrl, admin, new Map([["tab", "companies"]])).searchParams.get("row"),
+    companyId,
+  );
+  assert.equal(
+    locationPreference(companyUrl, admin, "fees", { selectedSku: "S2" }).selectedSku,
+    "S2",
+  );
+});
+
+test("Raw data keeps its sub-tab in raw= and each sub-tab's own list, row included", () => {
+  const storage = createDatasetViewState("storage");
+  storage.search = "X000";
+  storage.pagination = { pageIndex: 2, pageSize: 50 };
+  storage.filters = {
+    ...storage.filters,
+    marketplaces: ["Amazon.de"],
+    dateFrom: "2026-07-01",
+    dateTo: "2026-07-01",
+  };
+  storage.selectedRowId = "storage-row";
+  const finances = { ...createDatasetViewState("finances"), search: "finances-only" };
+  const url = workspaceLocation(
+    origin,
+    admin,
+    new Map([
+      ["tab", "raw-data"],
+      ["raw-data:dataset", "storage"],
+      ["datasets", { storage, finances }],
+    ]),
+  );
+  assert.equal(url.searchParams.get("tab"), "raw-data");
+  assert.equal(url.searchParams.get("raw"), "storage");
+  assert.equal(url.searchParams.get("row"), "storage-row");
+  assert.equal(url.searchParams.get("search"), "X000");
+  assert.equal(locationPreference(url, admin, "raw-data:dataset", "finances"), "storage");
+  // The URL restores the open sub-tab only; other sub-tabs keep their saved state.
+  assert.deepEqual(locationPreference(url, admin, "datasets", { finances }), { finances, storage });
+  assert.equal(locationPreference(url, admin, "tab", "live"), "raw-data");
+
+  const unknown = new URL("https://example.test/?tab=raw-data&raw=payouts");
+  assert.equal(locationPreference(unknown, admin, "raw-data:dataset", "storage"), "finances");
+  assert.equal(
+    workspaceLocation(unknown, admin, new Map([["tab", "raw-data"]])).searchParams.get("raw"),
+    "finances",
+  );
+  // Leaving Raw data drops its sub-tab from the URL.
+  assert.equal(
+    workspaceLocation(url, admin, new Map([["tab", "live"]])).searchParams.has("raw"),
+    false,
+  );
+});
+
+test("members cannot open Raw data, or its former Finances tab, through a URL", () => {
+  const member = { ...admin, access_role: "member", company_id: companyId };
+  for (const tab of ["raw-data", "finances", "storage"]) {
+    const url = new URL(`https://example.test/?tab=${tab}&raw=storage&row=storage-row`);
+    assert.equal(locationPreference(url, member, "tab", "inventory"), "live");
+    assert.equal(locationPreference(url, member, "raw-data:dataset", "finances"), "finances");
+    assert.equal(locationPreference(url, admin, "tab", "live"), tab === "raw-data" ? tab : "live");
+  }
+});

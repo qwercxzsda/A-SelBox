@@ -7,9 +7,12 @@ import type {
 } from "./api/sku-configuration-types.ts";
 import { INVENTORY_SORT_COLUMNS } from "./inventory-view.ts";
 import { isJsonObject, isUuid } from "./api/validation.ts";
-import { PAGE_SIZES, visibleDatasets } from "./view-model.ts";
+import { visibleDatasets } from "./view-model.ts";
+import { isSavedText, savedPageIndex, savedPageSize, savedText } from "./saved-values.ts";
 import { normalizeDatasetFilters } from "./dataset-filters.ts";
 import { FEE_STATUSES } from "./fee-status.ts";
+import { isFormPath } from "./sku-configuration-form.ts";
+import { decodeFeesSaveError, INTERRUPTED_FEES_SAVE } from "./sku-configuration-changes.ts";
 import {
   createDatasetViewState,
   createFeeViewState,
@@ -19,30 +22,28 @@ import {
   type InventoryViewState,
 } from "./workspace-view-state.ts";
 
-const isText = (value: unknown): value is string =>
-  typeof value === "string" && value.length <= 10000 && !value.includes("\0");
-const text = (value: unknown) => (isText(value) ? value : "");
-const nullableText = (value: unknown) => (isText(value) ? value : null);
+const nullableText = (value: unknown) => (isSavedText(value) ? value : null);
 const strings = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter(isText).slice(0, 10000) : [];
+  Array.isArray(value) ? value.filter(isSavedText).slice(0, 10000) : [];
 const optionalStrings = (value: unknown): (string | null)[] =>
   Array.isArray(value)
-    ? value.filter((item): item is string | null => item === null || isText(item)).slice(0, 10000)
+    ? value
+        .filter((item): item is string | null => item === null || isSavedText(item))
+        .slice(0, 10000)
     : [];
-const pageIndex = (value: unknown) =>
-  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : 0;
-const pageSize = (value: unknown) => PAGE_SIZES.find((size) => size === value) ?? PAGE_SIZES[0];
 
 export function decodeWorkspaceTab(
   value: unknown,
   account: AppAccount,
-): DatasetKey | "inventory" | "financial-review" | "assignments" | "companies" {
+): DatasetKey | "inventory" | "financial-review" | "assignments" | "companies" | "raw-data" {
+  if (value === "raw-data" && account.access_role === "administrator") return value;
   if (
-    (value === "assignments" || value === "financial-review" || value === "companies") &&
+    (value === "financial-review" || value === "companies") &&
     account.access_role === "administrator"
   )
     return value;
-  return value === "inventory"
+  // Members read their own company's assignments; unassigned accounts never reach the workspace.
+  return value === "inventory" || value === "assignments"
     ? value
     : (visibleDatasets(account).find((key) => key === value) ?? "live");
 }
@@ -56,10 +57,10 @@ export function decodeDatasetView(value: unknown, dataset: TableDatasetKey): Dat
   const sortColumns: readonly string[] = DATASET_CONFIG[dataset].sortColumns;
   const filters = isJsonObject(value.filters) ? value.filters : {};
   return {
-    search: text(value.search),
+    search: savedText(value.search),
     pagination: {
-      pageIndex: pageIndex(pagination.pageIndex),
-      pageSize: pageSize(pagination.pageSize),
+      pageIndex: savedPageIndex(pagination.pageIndex),
+      pageSize: savedPageSize(pagination.pageSize),
     },
     sorting:
       typeof sort.id === "string" && sortColumns.includes(sort.id) && typeof sort.desc === "boolean"
@@ -67,8 +68,8 @@ export function decodeDatasetView(value: unknown, dataset: TableDatasetKey): Dat
         : fallback.sorting,
     filters: normalizeDatasetFilters({
       companyIds: strings(filters.companyIds),
-      dateFrom: text(filters.dateFrom),
-      dateTo: text(filters.dateTo),
+      dateFrom: savedText(filters.dateFrom),
+      dateTo: savedText(filters.dateTo),
       skus: strings(filters.skus),
       marketplaces: strings(filters.marketplaces),
       sources: strings(filters.sources),
@@ -93,7 +94,7 @@ export function decodeDatasetViews(
 export function decodeInventoryView(value: unknown): InventoryViewState {
   if (!isJsonObject(value)) return createInventoryViewState();
   return {
-    search: text(value.search),
+    search: savedText(value.search),
     skus: strings(value.skus),
     healthStatuses: optionalStrings(value.healthStatuses).filter((entry) =>
       INVENTORY_HEALTH_VALUES.includes(entry),
@@ -105,8 +106,8 @@ export function decodeInventoryView(value: unknown): InventoryViewState {
     companyIds: optionalStrings(value.companyIds).filter((id) => id === null || isUuid(id)),
     sortColumn: INVENTORY_SORT_COLUMNS.find((column) => column === value.sortColumn) ?? "sku",
     sortDirection: value.sortDirection === "desc" ? "desc" : "asc",
-    pageIndex: pageIndex(value.pageIndex),
-    pageSize: pageSize(value.pageSize),
+    pageIndex: savedPageIndex(value.pageIndex),
+    pageSize: savedPageSize(value.pageSize),
     selectedRowId: nullableText(value.selectedRowId),
   };
 }
@@ -114,9 +115,11 @@ export function decodeInventoryView(value: unknown): InventoryViewState {
 function decodeDraft(value: unknown): SkuConfigurationChange | null {
   if (
     !isJsonObject(value) ||
-    !isText(value.sku) ||
-    !(value.company_id === null || isText(value.company_id)) ||
-    !(value.expected_current_version_id === null || isText(value.expected_current_version_id)) ||
+    !isSavedText(value.sku) ||
+    !(value.company_id === null || isSavedText(value.company_id)) ||
+    !(
+      value.expected_current_version_id === null || isSavedText(value.expected_current_version_id)
+    ) ||
     !Array.isArray(value.periods) ||
     value.periods.length > 10000
   )
@@ -126,10 +129,10 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
   for (const period of savedPeriods) {
     if (
       !isJsonObject(period) ||
-      !isText(period.marketplace_name) ||
-      !isText(period.valid_from) ||
-      !(period.valid_to === null || isText(period.valid_to)) ||
-      !isText(period.fee_rate_percent)
+      !isSavedText(period.marketplace_name) ||
+      !isSavedText(period.valid_from) ||
+      !(period.valid_to === null || isSavedText(period.valid_to)) ||
+      !isSavedText(period.fee_rate_percent)
     )
       return null;
     periods.push({
@@ -148,7 +151,8 @@ function decodeDraft(value: unknown): SkuConfigurationChange | null {
 }
 
 function decodeFeeEditor(value: unknown): FeeViewState["editing"] {
-  if (!isJsonObject(value) || !isText(value.sku) || typeof value.isNew !== "boolean") return null;
+  if (!isJsonObject(value) || !isSavedText(value.sku) || typeof value.isNew !== "boolean")
+    return null;
   const form = decodeDraft(value.form);
   if (!form || (!value.isNew && form.sku !== value.sku)) return null;
   const rateChange = value.rateChange;
@@ -157,6 +161,7 @@ function decodeFeeEditor(value: unknown): FeeViewState["editing"] {
     isNew: value.isNew,
     form,
     submitError: nullableText(value.submitError),
+    visited: strings(value.visited).filter((path) => isFormPath(path, form.periods.length)),
     rateChange:
       isJsonObject(rateChange) &&
       typeof rateChange.periodIndex === "number" &&
@@ -165,8 +170,8 @@ function decodeFeeEditor(value: unknown): FeeViewState["editing"] {
       rateChange.periodIndex < form.periods.length
         ? {
             periodIndex: rateChange.periodIndex,
-            effectiveDate: text(rateChange.effectiveDate),
-            feeRatePercent: text(rateChange.feeRatePercent),
+            effectiveDate: savedText(rateChange.effectiveDate),
+            feeRatePercent: savedText(rateChange.feeRatePercent),
             previewRequested: rateChange.previewRequested === true,
           }
         : null,
@@ -177,10 +182,10 @@ export function decodeFeeView(value: unknown): FeeViewState {
   if (!isJsonObject(value)) return createFeeViewState();
   const interrupted = value.savePending === true;
   return {
-    search: text(value.search),
+    search: savedText(value.search),
     skus: [...new Set(strings(value.skus))],
-    pageIndex: pageIndex(value.pageIndex),
-    pageSize: pageSize(value.pageSize),
+    pageIndex: savedPageIndex(value.pageIndex),
+    pageSize: savedPageSize(value.pageSize),
     selectedSku: nullableText(value.selectedSku),
     expandedSkus: strings(value.expandedSkus),
     drafts: Array.isArray(value.drafts)
@@ -189,13 +194,11 @@ export function decodeFeeView(value: unknown): FeeViewState {
           .map(decodeDraft)
           .filter((draft) => draft !== null)
       : [],
-    changeReason: text(value.changeReason),
+    changeReason: savedText(value.changeReason),
     companyIds: optionalStrings(value.companyIds).filter((id) => id === null || isUuid(id)),
     marketplaces: strings(value.marketplaces),
     statuses: FEE_STATUSES.filter((status) => strings(value.statuses).includes(status)),
-    saveProblem: interrupted
-      ? "The page reloaded before the save was confirmed. Refresh saved settings and review your drafts before saving again."
-      : nullableText(value.saveProblem),
+    saveProblem: interrupted ? INTERRUPTED_FEES_SAVE : decodeFeesSaveError(value.saveProblem),
     requiresReload: interrupted || value.requiresReload === true,
     savedNotice: nullableText(value.savedNotice),
     refreshFailed: value.refreshFailed === true,

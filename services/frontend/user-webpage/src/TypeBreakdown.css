@@ -7,7 +7,6 @@
 .type-breakdown-table td {
   white-space: normal;
   overflow-wrap: anywhere;
-  vertical-align: top;
 }
 
 .type-breakdown-control-label {

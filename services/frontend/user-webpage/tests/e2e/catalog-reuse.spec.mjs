@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { skuAssignments } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn, sortBy, columnHeader } from "./table-actions.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 async function setup(page, { role = "administrator", expiresIn = 90 } = {}) {
   await page.clock.install();
@@ -108,12 +109,12 @@ test("administrator demotion during renewal removes administrator catalogs and r
   page,
 }) => {
   const fixture = await setup(page);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   fixture.roles["member-a"] = "member";
   fixture.assignments = skuAssignments(["MEMBER-ONLY"]);
   await page.clock.fastForward(30_000);
   await expectRenewedLookups(fixture);
-  await expect(page.getByRole("tab", { name: "Finances", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Raw data", exact: true })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Transactions", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -143,7 +144,10 @@ test("forced workspace retry downloads the administrator catalog despite identic
   const fixture = await setup(page, { expiresIn: 3600 });
   fixture.revisionStatus = 503;
   await page.clock.fastForward(60_000);
-  const retry = page.getByRole("button", { name: "Retry update", exact: true });
+  const retry = page
+    .getByRole("alert")
+    .filter({ hasText: "Could not check for updates" })
+    .getByRole("button", { name: "Retry", exact: true });
   await expect(retry).toBeVisible();
   fixture.revisionStatus = 200;
   fixture.skuOptions.push("FORCED-NEW");

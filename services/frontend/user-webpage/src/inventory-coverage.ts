@@ -3,7 +3,9 @@ import { requireCalendarDate } from "./api/filters.ts";
 import { parseRecordTimestamp } from "./date-display.ts";
 import timeZones from "./generated/marketplace-timezones.json" with { type: "json" };
 
-export const INVENTORY_OVERDUE_DAYS = 2;
+const INVENTORY_OVERDUE_DAYS = 2;
+/** The one wording of the age rule, shared by the Inventory help and each date's tooltip. */
+export const INVENTORY_OUT_OF_DATE_RULE = `Out of date: more than ${String(INVENTORY_OVERDUE_DAYS)} days old in the marketplace's time zone.`;
 
 const dayFormatters = new Map<string, Intl.DateTimeFormat>();
 
@@ -49,19 +51,12 @@ export function inventorySourceDay(value: string | null, marketplace: string): s
 export function inventoryAge(day: string | null, now: number, marketplace: string) {
   const validDay = inventorySourceDay(day, marketplace);
   const today = marketplaceDay(now, marketplace);
-  if (validDay === null || today === null)
-    return { label: "Date unavailable", compactLabel: "Date unavailable", overdue: false };
+  if (validDay === null || today === null) return { label: "Date unavailable", overdue: false };
   const days =
     (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${validDay}T00:00:00Z`)) / 86_400_000;
-  if (days < 0)
-    return {
-      label: "Future source date — check source",
-      compactLabel: "Future date",
-      overdue: false,
-    };
+  if (days < 0) return { label: "Future date", overdue: false };
   return {
     label: days === 0 ? "Today" : `${String(days)} ${days === 1 ? "day" : "days"} old`,
-    compactLabel: days === 0 ? "Today" : `${String(days)}d ago`,
     overdue: days > INVENTORY_OVERDUE_DAYS,
   };
 }
@@ -77,19 +72,19 @@ export function inventoryEmptyMessage({
   hasItems: boolean | undefined;
   member: boolean;
 }): string {
-  if (captures === undefined) return "Checking inventory availability…";
+  if (captures === undefined) return "Checking inventory…";
   const covered = captures.some(
     (capture) => !marketplaces.length || marketplaces.includes(capture.marketplace_name),
   );
   if (!covered)
     return marketplaces.length === 1
-      ? `No inventory snapshot has been imported for ${marketplaces[0]}.`
+      ? `No inventory snapshot for ${marketplaces[0]} yet`
       : marketplaces.length
-        ? "No inventory snapshots have been imported for the selected marketplaces."
-        : "No inventory snapshots have been imported yet.";
-  if (hasItems === undefined) return "Checking inventory availability before these filters…";
-  if (hasItems) return "No inventory matches these filters.";
+        ? "No inventory snapshots for these marketplaces yet"
+        : "No inventory snapshots yet";
+  if (hasItems === undefined) return "Checking inventory…";
+  if (hasItems) return "No matching inventory";
   return member
-    ? "An inventory snapshot is available, but no items from it are assigned to your company."
-    : "The latest imported snapshots contain no inventory items in this marketplace scope.";
+    ? "No inventory for your company's SKUs"
+    : "The latest snapshots have no items here";
 }

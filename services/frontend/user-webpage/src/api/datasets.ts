@@ -57,19 +57,23 @@ async function buildMembershipParams(
       throw new Error("A valid payout currency is required");
     params.set("currency", `eq.${options.currency}`);
   }
-  if (dataset === "payouts") {
-    if (values.selections.marketplace_name.length)
-      params.set(
-        "marketplace_name",
-        `in.(${values.selections.marketplace_name.map((value) => JSON.stringify(value)).join(",")})`,
-      );
-    if (values.dateFrom) params.append("start_date", `gte.${values.dateFrom}`);
-    if (values.dateTo) params.append("start_date", `lte.${values.dateTo}`);
+  const config: DatasetConfig = DATASET_CONFIG[dataset];
+  // Filter values are validated against the dataset's own filter columns above.
+  if (values.selections.marketplace_name.length)
+    params.set(
+      "marketplace_name",
+      `in.(${values.selections.marketplace_name.map((value) => JSON.stringify(value)).join(",")})`,
+    );
+  // A month filter compares month-start dates: dateFrom and dateTo are both YYYY-MM-01.
+  if (config.dateFilter) {
+    const { column } = config.dateFilter;
+    if (values.dateFrom) params.append(column, `gte.${values.dateFrom}`);
+    if (values.dateTo) params.append(column, `lte.${values.dateTo}`);
   }
   const searchFilter =
     dataset === "payouts"
       ? await payoutSearchFilter(transport, options.accessToken, search, options.signal)
-      : buildSearchFilter(DATASET_CONFIG[dataset].searchColumns, search);
+      : buildSearchFilter(config.searchColumns, search);
   if (searchFilter !== null) params.set("or", searchFilter);
   return params;
 }
@@ -79,12 +83,10 @@ async function buildDatasetParams(
   options: FetchDatasetPageOptions,
 ): Promise<URLSearchParams> {
   const { dataset, pageIndex, pageSize, sort } = options;
-  const config = DATASET_CONFIG[dataset];
+  const config: DatasetConfig = DATASET_CONFIG[dataset];
   const order = [
     `${sort.column}.${sort.direction}.nullslast`,
-    ...(dataset === "payouts"
-      ? ["company_id.asc", "marketplace_name.asc.nullslast", "currency.asc"]
-      : []),
+    ...(config.tiebreakOrder ?? []),
     ...config.idColumns.filter((column) => column !== sort.column).map((column) => `${column}.asc`),
   ];
   const params = await buildMembershipParams(transport, options);

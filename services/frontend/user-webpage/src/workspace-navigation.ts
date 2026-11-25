@@ -3,6 +3,14 @@ import type { AppAccount } from "./api/types";
 import type { createWorkspaceStore } from "./workspace-storage";
 import { locationPreference, workspaceLocation } from "./workspace-location.ts";
 
+export interface WorkspaceWriteOptions {
+  /**
+   * Replace the current history entry instead of adding one. For writes that correct state to
+   * the loaded data (a stale linked selection), so Back still leaves the corrected page.
+   */
+  replace?: boolean;
+}
+
 /** Normal updates keep mounted editors intact; Back/Forward restores only navigation state. */
 export function createWorkspaceNavigation(
   base: ReturnType<typeof createWorkspaceStore>,
@@ -12,7 +20,8 @@ export function createWorkspaceNavigation(
   const preferences = new Map<string, unknown>();
   const currentLocation = () => new URL(router.history.location.href, router.origin);
   let revision = 0;
-  let queued = false;
+  /** The queued commit, if any: whether every write it batches replaces the history entry. */
+  let queuedReplace: boolean | null = null;
   let active = true;
   let suspended = false;
   const commit = (replace: boolean) => {
@@ -59,17 +68,20 @@ export function createWorkspaceNavigation(
         preferences.set(name, value);
         return value;
       },
-      write(name: string, value: unknown) {
+      write(name: string, value: unknown, { replace = false }: WorkspaceWriteOptions = {}) {
         if (!active || suspended) return;
         base.write(name, value);
         preferences.set(name, value);
-        if (!queued) {
-          queued = true;
-          queueMicrotask(() => {
-            queued = false;
-            commit(false);
-          });
+        if (queuedReplace !== null) {
+          queuedReplace &&= replace;
+          return;
         }
+        queuedReplace = replace;
+        queueMicrotask(() => {
+          const replaceEntry = queuedReplace === true;
+          queuedReplace = null;
+          commit(replaceEntry);
+        });
       },
     },
   };

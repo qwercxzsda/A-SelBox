@@ -1,0 +1,40 @@
+.assignment-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.assignment-table th,
+.assignment-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The reference ID is the row header, shaded like the SKU cells in Current fees. */
+.assignment-table .assignment-reference {
+  font-size: var(--ui-font-data);
+  font-weight: 500;
+  color: var(--ui-text);
+}
+
+.assignment-table .inspectable-row:hover > .assignment-reference {
+  background: var(--ui-hover-surface);
+}
+
+.assignment-table .inspectable-row[aria-selected="true"] > .assignment-reference {
+  background: var(--ui-accent-soft);
+  box-shadow: inset 3px 0 0 var(--ui-accent);
+}
+
+.assignment-table .inspectable-row[aria-selected="true"]:hover > .assignment-reference {
+  background: var(--ui-hover-selected);
+}
+
+.assignment-details {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Table headings keep whole words, as in every other drawer. */
+.assignment-details .detail-table {
+  overflow-wrap: normal;
+}

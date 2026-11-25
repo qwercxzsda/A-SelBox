@@ -1,4 +1,4 @@
 .table-column-parenthetical {
-  font-size: 11px;
+  font-size: var(--ui-font-caption);
   font-weight: 400;
 }

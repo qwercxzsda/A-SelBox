@@ -1,3 +1,5 @@
+import { summaryDateLabel } from "./summary-date-label.ts";
+
 export const TOTALS_PERIODS = ["day", "month", "selected"] as const;
 export type TotalsPeriod = (typeof TOTALS_PERIODS)[number];
 export const TOTALS_PERIOD_LABELS: Record<TotalsPeriod, string> = {
@@ -16,21 +18,11 @@ export interface PeriodDefinition {
   range: DateRange;
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  timeZone: "UTC",
-});
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
   timeZone: "UTC",
 });
-
-function formatDate(value: string): string {
-  return dateFormatter.format(new Date(`${value}T00:00:00Z`));
-}
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -47,16 +39,8 @@ export function previousMonthRange(latestDate: string): DateRange {
 }
 
 export function selectedPeriod(range: DateRange): PeriodDefinition | null {
-  const { from, to } = range;
-  if (!from && !to) return null;
-  const label = !from
-    ? `Through ${formatDate(to)}`
-    : !to
-      ? `From ${formatDate(from)}`
-      : from === to
-        ? formatDate(from)
-        : `${formatDate(from)} – ${formatDate(to)}`;
-  return { label, range };
+  if (!range.from && !range.to) return null;
+  return { label: summaryDateLabel(range), range };
 }
 
 export function summaryPeriods(latestDate: string | null) {
@@ -66,7 +50,7 @@ export function summaryPeriods(latestDate: string | null) {
   const day = isoDate(previousDay);
   const monthRange = previousMonthRange(latestDate);
   return {
-    day: { range: { from: day, to: day }, label: formatDate(day) },
+    day: { range: { from: day, to: day }, label: day },
     month: {
       range: monthRange,
       label: monthFormatter.format(new Date(`${monthRange.from}T00:00:00Z`)),

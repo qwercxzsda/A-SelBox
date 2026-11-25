@@ -1,0 +1,24 @@
+.payout-readiness {
+  scroll-margin-top: calc(
+    var(--ui-drawer-content-header-height, var(--ui-drawer-header-height)) + 16px
+  );
+  outline: none;
+}
+
+.payout-readiness-table {
+  min-width: 560px;
+}
+
+.payout-readiness-note {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+/* A company's setup requirements span the whole row beneath it. */
+.payout-readiness-setup-row > td {
+  max-width: none;
+  padding-block: 12px;
+  background: var(--ui-surface-subtle);
+}

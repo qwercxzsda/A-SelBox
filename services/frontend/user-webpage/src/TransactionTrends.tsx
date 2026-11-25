@@ -1,8 +1,9 @@
-import { Alert, Button, Group, Skeleton, Title } from "@mantine/core";
+import { Button, Skeleton, Title } from "@mantine/core";
 import { useState, type ReactNode } from "react";
 import type { TransactionTrendTotal, TransactionTrendGranularity } from "./api/types";
 import type { DateRange, PeriodDefinition } from "./summary-periods";
 import type { SummaryFilter } from "./SummaryFilters";
+import { ErrorAlert } from "./ErrorAlert";
 import { TransactionSummaryHeading } from "./TransactionSummaryHeading";
 import { SummaryDatePicker } from "./SummaryDatePicker";
 import { TotalsDateControl } from "./TotalsDateControl";
@@ -82,21 +83,18 @@ export function TransactionTrends({
             <p>
               Select a bar or a group's company amount to open Transaction totals at its Amounts by
               type group. Use the arrow keys to move between periods in the chart. Groups match Type
-              filters. Charts include calculated company amounts; Reported amount in the details
-              includes all matching transactions.
+              filters. Charts include known company amounts; Reported amount in the details includes
+              all matching transactions. Periods without a known company amount are gaps.
             </p>
           </>
         }
       />
       {error ? (
-        <Alert color="red" role="alert" mb="sm">
-          <Group justify="space-between" gap="xs">
-            <span>{error}</span>
-            <Button variant="subtle" color="red" size="compact-sm" onClick={() => void onRetry()}>
-              Retry trends
-            </Button>
-          </Group>
-        </Alert>
+        <ErrorAlert
+          title={`Could not load ${title.toLowerCase()}`}
+          detail={error}
+          onRetry={() => void onRetry()}
+        />
       ) : null}
       <article
         className="totals-period-card transaction-trends-card"

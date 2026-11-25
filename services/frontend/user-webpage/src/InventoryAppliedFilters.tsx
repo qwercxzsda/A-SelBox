@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import type { InventoryViewState } from "./workspace-view-state";
 import { recommendationLabel } from "./inventory-options";
+import { CLEARED_INVENTORY_FILTERS } from "./inventory-view";
 import { companyLabel } from "./view-model";
 import { AppliedFilterChips } from "./AppliedFilterChips";
 
@@ -16,9 +17,6 @@ export function InventoryAppliedFilters({
   focusTarget?: RefObject<HTMLElement | null>;
 }) {
   const filters = [
-    ...(state.search
-      ? [{ key: "search", label: `Search: ${state.search}`, clear: { search: "" } }]
-      : []),
     ...state.marketplaces.map((marketplace) => ({
       key: `marketplace:${marketplace}`,
       label: `Marketplace: ${marketplace}`,
@@ -50,6 +48,9 @@ export function InventoryAppliedFilters({
       label="Applied inventory filters"
       chips={filters}
       onChange={onChange}
+      onClearAll={() => {
+        onChange(CLEARED_INVENTORY_FILTERS);
+      }}
       focusTarget={focusTarget}
     />
   );

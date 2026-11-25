@@ -85,7 +85,7 @@ for (const width of [1440, 390]) {
     const period = totals
       .getByRole("article", { name: "Last day totals", exact: true })
       .getByRole("button", {
-        name: "Filter transactions to Jun 30, 2026 · UTC",
+        name: "Filter transactions to 2026-06-30 · UTC",
         exact: true,
       });
     await expect(period).toBeVisible();

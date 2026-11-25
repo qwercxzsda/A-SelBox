@@ -12,6 +12,7 @@ import {
   version,
   feeRow,
   feeDetails,
+  expectSavedSettingsAlert,
 } from "./sku-configuration-fixtures.mjs";
 import { columnTrigger } from "./table-actions.mjs";
 
@@ -27,9 +28,9 @@ test("F5 retains transaction ordering, pagination and the selected row using fre
   const reads = fixture.requests.length;
   await page.reload();
   await expect(page.getByRole("dialog", { name: "Transaction details" })).toBeVisible();
-  await expect(
-    page.getByRole("dialog").getByRole("heading", { name: "ALPHA-026", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog").locator(".detail-drawer-context")).toContainText(
+    "ALPHA-026",
+  );
   expect(fixture.requests.length).toBeGreaterThan(reads);
   expect(fixture.requests.at(-1).params.get("offset")).toBe("25");
   expect(fixture.requests.at(-1).params.get("order")).toContain("activity_at.asc");
@@ -83,16 +84,18 @@ test("F5 during a fee save never repeats it and preserves the original optimisti
   await started.promise;
   await page.reload();
   await expect(review(page)).toBeVisible();
-  await expect(review(page).getByRole("alert")).toContainText("before the save was confirmed");
+  const interrupted = [
+    "Could not save the fees",
+    "The page reloaded during the save. Refresh saved settings first.",
+  ];
+  await expectSavedSettingsAlert(review(page), ...interrupted);
   await expect(
     review(page).getByRole("button", { name: "Save all changes", exact: true }),
   ).toBeDisabled();
   expect(fixture.configurationSaves).toHaveLength(1);
   release.resolve();
   await review(page).getByRole("button", { name: "Back to editing", exact: true }).click();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "before the save was confirmed" }),
-  ).toBeVisible();
+  await expectSavedSettingsAlert(page, ...interrupted);
   fixture.skuConfigurationItems[0] = item("S1", {
     terms_version_id: version(21),
     periods: [period("9")],

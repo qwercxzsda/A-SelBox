@@ -23,26 +23,17 @@ test("inventory freshness uses the marketplace calendar across UTC boundaries", 
   for (const marketplace of ["Amazon.co.jp", "Amazon.com.au", "Amazon.sg"]) {
     assert.deepEqual(inventoryAge("2026-11-06", refreshed, marketplace), {
       label: "Today",
-      compactLabel: "Today",
       overdue: false,
     });
     assert.deepEqual(inventoryAge("2026-11-03", refreshed, marketplace), {
       label: "3 days old",
-      compactLabel: "3d ago",
       overdue: true,
     });
-    assert.equal(
-      inventoryAge("2026-11-07", refreshed, marketplace).label,
-      "Future source date — check source",
-    );
+    assert.equal(inventoryAge("2026-11-07", refreshed, marketplace).label, "Future date");
   }
-  assert.equal(
-    inventoryAge("2026-11-06", refreshed, "Amazon.com").label,
-    "Future source date — check source",
-  );
+  assert.equal(inventoryAge("2026-11-06", refreshed, "Amazon.com").label, "Future date");
   assert.deepEqual(inventoryAge("2026-11-05", Date.parse("2026-11-06T02:00:00Z"), "Amazon.com"), {
     label: "Today",
-    compactLabel: "Today",
     overdue: false,
   });
 });
@@ -64,22 +55,18 @@ test("report timestamps use marketplace dates and calendar-day age survives dayl
 test("inventory age uses source days, normalizes timestamp zones and flags overdue daily sources", () => {
   assert.deepEqual(inventoryAge("2026-10-18", now, "Amazon.com"), {
     label: "Today",
-    compactLabel: "Today",
     overdue: false,
   });
   assert.deepEqual(inventoryAge("2026-10-16", now, "Amazon.com"), {
     label: "2 days old",
-    compactLabel: "2d ago",
     overdue: false,
   });
   assert.deepEqual(inventoryAge("2026-10-15", now, "Amazon.com"), {
     label: "3 days old",
-    compactLabel: "3d ago",
     overdue: true,
   });
   assert.deepEqual(inventoryAge("2026-10-03", now, "Amazon.com"), {
     label: "15 days old",
-    compactLabel: "15d ago",
     overdue: true,
   });
   assert.equal(inventorySourceDay("2026-10-18T00:30:00+02:00", "Amazon.de"), "2026-10-18");
@@ -87,8 +74,7 @@ test("inventory age uses source days, normalizes timestamp zones and flags overd
   assert.equal(inventorySourceDay("2026-02-30", "Amazon.com"), null);
   assert.equal(inventoryAge(null, now, "Amazon.com").label, "Date unavailable");
   assert.deepEqual(inventoryAge("2026-10-19", now, "Amazon.com"), {
-    label: "Future source date — check source",
-    compactLabel: "Future date",
+    label: "Future date",
     overdue: false,
   });
 });
@@ -99,7 +85,6 @@ test("unknown marketplaces and invalid clock values remain unavailable without a
   for (const invalid of [Number.NaN, Number.POSITIVE_INFINITY, 1e100, -1e100]) {
     assert.deepEqual(inventoryAge("2026-11-06", invalid, "Amazon.co.jp"), {
       label: "Date unavailable",
-      compactLabel: "Date unavailable",
       overdue: false,
     });
   }
@@ -107,36 +92,24 @@ test("unknown marketplaces and invalid clock values remain unavailable without a
 
 test("inventory empty states distinguish missing coverage, empty captures, company assignment and filtered matches", () => {
   const scope = { captures, marketplaces: ["Amazon.com"], hasItems: false, member: false };
-  assert.equal(
-    inventoryEmptyMessage({ ...scope, captures: undefined }),
-    "Checking inventory availability…",
-  );
+  assert.equal(inventoryEmptyMessage({ ...scope, captures: undefined }), "Checking inventory…");
   assert.equal(
     inventoryEmptyMessage({ ...scope, captures: [] }),
-    "No inventory snapshot has been imported for Amazon.com.",
+    "No inventory snapshot for Amazon.com yet",
   );
   assert.equal(
     inventoryEmptyMessage({ ...scope, captures: [], marketplaces: [] }),
-    "No inventory snapshots have been imported yet.",
+    "No inventory snapshots yet",
   );
   assert.equal(
     inventoryEmptyMessage({ ...scope, marketplaces: ["Amazon.de"] }),
-    "No inventory snapshot has been imported for Amazon.de.",
+    "No inventory snapshot for Amazon.de yet",
   );
-  assert.equal(
-    inventoryEmptyMessage(scope),
-    "The latest imported snapshots contain no inventory items in this marketplace scope.",
-  );
+  assert.equal(inventoryEmptyMessage(scope), "The latest snapshots have no items here");
   assert.equal(
     inventoryEmptyMessage({ ...scope, member: true }),
-    "An inventory snapshot is available, but no items from it are assigned to your company.",
+    "No inventory for your company's SKUs",
   );
-  assert.equal(
-    inventoryEmptyMessage({ ...scope, hasItems: true }),
-    "No inventory matches these filters.",
-  );
-  assert.equal(
-    inventoryEmptyMessage({ ...scope, hasItems: undefined }),
-    "Checking inventory availability before these filters…",
-  );
+  assert.equal(inventoryEmptyMessage({ ...scope, hasItems: true }), "No matching inventory");
+  assert.equal(inventoryEmptyMessage({ ...scope, hasItems: undefined }), "Checking inventory…");
 });

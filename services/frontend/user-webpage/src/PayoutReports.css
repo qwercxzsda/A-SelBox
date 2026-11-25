@@ -47,10 +47,6 @@
   font-size: var(--ui-font-data);
 }
 
-.payout-reports-table .payout-scope-cell {
-  vertical-align: top;
-}
-
 /* Shared context belongs to the report group, not to an individual selected version. */
 .payout-reports-table .payout-scope-cell[rowspan]:not([rowspan="1"]) {
   background: var(--ui-surface);

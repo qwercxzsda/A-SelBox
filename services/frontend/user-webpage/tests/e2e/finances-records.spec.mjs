@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { financesRow } from "./api-fixtures.mjs";
 import { mockSupabase, rowWithSku, signIn } from "./fixtures.mjs";
+import { openRawData } from "./raw-data-fixtures.mjs";
 
 test("Finances distinguishes activity from releases and retains transaction-version details", async ({
   page,
@@ -39,7 +40,7 @@ test("Finances distinguishes activity from releases and retains transaction-vers
     },
   ];
   await signIn(page);
-  await page.getByRole("tab", { name: "Finances", exact: true }).click();
+  await openRawData(page);
   for (const suffix of ["ORIGINAL", "DIRECT-FEE"])
     await expect(rowWithSku(page, `FINANCES-${suffix}`)).toContainText("Included");
   for (const suffix of ["RELEASE", "TRANSFER"])
@@ -48,7 +49,7 @@ test("Finances distinguishes activity from releases and retains transaction-vers
 
   await rowWithSku(page, "FINANCES-RELEASE").click();
   let drawer = page.getByRole("dialog", { name: "Finances record details", exact: true });
-  await expect(drawer).toContainText("This record is excluded from activity totals.");
+  await expect(drawer).toContainText("Not counted as activity.");
   await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
   const metadata = drawer.getByRole("table", { name: "Additional record details", exact: true });
   for (const [field, value] of [
@@ -73,4 +74,26 @@ test("Finances distinguishes activity from releases and retains transaction-vers
     path: testInfo.outputPath("finances-release-details.png"),
     animations: "disabled",
   });
+});
+
+test("a Finances record names its SelBox group in SelBox's casing, by the group's label", async ({
+  page,
+}) => {
+  const fixture = await mockSupabase(page);
+  fixture.roles["member-a"] = "administrator";
+  fixture.financesRows = [
+    { ...financesRow("ACCOUNT-FEE", "-39.99"), route: "SELBOX", selbox_group: "ACCOUNT_FEE" },
+  ];
+  await signIn(page);
+  await openRawData(page);
+  await rowWithSku(page, "FINANCES-ACCOUNT-FEE").click();
+  const drawer = page.getByRole("dialog", { name: "Finances record details", exact: true });
+  await drawer.getByRole("button", { name: "Additional details", exact: true }).click();
+  const group = drawer
+    .getByRole("table", { name: "Additional record details", exact: true })
+    .getByRole("row")
+    .filter({ has: page.getByRole("cell", { name: "SelBox group", exact: true }) });
+  await expect(group).toHaveText(/^SelBox group\s*Account fees$/);
+  await expect(drawer).not.toContainText("Selbox");
+  await expect(drawer).not.toContainText("ACCOUNT_FEE");
 });

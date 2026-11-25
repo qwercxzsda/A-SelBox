@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openReviewReadiness, readiness } from "./payout-readiness-fixtures.mjs";
+import { reviewDrawer, reviewMeasure } from "./financial-review-fixtures.mjs";
 
 const companyId = (index) => `0198b50b-701a-7000-8000-${String(index + 1).padStart(12, "0")}`;
 
@@ -38,7 +39,10 @@ test("a failed later readiness page keeps a route back to cached companies", asy
   const fixture = await openReadiness(page, 26);
   fixture.payoutReadinessStatus = 503;
   await readiness(page).getByRole("button", { name: "Next companies", exact: true }).click();
-  await expect(readiness(page)).toContainText("Readiness is temporarily unavailable.");
+  const alert = readiness(page).getByRole("alert");
+  await expect(alert).toContainText("Could not load payout readiness");
+  await expect(alert).toContainText("The server returned HTTP 503. Retrying automatically.");
+  await expect(alert.getByRole("button")).toHaveCount(0);
   const previous = readiness(page).getByRole("button", { name: "Previous companies", exact: true });
   await expect(previous).toBeVisible();
   await expect(previous).toBeEnabled();
@@ -51,7 +55,7 @@ test("a failed later readiness page keeps a route back to cached companies", asy
 test("a failed later setup page keeps a route back to cached requirements", async ({ page }) => {
   const fixture = await openReadiness(page);
   await readiness(page)
-    .getByRole("button", { name: "View setup requirements", exact: true })
+    .getByRole("button", { name: "Show setup requirements for Company 01", exact: true })
     .click();
   const table = readiness(page).getByRole("table", {
     name: "Payout setup requirements",
@@ -61,7 +65,7 @@ test("a failed later setup page keeps a route back to cached requirements", asyn
   fixture.payoutReadinessStatus = 503;
   await readiness(page).getByRole("button", { name: "Next requirements", exact: true }).click();
   await expect(readiness(page).getByRole("alert")).toContainText(
-    "Could not load payout setup requirements.",
+    "Could not load payout setup requirements",
   );
   const previous = readiness(page).getByRole("button", {
     name: "Previous requirements",
@@ -93,7 +97,7 @@ test("cached setup pages return to the first requirement with keyboard context",
   await page.setViewportSize({ width: 390, height: 800 });
   await openReadiness(page, 1, 55);
   await readiness(page)
-    .getByRole("button", { name: "View setup requirements", exact: true })
+    .getByRole("button", { name: "Show setup requirements for Company 01", exact: true })
     .click();
   const table = readiness(page).getByRole("table", {
     name: "Payout setup requirements",
@@ -106,4 +110,49 @@ test("cached setup pages return to the first requirement with keyboard context",
   await expect(
     readiness(page).getByRole("region", { name: "Payout setup requirements", exact: true }),
   ).toBeFocused();
+});
+
+test("another month starts its readiness companies on page 1, also one seen before", async ({
+  page,
+}) => {
+  const fixture = await openReviewReadiness(page, (fixture) => {
+    fixture.reviewMonths.push(
+      reviewMeasure("2026-05", "FINANCES", "-10", "-1", null, 2),
+      reviewMeasure("2026-05", "COMPANY", "-10", "-1", null, 2),
+    );
+    fixture.payoutReadinessRows = ["2026-04-01", "2026-05-01"].flatMap((month) =>
+      Array.from({ length: 26 }, (_, index) => ({
+        company_id: companyId(index),
+        company_name: `Company ${String(index + 1).padStart(2, "0")}`,
+        month,
+        eligible: "t",
+        mature: "t",
+        refresh_pending: "f",
+        failure_count: "0",
+        failure_reason: null,
+        has_activity: "t",
+        has_report: "t",
+        last_success_at: null,
+        next_attempt_at: null,
+      })),
+    );
+  });
+  const lastOffset = () => fixture.payoutReadinessRequests.at(-1).params.get("p_offset") ?? "0";
+  await readiness(page).getByRole("button", { name: "Next companies", exact: true }).click();
+  await expect(readiness(page).getByText("Company 26", { exact: true })).toBeVisible();
+  await reviewDrawer(page, "April 2026")
+    .getByRole("button", { name: "Next month", exact: true })
+    .click();
+  const may = page.getByRole("region", { name: "May 2026 payout readiness", exact: true });
+  await expect(may.getByText("Company 01", { exact: true })).toBeVisible();
+  expect(fixture.payoutReadinessRequests.at(-1).params.get("p_month")).toBe("2026-05-01");
+  expect(lastOffset()).toBe("0");
+  await reviewDrawer(page, "May 2026")
+    .getByRole("button", { name: "Previous month", exact: true })
+    .click();
+  await expect(readiness(page).getByText("Company 01", { exact: true })).toBeVisible();
+  await expect(readiness(page).getByText("Company 26", { exact: true })).toHaveCount(0);
+  await expect(
+    readiness(page).getByRole("button", { name: "Previous companies", exact: true }),
+  ).toBeDisabled();
 });

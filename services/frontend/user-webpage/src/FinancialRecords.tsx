@@ -4,7 +4,6 @@ import { DetailData } from "./DetailData";
 import { DetailTable } from "./DetailTable";
 import { financialAmountColumns, type DetailColumn } from "./detail-columns";
 import { TransactionTime } from "./TransactionTime";
-import { Text } from "@mantine/core";
 
 const RECORD_COLUMNS: DetailColumn[] = [
   { key: "activity_date", label: "Date", kind: "date" },
@@ -13,8 +12,8 @@ const RECORD_COLUMNS: DetailColumn[] = [
   { key: "source", label: "Source", kind: "source" },
   { key: "component_type", label: "Type", kind: "type" },
   { key: "quantity", label: "Quantity", kind: "number" },
-  { key: "base_amount", label: "Base amount", kind: "number" },
-  { key: "tax_amount", label: "Tax amount", kind: "number" },
+  { key: "base_amount", label: "Base amount", kind: "amount" },
+  { key: "tax_amount", label: "Tax amount", kind: "amount" },
 ];
 
 export function FinancialRecords({
@@ -38,14 +37,9 @@ export function FinancialRecords({
       query={query}
       label="records"
       rowCount={rows.length}
-      emptyMessage="No records match this selection."
+      emptyMessage="No matching records"
       pagination={{ pageIndex, totalCount: query.data?.totalCount ?? null, onPageChange }}
     >
-      {transactionTimeline ? (
-        <Text size="xs" c="dimmed" mb="sm">
-          Transactions matching the total's filters and UTC period.
-        </Text>
-      ) : null}
       {rows.length > 0 ? (
         <DetailTable
           label={label}

@@ -1,17 +1,16 @@
-import "./FinanceDataset.css";
 import "./PayoutReports.css";
 import { useRef } from "react";
-import { Alert, Badge, Button, Group, Text } from "@mantine/core";
+import { Button, Group } from "@mantine/core";
+import { StatusBadge } from "./StatusBadge";
 import type { Identity } from "./auth-session";
 import { AppliedTableFilters } from "./AppliedTableFilters";
-import { activeFilterCount, normalizeDatasetFilters } from "./dataset-filters";
 import { PayoutReportsTable } from "./PayoutReportsTable";
 import { RowDetail } from "./RowDetail";
 import { useFinanceTable } from "./use-finance-table";
 import { useWorkspacePreference } from "./use-workspace-preference";
 import { createPayoutHistoryState, decodePayoutHistoryState } from "./payout-report-view";
-import { DATASET_PRESENTATION, getErrorMessage } from "./view-model";
-import type { DatasetViewState, ViewStateProps } from "./workspace-view-state";
+import { DATASET_PRESENTATION } from "./view-model";
+import type { CorrectableViewStateProps, DatasetViewState } from "./workspace-view-state";
 import { usePayoutReportSelection } from "./use-payout-report-selection";
 import { ListPageNavigation } from "./ListPageNavigation";
 import { revealSection } from "./reveal-section";
@@ -19,22 +18,37 @@ import { DatasetCountStatus } from "./DatasetCountStatus";
 import { ListToolbar } from "./ListToolbar";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { DatasetHelp } from "./DatasetHelp";
+import { EmptyState } from "./EmptyState";
+import { ErrorAlert } from "./ErrorAlert";
+import { loadErrorDetail } from "./load-error";
+import { showsBottomPager } from "./pagination";
 
 export function PayoutReports({
   identity,
   onRetry,
   viewState,
   onViewStateChange,
+  onViewStateCorrect,
   updating = false,
 }: {
   identity: Identity;
   onRetry: () => Promise<void>;
   updating?: boolean;
-} & ViewStateProps<DatasetViewState>) {
+} & CorrectableViewStateProps<DatasetViewState>) {
   const searchInput = useRef<HTMLInputElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
-  const { table, query, totalCount, search, changeSearch, filters, changeFilters, companies } =
-    useFinanceTable(identity, "payouts", viewState, onViewStateChange);
+  const {
+    table,
+    query,
+    totalCount,
+    search,
+    changeSearch,
+    filters,
+    changeFilters,
+    hasRefinements,
+    resetSearchAndFilters,
+    companies,
+  } = useFinanceTable(identity, "payouts", viewState, { onViewStateChange, onViewStateCorrect });
   const [history, setHistory] = useWorkspacePreference(
     "payout-report-history",
     createPayoutHistoryState,
@@ -69,8 +83,6 @@ export function PayoutReports({
     fallbackRef: controlsRef,
   });
   const sort = viewState.sorting[0];
-  const visibleFilters = filters;
-  const hasRefinements = activeFilterCount(visibleFilters) > 0 || search.trim().length > 0;
 
   return (
     <>
@@ -89,30 +101,27 @@ export function PayoutReports({
         }
       />
       {query.error ? (
-        <Alert color="red" role="alert" mb="md">
-          {getErrorMessage(query.error)}
-          <Button variant="subtle" disabled={query.isFetching} onClick={() => void onRetry()}>
-            Retry
-          </Button>
-        </Alert>
+        <ErrorAlert
+          title={`Could not load ${DATASET_PRESENTATION.payouts.loadSubject}`}
+          detail={loadErrorDetail(query.error)}
+          retrying={query.isFetching}
+          onRetry={() => void onRetry()}
+        />
       ) : null}
       {selectedScope && (versionQuery.isError || (versionQuery.isSuccess && !versionQuery.data)) ? (
-        <Alert color="red" mb="md" role="alert">
-          {versionQuery.isError
-            ? getErrorMessage(versionQuery.error)
-            : "This report version is no longer available."}
-          <Button variant="subtle" onClick={() => void versionQuery.refetch()}>
-            Retry version
-          </Button>
-          <Button
-            variant="subtle"
-            onClick={() => {
-              selectReport(null);
-            }}
-          >
-            Dismiss
-          </Button>
-        </Alert>
+        <ErrorAlert
+          title="Could not load the report version"
+          detail={
+            versionQuery.isError
+              ? loadErrorDetail(versionQuery.error)
+              : "This version is no longer available."
+          }
+          retrying={versionQuery.isFetching}
+          onRetry={() => void versionQuery.refetch()}
+          onDismiss={() => {
+            selectReport(null);
+          }}
+        />
       ) : null}
       <ListToolbar
         controlsRef={controlsRef}
@@ -145,15 +154,9 @@ export function PayoutReports({
         }}
         rowCount={rows.length}
         totalCount={totalCount}
-        items="latest reports"
+        items={DATASET_PRESENTATION.payouts.items}
+        updating={query.isPlaceholderData}
         message={query.isPending ? "" : undefined}
-      />
-      <AppliedTableFilters
-        focusTarget={searchInput}
-        dataset="payouts"
-        filters={visibleFilters}
-        companies={companies}
-        onChange={changeFilters}
       />
       <PayoutReportsTable
         identity={identity}
@@ -167,6 +170,16 @@ export function PayoutReports({
         }}
         totalCount={totalCount}
         isBusy={query.isFetching}
+        isPlaceholderData={query.isPlaceholderData}
+        appliedFilters={
+          <AppliedTableFilters
+            focusTarget={searchInput}
+            dataset="payouts"
+            filters={filters}
+            companies={companies}
+            onChange={changeFilters}
+          />
+        }
         history={history}
         onToggleHistory={(key) => {
           setHistory((current) => ({
@@ -188,7 +201,6 @@ export function PayoutReports({
           <DatasetCountStatus
             isError={query.countQuery.isError}
             isFetching={query.countQuery.isFetching}
-            items="reports"
             onRetry={() => {
               showControls();
               void query.countQuery.refetch();
@@ -197,35 +209,25 @@ export function PayoutReports({
         }
       >
         {!query.isPending && !query.isError && rows.length === 0 ? (
-          <div className="empty-state">
-            <Text fw={600}>{hasRefinements ? "No matching reports" : "No payout reports yet"}</Text>
-            <Text c="dimmed" size="sm">
-              {hasRefinements
-                ? "Adjust the column filters or search to find reports."
-                : "Reports will appear automatically once a month is mature and its required data is available."}
-            </Text>
-            {hasRefinements ? (
-              <Button
-                mt="sm"
-                variant="light"
-                onClick={(event) => {
-                  if (event.detail === 0) searchInput.current?.focus();
-                  onViewStateChange({
-                    ...viewState,
-                    search: "",
-                    filters: normalizeDatasetFilters(),
-                    pagination: { ...viewState.pagination, pageIndex: 0 },
-                    selectedRowId: null,
-                  });
-                }}
-              >
-                Reset search and filters
-              </Button>
-            ) : null}
-          </div>
+          <EmptyState
+            title={
+              hasRefinements
+                ? DATASET_PRESENTATION.payouts.noMatchMessage
+                : DATASET_PRESENTATION.payouts.emptyMessage
+            }
+            action={
+              hasRefinements
+                ? {
+                    label: "Reset search and filters",
+                    focusTarget: searchInput,
+                    onClick: resetSearchAndFilters,
+                  }
+                : undefined
+            }
+          />
         ) : null}
       </PayoutReportsTable>
-      {rows.length > 10 || pageIndex > 0 ? (
+      {showsBottomPager(rows.length, pageIndex) ? (
         <ListPageNavigation
           labels={{
             navigation: "Payout report navigation at bottom",
@@ -255,14 +257,14 @@ export function PayoutReports({
         }}
         reportNavigation={
           selectedIsLatest ? (
-            <Badge variant="light" color="teal" mb="lg">
-              Latest version
-            </Badge>
+            <Group className="payout-version-navigation" mb="lg">
+              <StatusBadge tone="success">Latest version</StatusBadge>
+            </Group>
           ) : (
             <Group className="payout-version-navigation" mb="lg" justify="space-between">
-              <Badge color="gray" variant="light">
+              <StatusBadge tone="neutral">
                 {latestForSelection ? "Previous version" : "Saved version"}
-              </Badge>
+              </StatusBadge>
               {latestForSelection ? (
                 <Button
                   size="xs"

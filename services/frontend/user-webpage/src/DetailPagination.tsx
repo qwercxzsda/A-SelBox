@@ -1,6 +1,7 @@
 import { Button, Group, Text } from "@mantine/core";
 import { DETAIL_PAGE_SIZE } from "./api/pagination";
 import { LoadingStatus } from "./LoadingStatus";
+import { countLabel } from "./pagination";
 
 export interface DetailPaginationState {
   pageIndex: number;
@@ -41,7 +42,7 @@ export function DetailPagination({
       <Group gap="xs">
         <Text size="xs" c="dimmed" aria-live={bottom ? undefined : "polite"}>
           {bottom ? `Records ${range}` : `Page ${String(pageIndex + 1)}`}
-          {totalCount !== null ? ` · ${totalCount.toLocaleString("en-US")} records` : ""}
+          {totalCount !== null ? ` · ${countLabel(totalCount, "records")}` : ""}
         </Text>
         {!bottom ? <LoadingStatus state={disabled ? "updating" : null} /> : null}
       </Group>

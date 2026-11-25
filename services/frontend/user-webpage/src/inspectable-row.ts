@@ -5,6 +5,11 @@ type InspectableRowProps = Pick<
   "className" | "tabIndex" | "aria-selected" | "aria-haspopup" | "onClick" | "onKeyDown"
 >;
 
+/** A row from the previous result, shown while the next one loads, must not open. */
+function isPlaceholderRow(row: HTMLTableRowElement) {
+  return row.closest("[data-placeholder]") !== null;
+}
+
 /** Shared pointer, keyboard, and focus behavior for rows that open a detail drawer. */
 export function inspectableRowProps(selected: boolean, onSelect: () => void): InspectableRowProps {
   return {
@@ -19,6 +24,7 @@ export function inspectableRowProps(selected: boolean, onSelect: () => void): In
       )
         return;
       if (window.getSelection()?.type === "Range") return;
+      if (isPlaceholderRow(event.currentTarget)) return;
       event.currentTarget.focus();
       onSelect();
     },
@@ -26,7 +32,7 @@ export function inspectableRowProps(selected: boolean, onSelect: () => void): In
       if (event.target !== event.currentTarget) return;
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        onSelect();
+        if (!isPlaceholderRow(event.currentTarget)) onSelect();
       }
     },
   };

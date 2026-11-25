@@ -1,12 +1,8 @@
-.inventory-detail-title,
-.inventory-detail-title .sku-transaction-link {
-  font-size: 20px;
-}
-
 .inventory-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  margin-top: 24px;
 }
 
 .inventory-detail-grid > .detail-section {
@@ -23,8 +19,10 @@
   font-size: var(--ui-font-data);
 }
 
+/* The status, or its muted dash when Amazon gave none, sits 12px above the metrics. */
 .inventory-detail .inventory-health-label + dl,
-.inventory-detail .inventory-action-label + dl {
+.inventory-detail .inventory-action-label + dl,
+.inventory-detail .detail-section-body > .muted-value + dl {
   margin-top: 12px;
 }
 

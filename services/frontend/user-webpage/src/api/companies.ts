@@ -1,6 +1,7 @@
 import type { ApiTransport } from "./transport.ts";
 import type { Company } from "./types.ts";
 import { parseSingleObjectRow, requiredJsonString, requireUuid } from "./validation.ts";
+import { parseRecordTimestamp } from "../date-display.ts";
 
 export interface CreateCompanyResult extends Company {
   created: boolean;
@@ -9,6 +10,17 @@ export interface CreateCompanyResult extends Company {
 export interface DeleteCompanyResult {
   id: string;
   deleted: boolean;
+}
+
+/** One saved company from the catalog; its creation time is a timestamp with an offset. */
+export function parseCompanyRow(row: Record<string, unknown>): Company {
+  const createdAt = requiredJsonString(row, "created_at");
+  if (!parseRecordTimestamp(createdAt)) throw new Error("JSON response has invalid created_at");
+  return {
+    id: requiredJsonString(row, "id"),
+    name: requiredJsonString(row, "name"),
+    created_at: createdAt,
+  };
 }
 
 export function createCompanyApi({ postRpc }: ApiTransport) {

@@ -12,6 +12,10 @@ const reportReads = (fixture) => ({
   counts: fixture.countRequests.filter(({ dataset }) => dataset === "payouts").length,
 });
 
+/** The list's page summary, not a month group's count. */
+const pageSummary = (page, text) =>
+  page.locator(".pagination-summary", { hasText: new RegExp(`^${text}$`) });
+
 async function checkForUpdates(page, fixture) {
   const before = completedPolls(fixture);
   await page.clock.fastForward(60_000);
@@ -45,7 +49,7 @@ for (const role of ["administrator", "member"]) {
     await page.getByRole("tab", { name: "Payout reports", exact: true }).click();
     await applyReportMonth(page, "2026-06");
     await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
-    await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
+    await expect(pageSummary(page, "1 latest report")).toBeVisible();
     const before = reportReads(fixture);
 
     await checkForUpdates(page, fixture);
@@ -70,7 +74,7 @@ for (const role of ["administrator", "member"]) {
     await checkForUpdates(page, fixture);
     await expect(page.getByRole("cell", { name: "93.00 USD", exact: true })).toBeVisible();
     await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toHaveCount(0);
-    await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
+    await expect(pageSummary(page, "1 latest report")).toBeVisible();
     expect(reportReads(fixture)).toEqual({ rows: before.rows + 1, counts: before.counts + 1 });
 
     await checkForUpdates(page, fixture);
@@ -79,7 +83,7 @@ for (const role of ["administrator", "member"]) {
     await page.getByRole("button", { name: /^Show versions for/ }).click();
     await expect(page.getByRole("cell", { name: "95.00 USD", exact: true })).toBeVisible();
     await expect(page.getByRole("cell", { name: "93.00 USD", exact: true }).first()).toBeVisible();
-    await expect(page.getByText("1–1 of 1 latest reports", { exact: true })).toBeVisible();
+    await expect(pageSummary(page, "1 latest report")).toBeVisible();
 
     fixture.payoutRows.push({
       ...first,

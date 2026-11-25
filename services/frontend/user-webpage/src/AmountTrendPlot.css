@@ -13,14 +13,14 @@
   position: absolute;
   right: calc(100% + 8px);
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: var(--ui-font-caption);
   color: var(--ui-text-muted);
 }
 .amount-trend-axis-currency {
   position: absolute;
   right: calc(100% + 8px);
   top: -20px;
-  font-size: 11px;
+  font-size: var(--ui-font-caption);
   color: var(--ui-text-muted);
 }
 .amount-trend-line {

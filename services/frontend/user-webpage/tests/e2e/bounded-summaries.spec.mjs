@@ -85,7 +85,7 @@ test("a failed month keeps day and selected totals usable and retry recovers tha
   await expect(amount(day, "Reported amount")).toHaveText("50.00 USD");
   fixture.aggregateStatusForRequest = null;
 
-  await summaries.getByRole("button", { name: "Retry summaries", exact: true }).click();
+  await summaries.getByRole("button", { name: "Retry", exact: true }).click();
 
   await expect(amount(month, "Reported amount")).toHaveText("10.00 USD");
   await expect(summaries.getByRole("alert")).toHaveCount(0);
@@ -218,4 +218,36 @@ test("an offline uncached selected range stays pending until reconnect instead o
   await page.context().setOffline(false);
 
   await expect(amount(selected, "Reported amount")).toHaveText("5.00 USD");
+});
+
+test("totals failures say a shared cause once and list different causes by period", async ({
+  page,
+}) => {
+  const fixture = await mockSupabase(page);
+  seedPeriods(fixture);
+  // Last day (March 15) and Last month (February) fail alike.
+  fixture.aggregateStatusForRequest = ({ params }) =>
+    hasDate(params, "gte.2026-02-01") || hasDate(params, "gte.2026-03-15") ? 500 : 200;
+  await signIn(page);
+  const { summaries, day, month } = periods(page);
+  const alert = summaries.getByRole("alert");
+  await expect(day).toContainText("Unavailable");
+  await expect(month).toContainText("Unavailable");
+  await expect(alert).toContainText("Could not load current totals");
+  await expect(alert).toContainText("Last day, Last month: The server returned HTTP 500.");
+
+  // Different causes read as an aligned table, one row per period.
+  fixture.aggregateStatusForRequest = ({ params }) =>
+    hasDate(params, "gte.2026-02-01") ? 403 : hasDate(params, "gte.2026-03-15") ? 500 : 200;
+  await alert.getByRole("button", { name: "Retry", exact: true }).click();
+  const failures = alert.getByRole("table", { name: "Failed totals", exact: true });
+  await expect(failures.getByRole("columnheader")).toHaveText(["Period", "Cause"]);
+  await expect(failures.locator("tbody tr").nth(0).getByRole("cell")).toHaveText([
+    "Last day",
+    "The server returned HTTP 500.",
+  ]);
+  await expect(failures.locator("tbody tr").nth(1).getByRole("cell")).toHaveText([
+    "Last month",
+    "The server returned HTTP 403.",
+  ]);
 });

@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   compareAbsoluteDecimals,
   formatAmount,
+  formatExactAmount,
   formatExactDecimal,
+  formatExactMoney,
   formatMoney,
   sumExactDecimals,
 } from "../src/decimal.ts";
@@ -132,4 +134,39 @@ test("preserves PostgreSQL's full unconstrained numeric digit envelope", () => {
   const databaseMaximum = `${"9".repeat(131_072)}.${"1".repeat(16_383)}`;
   assert.equal(formatExactDecimal(databaseMaximum).replaceAll(",", ""), databaseMaximum);
   assert.equal(formatAmount(databaseMaximum).replaceAll(",", ""), `${"9".repeat(131_072)}.11`);
+});
+
+test("exact amounts keep every sub-cent digit and pad to the currency's minor units", () => {
+  for (const [value, currency, expected] of [
+    ["-1000.5", "USD", "-1,000.50"],
+    ["-0.0002", "USD", "-0.0002"],
+    ["0", "USD", "0.00"],
+    ["-0", "EUR", "0.00"],
+    ["12.345", "EUR", "12.345"],
+    ["1234", "JPY", "1,234"],
+    ["1234.5", "JPY", "1,234.5"],
+    ["1.5", "BHD", "1.500"],
+    ["1e-6", "usd", "0.000001"],
+    ["12345678901234567890.0000000001", "USD", "12,345,678,901,234,567,890.0000000001"],
+  ])
+    assert.equal(formatExactAmount(value, currency), expected, `${value} ${currency}`);
+  assert.equal(formatExactMoney("-1000.5", " usd "), "-1,000.50 USD");
+  assert.equal(formatExactMoney("-0.0002", "USD"), "-0.0002 USD");
+  for (const [value, currency] of [
+    [null, "USD"],
+    [null, null],
+    ["NaN", "USD"],
+    ["1", null],
+    ["0.0001", null],
+    ["1", "US"],
+    ["0", "US"],
+  ]) {
+    assert.equal(formatExactAmount(value, currency), "—");
+    assert.equal(formatExactMoney(value, currency), "—");
+  }
+  // A printed zero without a currency is a known zero, not an unknown amount.
+  for (const value of ["0.00", "0", "-0"]) {
+    assert.equal(formatExactAmount(value, null), "0");
+    assert.equal(formatExactMoney(value, null), "0");
+  }
 });

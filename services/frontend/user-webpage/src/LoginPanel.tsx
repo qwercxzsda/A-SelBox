@@ -45,11 +45,11 @@ export function LoginPanel({
         <Title ref={heading} tabIndex={-1} order={2} size="h3" mb="xs">
           {action}
         </Title>
-        <Text c="dimmed" size="sm">
-          {signingUp
-            ? "Create an account with your email. An administrator can then assign you to a company."
-            : "View transactions, payouts, fee settings, and inventory."}
-        </Text>
+        {signingUp ? (
+          <Text c="dimmed" size="sm">
+            An administrator assigns your company after sign-up.
+          </Text>
+        ) : null}
       </div>
       {errorMessage ? (
         <Alert ref={feedbackRef} tabIndex={-1} color="red" role="alert">

@@ -4,11 +4,7 @@ import { FINANCIAL_AMOUNTS } from "./financial-amounts";
 import { TransactionTrendNavigation } from "./TransactionTrendNavigation";
 import { TableScrollControls } from "./TableScrollControls";
 import { TRANSACTION_TYPE_GROUPS, type TypeGroupId } from "./transaction-type-families";
-import {
-  compactTransactionTrendDateLabel,
-  transactionTrendDateLabel,
-  type TransactionTrendPoint,
-} from "./transaction-trend-chart";
+import { transactionTrendDateLabel, type TransactionTrendPoint } from "./transaction-trend-chart";
 import { formatAmount } from "./decimal";
 import {
   trendAmountText,
@@ -77,9 +73,8 @@ export function TransactionTrendInspection({
         }}
       />
       <div className="transaction-trend-selection-heading">
-        <Text size="sm" fw={500} title={fullDate}>
-          {compactTransactionTrendDateLabel(inspected)}{" "}
-          <span className="transaction-trend-timezone">UTC · {currency}</span>
+        <Text size="sm" fw={500}>
+          {fullDate} <span className="transaction-trend-timezone">UTC · {currency}</span>
         </Text>
         <Text size="xs" c="dimmed">
           {inspected.rowCount.toLocaleString("en-US")}{" "}

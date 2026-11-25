@@ -45,7 +45,15 @@ for (const width of [1440, 1920]) {
     const drawer = page.getByRole("dialog", { name: "Payout report details", exact: true });
     const records = drawer.getByRole("table", { name: "Amount records", exact: true });
     await expect(records).toBeVisible();
-    await expect(drawer.getByRole("note")).toContainText("Totals use original precision");
+    await drawer.getByRole("button", { name: "Total help", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Total help", exact: true })).toContainText(
+      "Totals use full precision",
+    );
+    await expect(page.getByRole("dialog", { name: "Total help", exact: true })).not.toContainText(
+      "without a fee rate",
+    );
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeVisible();
     await expect(drawer.locator(".detail-drawer-context")).toContainText(
       "June 2026 · Amazon.com · USD",
     );

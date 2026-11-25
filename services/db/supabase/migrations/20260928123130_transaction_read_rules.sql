@@ -66,87 +66,112 @@ revoke all on function private.validate_transaction_filters(
 ), private.validate_page_bounds(integer, bigint)
 from public, anon, authenticated, service_role;
 
--- Pass the review filters into the administrator boundary before the ordered page is built.
+-- Financial review reads one marketplace. A mistyped name fails instead of reading nothing.
+create function private.validate_review_marketplace(p_marketplace text)
+returns void
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+    if p_marketplace is null then
+        raise exception 'Choose a review marketplace' using errcode = '22023';
+    end if;
+    perform p_marketplace::public.marketplace_name;
+exception when check_violation then
+    raise exception 'Unknown review marketplace' using errcode = '22023';
+end;
+$$;
+
+-- One marketplace-year of review measures, summed across seller accounts and regions.
+create function private.read_financial_review_months(p_marketplace text, p_year integer)
+returns table (
+    month date, currency text, measure text, reason text, selbox_group text,
+    base_amount numeric, tax_amount numeric, amount_count bigint
+)
+language plpgsql stable security definer set search_path = ''
+set plan_cache_mode = 'force_custom_plan' as $$
+declare
+    year_start date;
+begin
+    if not private.is_administrator() then raise insufficient_privilege; end if;
+    perform private.validate_review_marketplace(p_marketplace);
+    if p_year is null or p_year not between 1 and 9999 then
+        raise exception 'Choose a calendar year' using errcode = '22023';
+    end if;
+    year_start := make_date(p_year, 1, 1);
+    return query
+    select o.month, o.currency, o.measure, o.reason, o.selbox_group,
+        sum(o.base_amount), sum(o.tax_amount), sum(o.amount_count)::bigint
+    from private.monthly_outcomes(
+        year_start, (year_start + interval '1 year')::date, p_marketplace
+    ) as o
+    group by 1, 2, 3, 4, 5
+    order by o.month, o.currency collate "C", o.measure collate "C", o.reason collate "C",
+        o.selbox_group collate "C";
+end;
+$$;
+
+create function public.financial_review_months(p_marketplace text, p_year integer)
+returns table (
+    month date, currency text, measure text, reason text, selbox_group text,
+    base_amount numeric, tax_amount numeric, amount_count bigint
+)
+language sql stable security invoker set search_path = '' as $$
+    select * from private.read_financial_review_months(p_marketplace, p_year);
+$$;
+
+-- The month drawer lists one marketplace-month of differences or SelBox types. Every
+-- filter applies before the ordered page, so its row count equals the months RPC's
+-- amount_count for the same outcome, reason and group. An unknown reason or group
+-- code fails instead of reading nothing.
 create function private.read_financial_outcome_page(
-    p_outcome text, p_month date, p_marketplace text, p_limit integer, p_offset bigint
+    p_outcome text, p_month date, p_marketplace text, p_reason text, p_selbox_group text,
+    p_limit integer, p_offset bigint
 ) returns setof public.financial_outcomes
 language plpgsql stable security definer set search_path = ''
 set plan_cache_mode = 'force_custom_plan' as $$
 declare
-    cutoff date := p_month;
-    newest date;
     month_end date;
 begin
     if not private.is_administrator() then raise insufficient_privilege; end if;
     perform private.validate_page_bounds(p_limit, p_offset);
-    if p_outcome is null or p_outcome not in ('COMPANY','DIFFERENCE','SELBOX') or
-        (p_month is not null and (not isfinite(p_month) or extract(day from p_month) <> 1)) then
-        raise exception 'Invalid financial review scope' using errcode='22023';
+    perform private.validate_review_marketplace(p_marketplace);
+    if p_outcome is null or p_outcome not in ('DIFFERENCE', 'SELBOX')
+        or p_month is null or not isfinite(p_month) or extract(day from p_month) <> 1
+        or (p_reason is not null and p_outcome <> 'DIFFERENCE')
+        or (p_selbox_group is not null and p_outcome <> 'SELBOX')
+        or (p_reason is not null and not p_reason = any(private.difference_reasons()))
+        or (
+            p_selbox_group is not null
+            and not p_selbox_group = any(enum_range(null::private.selbox_group)::text[])
+        ) then
+        raise exception 'Invalid financial review scope' using errcode = '22023';
     end if;
     month_end := (p_month + interval '1 month')::date;
-    -- If the newest day contains the complete requested prefix, every older day
-    -- can be excluded. The existence check uses the same allocation and filters.
-    if p_outcome = 'COMPANY' then
-        select h.posted_date into newest from private.selected_finance_headers(null) h
-        where h.is_activity and (p_month is null or h.posted_date between p_month and month_end - 1)
-            and (p_marketplace is null or h.marketplace_name = p_marketplace)
-        order by h.posted_date desc limit 1;
-        if exists (
-            select 1 from private.direct_financial_amounts(null,null) d
-            where d.posted_date = newest and d.outcome = p_outcome
-                and (p_marketplace is null or d.marketplace_name = p_marketplace)
-            limit 1 offset p_offset+p_limit-1
-        ) then
-            cutoff := newest;
-        end if;
-    end if;
     return query
     select f.source, f.source_row_id, f.source_version_id, f.seller_namespace, f.amazon_scope,
         f.marketplace_name, f.currency, f.posted_date, f.component_type, f.outcome, f.selbox_group,
         f.reason, f.reference_id, f.sku, to_jsonb(f.skus), f.fnsku, f.asin, f.base_amount,
         f.tax_amount, f.company_id
     from (
-        select * from private.direct_financial_amounts(null,null)
+        select * from private.direct_financial_amounts(null, null)
         union all
-        select * from private.indirect_financial_amounts(null,null,cutoff,month_end,p_marketplace)
-    ) f
+        select * from private.indirect_financial_amounts(null, null, p_month, month_end, p_marketplace)
+    ) as f
     where f.outcome = p_outcome
-        and (cutoff is null or f.posted_date >= cutoff) and (month_end is null or f.posted_date < month_end)
-        and (p_marketplace is null or f.marketplace_name = p_marketplace)
-    order by f.posted_date desc, f.source_row_id, f.reason, f.marketplace_name
+        and f.posted_date >= p_month and f.posted_date < month_end
+        and f.marketplace_name = p_marketplace
+        and (p_reason is null or f.reason = p_reason)
+        and (p_selbox_group is null or f.selbox_group = p_selbox_group)
+    order by f.posted_date desc, f.source_row_id, f.reason
     limit p_limit offset p_offset;
 end;
 $$;
 
 create function public.financial_outcome_page(
-    p_outcome text, p_month date default null, p_marketplace text default null,
-    p_limit integer default 51, p_offset bigint default 0
+    p_outcome text, p_month date, p_marketplace text, p_reason text default null,
+    p_selbox_group text default null, p_limit integer default 50, p_offset bigint default 0
 ) returns setof public.financial_outcomes
 language sql stable security invoker set search_path = '' as $$
-    select * from private.read_financial_outcome_page(p_outcome,p_month,p_marketplace,p_limit,p_offset);
-$$;
-
-create function private.read_financial_review_month_page(
-    p_month date, p_marketplace text, p_limit integer, p_offset bigint
-) returns setof public.financial_review_monthly
-language plpgsql stable security definer set search_path = ''
-set plan_cache_mode = 'force_custom_plan' as $$
-begin
-    if not private.is_administrator() then raise insufficient_privilege; end if;
-    perform private.validate_page_bounds(p_limit, p_offset);
-    if p_month is not null and (not isfinite(p_month) or extract(day from p_month) <> 1) then
-        raise exception 'Choose the first day of a review month' using errcode='22023';
-    end if;
-    return query
-    select m.* from private.monthly_amounts(p_month,p_marketplace) m
-    order by m.month desc,m.seller_namespace,m.amazon_scope,m.marketplace_name,m.currency
-    limit p_limit offset p_offset;
-end;
-$$;
-create function public.financial_review_month_page(
-    p_month date default null, p_marketplace text default null,
-    p_limit integer default 51, p_offset bigint default 0
-) returns setof public.financial_review_monthly
-language sql stable security invoker set search_path = '' as $$
-    select * from private.read_financial_review_month_page(p_month,p_marketplace,p_limit,p_offset);
+    select * from private.read_financial_outcome_page(
+        p_outcome, p_month, p_marketplace, p_reason, p_selbox_group, p_limit, p_offset
+    );
 $$;

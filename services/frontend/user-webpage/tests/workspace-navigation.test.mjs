@@ -71,6 +71,22 @@ test("one interaction batches navigation and suspended or disposed workspaces ca
   assert.equal(navigations.length, 1);
 });
 
+test("a correcting write replaces the history entry unless the batch also pushes", async () => {
+  const { navigation, navigations } = workspace();
+  navigation.store.write("tab", "inventory", { replace: true });
+  await Promise.resolve();
+  assert.equal(navigations.length, 1);
+  assert.equal(navigations[0].replace, true);
+  navigation.store.write("inventory", { ...createInventoryViewState(), search: "SKU" });
+  navigation.store.write("tab", "live", { replace: true });
+  await Promise.resolve();
+  assert.equal(navigations.length, 2);
+  assert.equal(navigations[1].replace, false);
+  navigation.store.write("tab", "inventory");
+  await Promise.resolve();
+  assert.equal(navigations[2].replace, false);
+});
+
 test("history traversal restores navigation once and unsubscribed workspaces stop receiving events", () => {
   const { navigation, history } = workspace();
   let notifications = 0;

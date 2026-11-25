@@ -6,9 +6,9 @@ import {
   type SkuConfigurationChange,
 } from "./api";
 import type { Identity } from "./auth-session";
-import { getErrorMessage } from "./view-model";
 import type { FeeViewState, ViewStateProps } from "./workspace-view-state";
 import { clearSubmittedDrafts } from "./sku-configuration-form";
+import { feesSaveError, feesSavedNotice } from "./sku-configuration-changes";
 
 export function useSkuConfiguration(
   identity: Identity,
@@ -55,7 +55,7 @@ export function useSkuConfiguration(
       });
     },
     retry: false,
-    onSuccess: async (result, submitted) => {
+    onSuccess: async (_result, submitted) => {
       onViewStateChange((current) => ({
         ...current,
         drafts: clearSubmittedDrafts(current.drafts, submitted.changes),
@@ -63,7 +63,7 @@ export function useSkuConfiguration(
         saveProblem: null,
         requiresReload: false,
         savePending: false,
-        savedNotice: `${String(result.changed_count)} SKU ${result.changed_count === 1 ? "change" : "changes"} saved.`,
+        savedNotice: feesSavedNotice(submitted.changes),
       }));
       try {
         await onRetry();
@@ -78,7 +78,10 @@ export function useSkuConfiguration(
         error instanceof SkuConfigurationError && ["conflict", "unconfirmed"].includes(error.kind);
       onViewStateChange((current) => ({
         ...current,
-        saveProblem: getErrorMessage(error),
+        saveProblem: feesSaveError(
+          error,
+          error instanceof SkuConfigurationError ? error.message : undefined,
+        ),
         requiresReload: mustReload,
         savePending: false,
       }));

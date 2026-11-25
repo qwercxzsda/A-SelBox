@@ -14,6 +14,8 @@ AD_PROGRAMS = {
     "SPONSORED DISPLAY": "SPONSORED_DISPLAY",
     "SELF SERVICE PERFORMANCE ADS ON TV": "SPONSORED_TV",
 }
+# Invoice statuses observed in Amazon Ads invoices; the workspace labels the same set.
+INVOICE_STATUSES = frozenset({"PAID_IN_FULL"})
 ACCOUNT_ADJUSTMENTS = {
     "Applying Over Delivery Click Credits": "OVER_DELIVERY_CLICK_CREDITS",
     "Rounding Adjustment": "ROUNDING",
@@ -45,6 +47,9 @@ def invoice_rows(
         raise ValueError("Invoice response differs from the requested invoice.")
     if array(invoice["promotions"]):
         raise ValueError("Unsupported advertising invoice promotion.")
+    status = text(summary["status"])
+    if status not in INVOICE_STATUSES:
+        raise ValueError("Unrecognized advertising invoice status.")
     currency = text(object_value(summary["amountDue"])["currencyCode"])
     rate = Numeric(summary["taxRate"]).value
     if rate not in (0, 10, 1000):
@@ -111,7 +116,7 @@ def invoice_rows(
         "tax_rate_percent": multiplier * 100,
         "line_count": len(rows),
         "currency": currency,
-        "invoice_status": text(summary["status"]),
+        "invoice_status": status,
         "invoice_date": date.fromisoformat(text(summary["invoiceDate"])),
         "from_date": date.fromisoformat(text(summary["fromDate"])),
         "to_date": date.fromisoformat(text(summary["toDate"])),

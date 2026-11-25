@@ -3,6 +3,7 @@ import { AMOUNT_ORDER_LIMIT_MESSAGE } from "../../src/api/amount-ordering.ts";
 import { liveRow, financesRow } from "./api-fixtures.mjs";
 import { deferred, mockSupabase, signIn } from "./fixtures.mjs";
 import { openColumn, sortBy, columnHeader } from "./table-actions.mjs";
+import { openWorkspaceTab } from "./raw-data-fixtures.mjs";
 
 async function prepare(page, dataset, tab) {
   const fixture = await mockSupabase(page);
@@ -18,7 +19,7 @@ async function prepare(page, dataset, tab) {
     fixture,
     open: async () => {
       await signIn(page);
-      if (dataset !== "live") await page.getByRole("tab", { name: tab, exact: true }).click();
+      if (dataset !== "live") await openWorkspaceTab(page, tab);
       await expect(
         page.getByRole("table", { name: "Financial records", exact: true }).getByRole("row"),
       ).toHaveCount(26);
@@ -26,9 +27,9 @@ async function prepare(page, dataset, tab) {
   };
 }
 
-for (const [dataset, tab] of [
-  ["live", "Transactions"],
-  ["finances", "Finances"],
+for (const [dataset, tab, items] of [
+  ["live", "Transactions", "transactions"],
+  ["finances", "Finances", "breakdowns"],
 ]) {
   test(`${tab} explains disabled amount ordering above the known limit and enables it after narrowing`, async ({
     page,
@@ -42,7 +43,7 @@ for (const [dataset, tab] of [
     const menu = await openColumn(page, "Reported amount");
     await expect(menu.getByRole("button", { name: "Highest first", exact: true })).toBeDisabled();
     await expect(menu.getByRole("button", { name: "Lowest first", exact: true })).toBeDisabled();
-    await expect(menu).toContainText("10,001 matching rows");
+    await expect(menu).toContainText(`10,001 ${items} match.`);
     await expect(menu).toContainText("10,000 or fewer");
     expect(fixture.requests).toHaveLength(before);
     await menu.getByRole("button", { name: "Close options", exact: true }).click();
@@ -70,7 +71,7 @@ for (const [dataset, tab] of [
       await expect(alert).toContainText(AMOUNT_ORDER_LIMIT_MESSAGE);
       await expect(alert).not.toContainText("HTTP");
       await expect(alert.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
-      await expect(page.getByText("No matching records", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("No matching transactions", { exact: true })).toHaveCount(0);
       await expect(page.getByLabel("Search", { exact: true })).toBeEnabled();
       const menu = await openColumn(page, "Date (UTC)");
       await expect(menu.getByLabel("From date", { exact: true })).toBeEnabled();
